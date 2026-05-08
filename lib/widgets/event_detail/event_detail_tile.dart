@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'event_detail_design.dart';
+import '../../core/theme/planr_design.dart';
 
 class EventDetailTile extends StatelessWidget {
   const EventDetailTile({
@@ -19,8 +19,11 @@ class EventDetailTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F6FB),
+        color: PlanrDesign.cardLight.withOpacity(0.78),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.85),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -29,13 +32,13 @@ class EventDetailTile extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: EventDetailDesign.primary.withOpacity(0.10),
+              color: PlanrDesign.accentSoft.withOpacity(0.72),
               borderRadius: BorderRadius.circular(15),
             ),
             child: Icon(
               icon,
               size: 20,
-              color: EventDetailDesign.primary,
+              color: PlanrDesign.accentDark,
             ),
           ),
           const SizedBox(width: 12),
@@ -45,17 +48,15 @@ class EventDetailTile extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: EventDetailDesign.muted,
+                  style: PlanrDesign.smallMutedStyle.copyWith(
                     fontSize: 13,
-                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   value,
                   style: const TextStyle(
-                    color: EventDetailDesign.ink,
+                    color: PlanrDesign.ink,
                     fontSize: 15.5,
                     fontWeight: FontWeight.w900,
                     height: 1.25,

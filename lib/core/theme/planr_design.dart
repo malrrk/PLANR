@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class PlanrDesign {
   const PlanrDesign._();
 
-  static const Color backgroundTop = Color.fromARGB(255, 255, 255, 255);
+  static const Color backgroundTop = Color(0xFFFFFBF4);
   static const Color backgroundMiddle = Color(0xFFFFF4E8);
   static const Color backgroundBottom = Color(0xFFF9F1FF);
   static const Color backgroundButton = Color(0xFFFFF2E4);
@@ -28,34 +28,43 @@ class PlanrDesign {
   static const double cardRadius = 28;
 
   // Background system
-  static const Color backgroundBase = Color(0xFFFFFEFC);
+  static const Color backgroundBase = backgroundTop;
 
   static const LinearGradient homeBackgroundGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
     colors: [
-      Color(0xFFFFFFFF),
-      Color(0xFFFFF7EF),
-      Color(0xFFFFE9D6),
+      backgroundTop,
+      backgroundMiddle,
+      backgroundBottom,
     ],
     stops: [0.0, 0.58, 1.0],
   );
 
   static const RadialGradient homeLeftTextureGradient = RadialGradient(
-    center: Alignment(-0.35, -0.35),
-    radius: 1.0,
+    center: Alignment(-0.55, -0.20),
+    radius: 1.05,
     colors: [
-      Color(0x1CFFD0A0),
-      Color(0x00FFD0A0),
+      Color(0x88FFF4E8), // warm middle tone, subtle left texture
+      Color(0x00FFF4E8),
     ],
   );
 
   static const RadialGradient homeRightTextureGradient = RadialGradient(
-    center: Alignment(0.7, 0.0),
-    radius: 1.0,
+    center: Alignment(0.80, 0.10),
+    radius: 1.15,
     colors: [
-      Color(0x12F3D9FF),
-      Color(0x00F3D9FF),
+      Color(0x6EF9F1FF), // original soft purple bottom, subtle right texture
+      Color(0x00F9F1FF),
+    ],
+  );
+
+  static const RadialGradient homeBottomWarmGradient = RadialGradient(
+    center: Alignment(0.0, 1.15),
+    radius: 1.05,
+    colors: [
+      Color(0xCCFFF4E8), // warmer glow from bottom
+      Color(0x00FFF4E8),
     ],
   );
 
@@ -96,6 +105,35 @@ class PlanrDesign {
     ],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient eventsBackgroundGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      Color(0xFFFFFBF4),
+      Color(0xFFFFF3E6),
+      Color(0xFFFFE3CC),
+    ],
+    stops: [0.0, 0.55, 1.0],
+  );
+
+  static const RadialGradient eventsLeftTextureGradient = RadialGradient(
+    center: Alignment(-0.45, -0.25),
+    radius: 1.05,
+    colors: [
+      Color(0x24FFD0A0),
+      Color(0x00FFD0A0),
+    ],
+  );
+
+  static const RadialGradient eventsRightTextureGradient = RadialGradient(
+    center: Alignment(0.75, 0.05),
+    radius: 1.05,
+    colors: [
+      Color(0x14FFC7A3),
+      Color(0x00FFC7A3),
+    ],
   );
 
   static BoxShadow get softShadow => BoxShadow(

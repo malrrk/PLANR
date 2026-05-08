@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/planr_design.dart';
+import '../../core/widgets/planr_avatar.dart';
 import '../../providers/event_provider.dart';
-import 'event_detail_design.dart';
 
 class EventDetailAttendeesPreview extends ConsumerWidget {
   const EventDetailAttendeesPreview({
@@ -24,48 +25,62 @@ class EventDetailAttendeesPreview extends ConsumerWidget {
       data: (attendees) {
         final visibleAttendees = attendees.take(maxVisible).toList();
 
-        if (visibleAttendees.isEmpty) {
-          return _AttendeeShell(
-            child: Text(
-              '$attendeeCount going',
-              style: const TextStyle(
-                color: EventDetailDesign.muted,
-                fontWeight: FontWeight.w700,
-              ),
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.42),
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.92),
             ),
-          );
-        }
-
-        return _AttendeeShell(
+          ),
           child: Row(
             children: [
-              SizedBox(
-                width: visibleAttendees.length * 24 + 16,
-                height: 42,
-                child: Stack(
-                  children: [
-                    for (var i = 0; i < visibleAttendees.length; i++)
-                      Positioned(
-                        left: i * 24,
-                        child: _AttendeeAvatar(
-                          data: visibleAttendees[i],
+              if (visibleAttendees.isNotEmpty)
+                SizedBox(
+                  width: visibleAttendees.length * 24 + 22,
+                  height: 44,
+                  child: Stack(
+                    children: [
+                      for (var i = 0; i < visibleAttendees.length; i++)
+                        Positioned(
+                          left: i * 24,
+                          child: _AttendeeAvatar(
+                            data: visibleAttendees[i],
+                          ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
+                )
+              else
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: PlanrDesign.accentSoft.withOpacity(0.72),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.people_alt_rounded,
+                    color: PlanrDesign.accentDark,
+                    size: 22,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  attendeeCount == 1
-                      ? '1 person is going'
-                      : '$attendeeCount people are going',
+                  attendeeCount == 0
+                      ? 'Be the first one going'
+                      : attendeeCount == 1
+                          ? '1 person is going'
+                          : '$attendeeCount people are going',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: EventDetailDesign.ink,
+                    color: PlanrDesign.ink,
                     fontSize: 14.5,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
@@ -73,29 +88,13 @@ class EventDetailAttendeesPreview extends ConsumerWidget {
           ),
         );
       },
-      loading: () => const SizedBox.shrink(),
-      error: (_, _) => const SizedBox.shrink(),
-    );
-  }
-}
-
-class _AttendeeShell extends StatelessWidget {
-  const _AttendeeShell({
-    required this.child,
-  });
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F6FB),
-        borderRadius: BorderRadius.circular(22),
+      loading: () => const SizedBox(
+        height: 54,
+        child: Center(
+          child: CircularProgressIndicator(strokeWidth: 2.4),
+        ),
       ),
-      child: child,
+      error: (_, _) => const SizedBox.shrink(),
     );
   }
 }
@@ -111,26 +110,26 @@ class _AttendeeAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final photoUrl = data['photoUrl'] as String?;
     final displayName = data['displayName'] as String?;
-    final initial = displayName != null && displayName.isNotEmpty
-        ? displayName.characters.first.toUpperCase()
-        : '?';
 
-    return CircleAvatar(
-      radius: 21,
-      backgroundColor: Colors.white,
-      child: CircleAvatar(
-        radius: 18,
-        backgroundColor: const Color(0xFFEDEFF8),
-        backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
-        child: photoUrl == null
-            ? Text(
-                initial,
-                style: const TextStyle(
-                  color: EventDetailDesign.ink,
-                  fontWeight: FontWeight.w900,
-                ),
-              )
-            : null,
+    return Container(
+      width: 44,
+      height: 44,
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: PlanrAvatar(
+        imageUrl: photoUrl,
+        name: displayName,
+        radius: 20,
       ),
     );
   }

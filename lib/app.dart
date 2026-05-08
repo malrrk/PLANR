@@ -21,7 +21,7 @@ ThemeData _buildPlanrTheme() {
   return ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
-    scaffoldBackgroundColor: PlanrDesign.backgroundTop,
+    scaffoldBackgroundColor: PlanrDesign.backgroundBase,
     colorScheme: ColorScheme.fromSeed(
       seedColor: PlanrDesign.accent,
       brightness: Brightness.light,
@@ -56,17 +56,21 @@ ThemeData _buildPlanrTheme() {
       elevation: 0,
       shape: CircleBorder(),
     ),
-    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      backgroundColor: Colors.transparent,
-      selectedItemColor: PlanrDesign.accentDark,
-      unselectedItemColor: PlanrDesign.softMuted,
-      type: BottomNavigationBarType.fixed,
-      elevation: 0,
-    ),
     textSelectionTheme: TextSelectionThemeData(
       cursorColor: PlanrDesign.accent,
       selectionColor: PlanrDesign.accentSoft.withOpacity(0.8),
       selectionHandleColor: PlanrDesign.accent,
+    ),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: PlanrDesign.ink,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+      ),
+      contentTextStyle: const TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.w700,
+      ),
     ),
   );
 }

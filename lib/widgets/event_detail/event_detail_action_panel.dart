@@ -2,12 +2,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/planr_design.dart';
+import '../../core/widgets/planr_button.dart';
 import '../../models/event.dart';
 import '../../providers/event_provider.dart';
 import '../../screens/edit_event_screen.dart';
 import '../../screens/event_chat_screen.dart';
 import '../../screens/invite_to_event_screen.dart';
-import 'event_detail_design.dart';
 import 'event_detail_info_card.dart';
 
 class EventDetailActionPanel extends ConsumerWidget {
@@ -129,6 +130,7 @@ class EventDetailActionPanel extends ConsumerWidget {
     final isGoingAsync = ref.watch(isGoingProvider(event.id));
 
     return EventDetailInfoCard(
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -138,65 +140,25 @@ class EventDetailActionPanel extends ConsumerWidget {
               fontSize: 21,
               fontWeight: FontWeight.w900,
               letterSpacing: -0.4,
-              color: EventDetailDesign.ink,
+              color: PlanrDesign.ink,
             ),
-          ),
-          const SizedBox(height: 14),
-          if (isCreator) ...[
-            _SecondaryActionButton(
-              icon: Icons.edit_rounded,
-              label: 'Edit event',
-              onPressed: () => _openEditEvent(context),
-            ),
-            const SizedBox(height: 10),
-          ],
-          if (canInvite) ...[
-            _SecondaryActionButton(
-              icon: Icons.person_add_alt_1_rounded,
-              label: 'Invite friends',
-              onPressed: () => _openInviteFriends(context),
-            ),
-            const SizedBox(height: 10),
-          ],
-          _SecondaryActionButton(
-            icon: Icons.chat_bubble_rounded,
-            label: event.chatEnabled ? 'Open chat' : 'Chat disabled',
-            onPressed: event.chatEnabled ? () => _openChat(context) : null,
           ),
           const SizedBox(height: 14),
           isGoingAsync.when(
             data: (isGoing) {
-              return SizedBox(
-                width: double.infinity,
+              return PlanrButton(
+                label: isGoing ? 'You are going' : 'I am going',
+                icon: isGoing
+                    ? Icons.check_circle_rounded
+                    : Icons.add_circle_rounded,
+                variant: isGoing
+                    ? PlanrButtonVariant.soft
+                    : PlanrButtonVariant.filled,
                 height: 56,
-                child: FilledButton.icon(
-                  onPressed: () => _toggleGoing(
-                    context: context,
-                    ref: ref,
-                    isGoing: isGoing,
-                  ),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: isGoing
-                        ? const Color(0xFFF3F4F6)
-                        : EventDetailDesign.ink,
-                    foregroundColor:
-                        isGoing ? EventDetailDesign.ink : Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                  icon: Icon(
-                    isGoing
-                        ? Icons.check_circle_rounded
-                        : Icons.add_circle_rounded,
-                  ),
-                  label: Text(
-                    isGoing ? 'You are going' : 'I am going',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 15.5,
-                    ),
-                  ),
+                onPressed: () => _toggleGoing(
+                  context: context,
+                  ref: ref,
+                  isGoing: isGoing,
                 ),
               );
             },
@@ -213,6 +175,28 @@ class EventDetailActionPanel extends ConsumerWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
+          ),
+          const SizedBox(height: 14),
+          _ActionGrid(
+            children: [
+              if (isCreator)
+                _SmallActionButton(
+                  icon: Icons.edit_rounded,
+                  label: 'Edit',
+                  onPressed: () => _openEditEvent(context),
+                ),
+              if (canInvite)
+                _SmallActionButton(
+                  icon: Icons.person_add_alt_1_rounded,
+                  label: 'Invite',
+                  onPressed: () => _openInviteFriends(context),
+                ),
+              _SmallActionButton(
+                icon: Icons.chat_bubble_rounded,
+                label: event.chatEnabled ? 'Chat' : 'No chat',
+                onPressed: event.chatEnabled ? () => _openChat(context) : null,
+              ),
+            ],
           ),
           if (isCreator) ...[
             const SizedBox(height: 14),
@@ -231,8 +215,32 @@ class EventDetailActionPanel extends ConsumerWidget {
   }
 }
 
-class _SecondaryActionButton extends StatelessWidget {
-  const _SecondaryActionButton({
+class _ActionGrid extends StatelessWidget {
+  const _ActionGrid({
+    required this.children,
+  });
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    if (children.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Row(
+      children: [
+        for (var i = 0; i < children.length; i++) ...[
+          Expanded(child: children[i]),
+          if (i != children.length - 1) const SizedBox(width: 10),
+        ],
+      ],
+    );
+  }
+}
+
+class _SmallActionButton extends StatelessWidget {
+  const _SmallActionButton({
     required this.icon,
     required this.label,
     required this.onPressed,
@@ -246,26 +254,41 @@ class _SecondaryActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final enabled = onPressed != null;
 
-    return SizedBox(
-      width: double.infinity,
-      height: 52,
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          foregroundColor:
-              enabled ? EventDetailDesign.ink : EventDetailDesign.muted,
-          side: const BorderSide(color: EventDetailDesign.softBorder),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+    return Material(
+      color: Colors.white.withOpacity(enabled ? 0.48 : 0.25),
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          height: 78,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.95),
+            ),
           ),
-          alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-        ),
-        icon: Icon(icon, size: 20),
-        label: Text(
-          label,
-          style: const TextStyle(
-            fontWeight: FontWeight.w800,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                color: enabled ? PlanrDesign.accentDark : PlanrDesign.softMuted,
+                size: 22,
+              ),
+              const SizedBox(height: 7),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: enabled ? PlanrDesign.ink : PlanrDesign.softMuted,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -292,13 +315,15 @@ class _DangerActionButton extends StatelessWidget {
       child: OutlinedButton.icon(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.red.shade600,
-          side: BorderSide(color: Colors.red.shade100),
-          backgroundColor: Colors.red.shade50,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+          foregroundColor: Colors.red.shade700,
+          side: BorderSide(
+            color: Colors.red.shade100,
           ),
-          alignment: Alignment.centerLeft,
+          backgroundColor: Colors.red.shade50.withOpacity(0.92),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 16),
         ),
         icon: Icon(icon, size: 20),

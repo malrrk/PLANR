@@ -35,9 +35,10 @@ class PlanrBackground extends StatelessWidget {
               gradient: config.baseGradient,
             ),
           ),
+
           if (config.leftGradient != null)
             Align(
-              alignment: config.leftAlignment,
+              alignment: Alignment.topLeft,
               child: Container(
                 width: config.leftWidth,
                 height: config.leftHeight,
@@ -46,9 +47,10 @@ class PlanrBackground extends StatelessWidget {
                 ),
               ),
             ),
+
           if (config.rightGradient != null)
             Align(
-              alignment: config.rightAlignment,
+              alignment: Alignment.centerRight,
               child: Container(
                 width: config.rightWidth,
                 height: config.rightHeight,
@@ -57,6 +59,19 @@ class PlanrBackground extends StatelessWidget {
                 ),
               ),
             ),
+
+          if (config.bottomGradient != null)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Container(
+                width: double.infinity,
+                height: config.bottomHeight,
+                decoration: BoxDecoration(
+                  gradient: config.bottomGradient,
+                ),
+              ),
+            ),
+
           child,
         ],
       ),
@@ -71,15 +86,17 @@ class PlanrBackground extends StatelessWidget {
           baseGradient: PlanrDesign.homeBackgroundGradient,
           leftGradient: PlanrDesign.homeLeftTextureGradient,
           rightGradient: PlanrDesign.homeRightTextureGradient,
-        );
-
-      case PlanrBackgroundVariant.plain:
-        return const _PlanrBackgroundConfig(
-          baseColor: PlanrDesign.backgroundBase,
-          baseGradient: PlanrDesign.plainBackgroundGradient,
+          bottomGradient: PlanrDesign.homeBottomWarmGradient,
         );
 
       case PlanrBackgroundVariant.events:
+        return const _PlanrBackgroundConfig(
+          baseColor: PlanrDesign.backgroundBase,
+          baseGradient: PlanrDesign.eventsBackgroundGradient,
+          leftGradient: PlanrDesign.eventsLeftTextureGradient,
+          rightGradient: PlanrDesign.eventsRightTextureGradient,
+        );
+
       case PlanrBackgroundVariant.create:
       case PlanrBackgroundVariant.profile:
       case PlanrBackgroundVariant.friends:
@@ -89,6 +106,13 @@ class PlanrBackground extends StatelessWidget {
           baseGradient: PlanrDesign.homeBackgroundGradient,
           leftGradient: PlanrDesign.homeLeftTextureGradient,
           rightGradient: PlanrDesign.homeRightTextureGradient,
+          bottomGradient: PlanrDesign.homeBottomWarmGradient,
+        );
+
+      case PlanrBackgroundVariant.plain:
+        return const _PlanrBackgroundConfig(
+          baseColor: PlanrDesign.backgroundBase,
+          baseGradient: PlanrDesign.plainBackgroundGradient,
         );
     }
   }
@@ -100,12 +124,12 @@ class _PlanrBackgroundConfig {
     required this.baseGradient,
     this.leftGradient,
     this.rightGradient,
-    this.leftAlignment = Alignment.topLeft,
-    this.rightAlignment = Alignment.centerRight,
-    this.leftWidth = 260,
-    this.leftHeight = 260,
-    this.rightWidth = 260,
-    this.rightHeight = 420,
+    this.bottomGradient,
+    this.leftWidth = 280,
+    this.leftHeight = 300,
+    this.rightWidth = 290,
+    this.rightHeight = 460,
+    this.bottomHeight = 360,
   });
 
   final Color baseColor;
@@ -113,12 +137,11 @@ class _PlanrBackgroundConfig {
 
   final Gradient? leftGradient;
   final Gradient? rightGradient;
-
-  final Alignment leftAlignment;
-  final Alignment rightAlignment;
+  final Gradient? bottomGradient;
 
   final double leftWidth;
   final double leftHeight;
   final double rightWidth;
   final double rightHeight;
+  final double bottomHeight;
 }
