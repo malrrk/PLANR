@@ -3,11 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/event_provider.dart';
 import '../../screens/create_event_screen.dart';
-import 'home_design.dart';
+
+
 import 'home_empty_state_card.dart';
 import 'home_error_state_card.dart';
 import 'home_event_card.dart';
 import 'home_loading_card.dart';
+import '../../core/theme/planr_design.dart';
+
 
 class EventsNearYouSection extends ConsumerWidget {
   const EventsNearYouSection({super.key});
@@ -31,7 +34,7 @@ class EventsNearYouSection extends ConsumerWidget {
         const Text(
           'Happening Now', // changeable
           style: TextStyle(
-            color: HomeDesign.ink,
+            color: PlanrDesign.ink,
             fontSize: 28,
             fontWeight: FontWeight.w900,
             letterSpacing: -0.8,
@@ -41,7 +44,7 @@ class EventsNearYouSection extends ConsumerWidget {
         const Text(
           'Plans worth leaving the house for', // changeable
           style: TextStyle(
-            color: HomeDesign.muted,
+            color: PlanrDesign.muted,
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),

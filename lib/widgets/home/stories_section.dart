@@ -5,7 +5,7 @@ import '../../providers/story_provider.dart';
 import '../../screens/create_story_screen.dart';
 import '../../screens/story_viewer_screen.dart';
 import '../story_stack_card.dart';
-import 'home_design.dart';
+import '../../core/theme/planr_design.dart';
 import 'home_empty_state_card.dart';
 import 'home_error_state_card.dart';
 import 'home_loading_card.dart';
@@ -60,7 +60,7 @@ class StoriesSection extends ConsumerWidget {
                   Text(
                     'Friends & Stories',
                     style: TextStyle(
-                      color: HomeDesign.ink,
+                      color: PlanrDesign.ink,
                       fontSize: 24,
                       fontWeight: FontWeight.w900,
                       letterSpacing: -0.6,
@@ -70,7 +70,7 @@ class StoriesSection extends ConsumerWidget {
                   Text(
                     'Little moments from your people',
                     style: TextStyle(
-                      color: HomeDesign.muted,
+                      color: PlanrDesign.muted,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
@@ -82,7 +82,7 @@ class StoriesSection extends ConsumerWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: HomeDesign.backgroundButton,
+                color: PlanrDesign.backgroundButton,
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: Colors.black.withOpacity(0.12), // changeable
@@ -94,7 +94,7 @@ class StoriesSection extends ConsumerWidget {
                 padding: EdgeInsets.zero,
                 icon: const Icon(
                   Icons.add_rounded,
-                  color: HomeDesign.accent,
+                  color: PlanrDesign.accent,
                   size: 25,
                 ),
               ),

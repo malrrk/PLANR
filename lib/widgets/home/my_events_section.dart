@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/event_provider.dart';
 import '../../screens/event_detail_screen.dart';
 import '../../screens/event_invites_screen.dart';
-import 'home_design.dart';
+import '../../core/theme/planr_design.dart';
 import 'home_empty_state_card.dart';
 import 'home_error_state_card.dart';
 import 'home_loading_card.dart';
@@ -53,7 +53,7 @@ class _MyEventsSectionState extends ConsumerState<MyEventsSection> {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: HomeDesign.card.withOpacity(0.72),
+        color: PlanrDesign.card.withOpacity(0.72),
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
           color: Colors.black.withOpacity(0.12), // changeable
@@ -78,12 +78,12 @@ class _MyEventsSectionState extends ConsumerState<MyEventsSection> {
                   width: 58,
                   height: 58,
                   decoration: BoxDecoration(
-                    color: HomeDesign.accentSoft,
+                    color: PlanrDesign.accentSoft,
                     borderRadius: BorderRadius.circular(17),
                   ),
                   child: const Icon(
                     Icons.calendar_month_rounded,
-                    color: HomeDesign.accent,
+                    color: PlanrDesign.accent,
                     size: 30,
                   ),
                 ),
@@ -198,7 +198,7 @@ class _MyEventsHeaderText extends StatelessWidget {
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w900,
-            color: HomeDesign.ink,
+            color: PlanrDesign.ink,
             letterSpacing: -0.6,
             height: 1.05,
           ),
@@ -211,7 +211,7 @@ class _MyEventsHeaderText extends StatelessWidget {
                 subtitle,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: HomeDesign.muted,
+                  color: PlanrDesign.muted,
                   fontSize: 15.5,
                   fontWeight: FontWeight.w700,
                 ),
@@ -231,7 +231,7 @@ class _MyEventsHeaderText extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: HomeDesign.accent,
+                        color: PlanrDesign.accent,
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(

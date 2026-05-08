@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'home_design.dart';
+import '../../core/theme/planr_design.dart';
 
 class HomeErrorStateCard extends StatelessWidget {
   const HomeErrorStateCard({
@@ -18,7 +18,7 @@ class HomeErrorStateCard extends StatelessWidget {
       height: height,
       alignment: Alignment.center,
       padding: const EdgeInsets.all(18),
-      decoration: HomeDesign.cardDecoration(),
+      decoration: PlanrDesign.cardDecoration(),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-class HomeDesign {
-  const HomeDesign._();
+/*class HomDesign {
+  const PlanrDesign._();
 
   static const Color backgroundTop = Color(0xFFFFFBF4);
   static const Color backgroundMiddle = Color(0xFFFFF4E8);
@@ -121,4 +121,4 @@ class HomeDesign {
         fontWeight: FontWeight.w900,
         letterSpacing: -0.7,
       );
-}
+}*/

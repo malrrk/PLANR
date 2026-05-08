@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'core/theme/planr_design.dart';
 import 'screens/auth_gate.dart';
 
 class PlannerApp extends StatelessWidget {
@@ -10,19 +11,62 @@ class PlannerApp extends StatelessWidget {
     return MaterialApp(
       title: 'Planr',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF6F7FB),
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6C63FF),
-        ),
-        appBarTheme: const AppBarTheme(
-          centerTitle: false,
-          backgroundColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-        ),
-      ),
+      theme: _buildPlanrTheme(),
       home: const AuthGate(),
     );
   }
+}
+
+ThemeData _buildPlanrTheme() {
+  return ThemeData(
+    useMaterial3: true,
+    brightness: Brightness.light,
+    scaffoldBackgroundColor: PlanrDesign.backgroundTop,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: PlanrDesign.accent,
+      brightness: Brightness.light,
+      primary: PlanrDesign.accent,
+      secondary: PlanrDesign.eventMetaOrange,
+      surface: PlanrDesign.cardLight,
+      error: const Color(0xFFD32F2F),
+    ),
+    appBarTheme: const AppBarTheme(
+      centerTitle: false,
+      backgroundColor: Colors.transparent,
+      foregroundColor: PlanrDesign.ink,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      iconTheme: IconThemeData(
+        color: PlanrDesign.ink,
+      ),
+      titleTextStyle: TextStyle(
+        color: PlanrDesign.ink,
+        fontSize: 22,
+        fontWeight: FontWeight.w900,
+        letterSpacing: -0.3,
+      ),
+    ),
+    progressIndicatorTheme: const ProgressIndicatorThemeData(
+      color: PlanrDesign.accent,
+    ),
+    floatingActionButtonTheme: const FloatingActionButtonThemeData(
+      backgroundColor: PlanrDesign.accent,
+      foregroundColor: Colors.white,
+      elevation: 0,
+      shape: CircleBorder(),
+    ),
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      backgroundColor: Colors.transparent,
+      selectedItemColor: PlanrDesign.accentDark,
+      unselectedItemColor: PlanrDesign.softMuted,
+      type: BottomNavigationBarType.fixed,
+      elevation: 0,
+    ),
+    textSelectionTheme: TextSelectionThemeData(
+      cursorColor: PlanrDesign.accent,
+      selectionColor: PlanrDesign.accentSoft.withOpacity(0.8),
+      selectionHandleColor: PlanrDesign.accent,
+    ),
+  );
 }

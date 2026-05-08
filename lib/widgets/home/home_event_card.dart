@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/event.dart';
 import '../../providers/event_provider.dart';
 import '../../screens/event_detail_screen.dart';
-import 'home_design.dart';
+import '../../core/theme/planr_design.dart';
 import '../../models/event_tag.dart';
 import '../event_tag_chips.dart';
 
@@ -58,7 +58,7 @@ class HomeEventCard extends ConsumerWidget {
       return const Color(0xFF6D5DF6);
     }
 
-    return HomeDesign.accent;
+    return PlanrDesign.accent;
   }
 
   void _openDetails(BuildContext context) {
@@ -77,7 +77,7 @@ class HomeEventCard extends ConsumerWidget {
       child: Container(
         height: 286,
         decoration: BoxDecoration(
-          color: HomeDesign.ink,
+          color: PlanrDesign.ink,
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
@@ -230,7 +230,7 @@ class _EventPlaceholderImage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        gradient: HomeDesign.brandGradient,
+        gradient: PlanrDesign.brandGradient,
       ),
       child: const Center(
         child: Icon(
@@ -250,7 +250,7 @@ class _EventImageOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        gradient: HomeDesign.eventOverlayGradient(),
+        gradient: PlanrDesign.eventOverlayGradient(),
       ),
     );
   }
@@ -335,7 +335,7 @@ class _HostAvatarButton extends StatelessWidget {
             ? Text(
                 name.characters.first.toUpperCase(),
                 style: const TextStyle(
-                  color: HomeDesign.accent,
+                  color: PlanrDesign.accent,
                   fontSize: 15,
                   fontWeight: FontWeight.w900,
                 ),
@@ -485,7 +485,7 @@ class _EventMetaLine extends StatelessWidget {
       children: [
         Icon(
           icon,
-          color: HomeDesign.eventMetaOrange,
+          color: PlanrDesign.eventMetaOrange,
           size: 19,
         ),
         const SizedBox(width: 8),
@@ -495,7 +495,7 @@ class _EventMetaLine extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: HomeDesign.eventMetaOrange,
+              color: PlanrDesign.eventMetaOrange,
               fontSize: 16,
               fontWeight: FontWeight.w900,
             ),

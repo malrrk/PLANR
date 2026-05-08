@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'home_design.dart';
+import '../../core/theme/planr_design.dart';
 
 class HomeSectionHeader extends StatelessWidget {
   const HomeSectionHeader({
@@ -31,7 +31,7 @@ class HomeSectionHeader extends StatelessWidget {
                   fontSize: 22,
                   fontWeight: FontWeight.w900,
                   letterSpacing: -0.5,
-                  color: HomeDesign.ink,
+                  color: PlanrDesign.ink,
                 ),
               ),
               if (subtitle != null) ...[
@@ -41,7 +41,7 @@ class HomeSectionHeader extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w500,
-                    color: HomeDesign.muted,
+                    color: PlanrDesign.muted,
                   ),
                 ),
               ],

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'home_design.dart';
+import '../../core/theme/planr_design.dart';
 
 class HomeEmptyStateCard extends StatelessWidget {
   const HomeEmptyStateCard({
@@ -23,14 +23,14 @@ class HomeEmptyStateCard extends StatelessWidget {
     return Container(
       height: height,
       padding: const EdgeInsets.all(18),
-      decoration: HomeDesign.cardDecoration(),
+      decoration: PlanrDesign.cardDecoration(),
       child: Row(
         children: [
           Container(
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              gradient: HomeDesign.brandGradient,
+              gradient: PlanrDesign.brandGradient,
               borderRadius: BorderRadius.circular(18),
             ),
             child: Icon(
@@ -44,7 +44,7 @@ class HomeEmptyStateCard extends StatelessWidget {
             child: Text(
               message,
               style: const TextStyle(
-                color: HomeDesign.muted,
+                color: PlanrDesign.muted,
                 fontSize: 15.5,
                 height: 1.35,
                 fontWeight: FontWeight.w500,
@@ -56,7 +56,7 @@ class HomeEmptyStateCard extends StatelessWidget {
             FilledButton(
               onPressed: onActionPressed,
               style: FilledButton.styleFrom(
-                backgroundColor: HomeDesign.ink,
+                backgroundColor: PlanrDesign.ink,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(999),

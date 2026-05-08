@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'home_design.dart';
+import '../../core/theme/planr_design.dart';
 
 class HomeLoadingCard extends StatelessWidget {
   const HomeLoadingCard({
@@ -14,7 +14,7 @@ class HomeLoadingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: height,
-      decoration: HomeDesign.cardDecoration(),
+      decoration: PlanrDesign.cardDecoration(),
       child: const Center(
         child: CircularProgressIndicator(
           strokeWidth: 2.6,

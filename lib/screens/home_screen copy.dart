@@ -12,7 +12,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        gradient: HomeDesign.backgroundGradient,
+        gradient: PlanrDesign.backgroundGradient,
       ),
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -20,7 +20,7 @@ class HomeScreen extends StatelessWidget {
           backgroundColor: Colors.transparent,
           elevation: 0,
           scrolledUnderElevation: 0,
-          titleSpacing: HomeDesign.pagePadding,
+          titleSpacing: PlanrDesign.pagePadding,
           title: const _HomeTitle(),
           actions: [
             Padding(
@@ -34,9 +34,9 @@ class HomeScreen extends StatelessWidget {
         ),
         body: ListView(
           padding: const EdgeInsets.fromLTRB(
-            HomeDesign.pagePadding,
+            PlanrDesign.pagePadding,
             4,
-            HomeDesign.pagePadding,
+            PlanrDesign.pagePadding,
             28,
           ),
           children: const [
@@ -65,7 +65,7 @@ class _HomeTitle extends StatelessWidget {
         fontSize: 24,
         fontWeight: FontWeight.w900,
         letterSpacing: -0.8,
-        color: HomeDesign.ink,
+        color: PlanrDesign.ink,
       ),
     );
   }
@@ -93,7 +93,7 @@ class _RoundIconButton extends StatelessWidget {
           height: 44,
           child: Icon(
             icon,
-            color: HomeDesign.ink,
+            color: PlanrDesign.ink,
           ),
         ),
       ),
@@ -107,7 +107,7 @@ class _WelcomeHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: HomeDesign.cardDecoration(radius: 30),
+      decoration: PlanrDesign.cardDecoration(radius: 30),
       padding: const EdgeInsets.all(18),
       child: Row(
         children: [
@@ -115,11 +115,11 @@ class _WelcomeHero extends StatelessWidget {
             width: 58,
             height: 58,
             decoration: BoxDecoration(
-              gradient: HomeDesign.brandGradient,
+              gradient: PlanrDesign.brandGradient,
               borderRadius: BorderRadius.circular(22),
               boxShadow: [
                 BoxShadow(
-                  color: HomeDesign.primary.withOpacity(0.28),
+                  color: PlanrDesign.primary.withOpacity(0.28),
                   blurRadius: 18,
                   offset: const Offset(0, 8),
                 ),
@@ -142,7 +142,7 @@ class _WelcomeHero extends StatelessWidget {
                     fontSize: 21,
                     fontWeight: FontWeight.w900,
                     letterSpacing: -0.5,
-                    color: HomeDesign.ink,
+                    color: PlanrDesign.ink,
                   ),
                 ),
                 SizedBox(height: 4),
@@ -151,7 +151,7 @@ class _WelcomeHero extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14.5,
                     height: 1.3,
-                    color: HomeDesign.muted,
+                    color: PlanrDesign.muted,
                     fontWeight: FontWeight.w500,
                   ),
                 ),

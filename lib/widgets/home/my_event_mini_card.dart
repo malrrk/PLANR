@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/event.dart';
-import 'home_design.dart';
+import '../../core/theme/planr_design.dart';
 import '../../models/event_tag.dart';
 
 class MyEventMiniCard extends StatelessWidget {
@@ -34,7 +34,7 @@ class MyEventMiniCard extends StatelessWidget {
         child: Container(
           width: 252,
           decoration: BoxDecoration(
-            color: HomeDesign.ink,
+            color: PlanrDesign.ink,
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
@@ -51,7 +51,7 @@ class MyEventMiniCard extends StatelessWidget {
               _MiniEventImage(event: event),
               DecoratedBox(
                 decoration: BoxDecoration(
-                  gradient: HomeDesign.eventOverlayGradient(),
+                  gradient: PlanrDesign.eventOverlayGradient(),
                 ),
               ),
               Positioned(
@@ -146,7 +146,7 @@ class _MiniImagePlaceholder extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        gradient: HomeDesign.brandGradient,
+        gradient: PlanrDesign.brandGradient,
       ),
       child: const Center(
         child: Icon(
@@ -208,7 +208,7 @@ class _MiniGoingPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: HomeDesign.accent.withOpacity(0.94),
+        color: PlanrDesign.accent.withOpacity(0.94),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -304,7 +304,7 @@ class _MiniPrimaryTagPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
       decoration: BoxDecoration(
-        color: HomeDesign.accent.withOpacity(0.94),
+        color: PlanrDesign.accent.withOpacity(0.94),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
           color: Colors.white.withOpacity(0.12),

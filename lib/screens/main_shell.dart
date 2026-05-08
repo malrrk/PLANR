@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../widgets/home/home_design.dart';
+import '../core/theme/planr_design.dart';
 import 'create_event_screen.dart';
 import 'events_screen.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';
 import 'stories_screen.dart';
+
+// import 'test_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -156,7 +158,7 @@ class _BottomNavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? HomeDesign.accent : const Color(0xFF716B65);
+    final color = selected ? PlanrDesign.accent : const Color(0xFF716B65);
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -209,11 +211,11 @@ class _BottomCreateItem extends StatelessWidget {
             width: 58,
             height: 46,
             decoration: BoxDecoration(
-              color: HomeDesign.accent,
+              color: PlanrDesign.accent,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: HomeDesign.accent.withOpacity(0.25),
+                  color: PlanrDesign.accent.withOpacity(0.25),
                   blurRadius: 16,
                   offset: const Offset(0, 7),
                 ),
@@ -231,7 +233,7 @@ class _BottomCreateItem extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: HomeDesign.accent,
+              color: PlanrDesign.accent,
               fontSize: 12,
               fontWeight: FontWeight.w900,
             ),
