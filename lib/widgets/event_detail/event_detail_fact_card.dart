@@ -17,23 +17,22 @@ class EventDetailFactCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(13, 13, 13, 14),
+      padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.50),
-        borderRadius: BorderRadius.circular(22),
+        color: Colors.white.withOpacity(0.46),
+        borderRadius: BorderRadius.circular(21),
         border: Border.all(
-          color: Colors.white.withOpacity(0.96),
-          width: 1,
+          color: Colors.white.withOpacity(0.94),
         ),
       ),
       child: Row(
         children: [
           Container(
-            width: 39,
-            height: 39,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
               color: PlanrDesign.accentSoft.withOpacity(0.72),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(15),
             ),
             child: Icon(
               icon,
@@ -48,8 +47,6 @@ class EventDetailFactCard extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: PlanrDesign.softMuted,
                     fontSize: 11.5,

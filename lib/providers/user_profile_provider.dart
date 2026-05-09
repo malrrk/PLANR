@@ -109,16 +109,24 @@ class UserProfileService {
       throw Exception('Display name cannot be empty.');
     }
 
+    final data = <String, dynamic>{
+      'displayName': trimmedDisplayName,
+      'bio': trimmedBio == null || trimmedBio.isEmpty ? null : trimmedBio,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    if (photoUrl != null) {
+      data['photoUrl'] = photoUrl;
+    }
+
+    if (backgroundImageUrl != null) {
+      data['backgroundImageUrl'] = backgroundImageUrl;
+    }
+
     await _firestore.collection('users').doc(uid).set(
-      {
-        'displayName': trimmedDisplayName,
-        'bio': trimmedBio == null || trimmedBio.isEmpty ? null : trimmedBio,
-        'photoUrl': ?photoUrl,
-        'backgroundImageUrl': ?backgroundImageUrl,
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+          data,
+          SetOptions(merge: true),
+        );
   }
 
   Future<String> uploadProfilePhoto({

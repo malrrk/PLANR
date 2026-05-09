@@ -99,6 +99,13 @@ class PlanrBackground extends StatelessWidget {
 
       case PlanrBackgroundVariant.create:
       case PlanrBackgroundVariant.profile:
+        return const _PlanrBackgroundConfig(
+          baseColor: PlanrDesign.backgroundBase,
+          baseGradient: PlanrDesign.profileBackgroundGradient,
+          leftGradient: PlanrDesign.profileLeftTextureGradient,
+          rightGradient: PlanrDesign.profileRightTextureGradient,
+          bottomGradient: PlanrDesign.profileBottomWarmGradient,
+        );
       case PlanrBackgroundVariant.friends:
       case PlanrBackgroundVariant.auth:
         return const _PlanrBackgroundConfig(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/planr_design.dart';
 import '../../models/event.dart';
+import '../event_tag_chips.dart';
 
 class EventDetailHeaderImage extends StatelessWidget {
   const EventDetailHeaderImage({
@@ -14,39 +15,24 @@ class EventDetailHeaderImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SliverAppBar(
-      expandedHeight: 360,
+      expandedHeight: 420,
       pinned: true,
       stretch: true,
       elevation: 0,
-      backgroundColor: PlanrDesign.ink,
-      foregroundColor: Colors.white,
+      backgroundColor: PlanrDesign.backgroundBase,
+      foregroundColor: PlanrDesign.ink,
       surfaceTintColor: Colors.transparent,
       automaticallyImplyLeading: false,
       leadingWidth: 66,
       leading: Padding(
         padding: const EdgeInsets.only(left: 16),
         child: Center(
-          child: _GlassIconButton(
+          child: _HeaderIconButton(
             icon: Icons.arrow_back_ios_new_rounded,
             onTap: () => Navigator.of(context).maybePop(),
           ),
         ),
       ),
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 16),
-          child: _GlassIconButton(
-            icon: Icons.ios_share_rounded,
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Sharing is not implemented yet.'),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
       flexibleSpace: FlexibleSpaceBar(
         stretchModes: const [
           StretchMode.zoomBackground,
@@ -65,37 +51,85 @@ class EventDetailHeaderImage extends StatelessWidget {
               else
                 const _EventImagePlaceholder(),
 
+              // Top shade for readable back button.
               const DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      Color(0x11000000),
-                      Color(0x55000000),
-                      Color(0xE6000000),
+                      Color(0x66000000),
+                      Color(0x00000000),
                     ],
-                    stops: [0.0, 0.52, 1.0],
                     begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
+                    end: Alignment.center,
+                  ),
+                ),
+              ),
+
+              // Image fades into actual app background.
+              // Image fades into the page background, not pure white.
+              const Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: 230,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Color(0x00FFFBF4),
+                        Color(0xBFFFF4E8),
+                        Color(0xFFFFF4E8),
+                      ],
+                      stops: [0.0, 0.56, 1.0],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
                   ),
                 ),
               ),
 
               Positioned(
-                left: 18,
-                right: 18,
-                bottom: 56,
-                child: Row(
+                left: PlanrDesign.pagePadding,
+                right: PlanrDesign.pagePadding,
+                bottom: 24,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _HeaderBadge(
-                      icon: Icons.local_fire_department_rounded,
-                      label: '${event.attendeeCount} going',
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _VisibilityBadge(visibility: event.visibility),
+                        EventTagChips(
+                          tagIds: event.tags,
+                          maxVisible: 3,
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 10),
-                    if (event.chatEnabled)
-                      const _HeaderBadge(
-                        icon: Icons.chat_bubble_rounded,
-                        label: 'Chat open',
-                      ),
+                    const SizedBox(height: 14),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            event.title,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: PlanrDesign.ink,
+                              fontSize: 34,
+                              height: 1.02,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -1.15,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        _GoingCountPill(
+                          attendeeCount: event.attendeeCount,
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -107,8 +141,8 @@ class EventDetailHeaderImage extends StatelessWidget {
   }
 }
 
-class _GlassIconButton extends StatelessWidget {
-  const _GlassIconButton({
+class _HeaderIconButton extends StatelessWidget {
+  const _HeaderIconButton({
     required this.icon,
     required this.onTap,
   });
@@ -119,7 +153,7 @@ class _GlassIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withOpacity(0.18),
+      color: Colors.white.withOpacity(0.88),
       shape: const CircleBorder(),
       child: InkWell(
         onTap: onTap,
@@ -130,12 +164,19 @@ class _GlassIconButton extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: Colors.white.withOpacity(0.26),
+              color: Colors.white.withOpacity(0.96),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.10),
+                blurRadius: 14,
+                offset: const Offset(0, 7),
+              ),
+            ],
           ),
           child: Icon(
             icon,
-            color: Colors.white,
+            color: PlanrDesign.ink,
             size: 19,
           ),
         ),
@@ -144,46 +185,106 @@ class _GlassIconButton extends StatelessWidget {
   }
 }
 
-class _HeaderBadge extends StatelessWidget {
-  const _HeaderBadge({
-    required this.icon,
-    required this.label,
+class _GoingCountPill extends StatelessWidget {
+  const _GoingCountPill({
+    required this.attendeeCount,
   });
 
-  final IconData icon;
-  final String label;
+  final int attendeeCount;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      constraints: const BoxConstraints(minWidth: 72),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.92),
-        borderRadius: BorderRadius.circular(999),
+        color: Colors.white.withOpacity(0.74),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: Colors.white.withOpacity(0.95),
+          color: Colors.white.withOpacity(0.96),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.16),
-            blurRadius: 18,
-            offset: const Offset(0, 9),
+            color: Colors.black.withOpacity(0.055),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
           ),
         ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.people_alt_rounded,
+            color: PlanrDesign.accentDark,
+            size: 20,
+          ),
+          const SizedBox(height: 3),
+          Text(
+            attendeeCount.toString(),
+            style: const TextStyle(
+              color: PlanrDesign.ink,
+              fontSize: 17,
+              fontWeight: FontWeight.w900,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 1),
+          const Text(
+            'going',
+            style: TextStyle(
+              color: PlanrDesign.softMuted,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w900,
+              height: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VisibilityBadge extends StatelessWidget {
+  const _VisibilityBadge({
+    required this.visibility,
+  });
+
+  final String visibility;
+
+  @override
+  Widget build(BuildContext context) {
+    final isPrivate = visibility == 'private';
+
+    final backgroundColor = isPrivate
+        ? Colors.orange.withOpacity(0.15)
+        : PlanrDesign.accentSoft.withOpacity(0.78);
+
+    final foregroundColor =
+        isPrivate ? Colors.orange.shade800 : PlanrDesign.accentDark;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.92),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            icon,
-            size: 16,
-            color: PlanrDesign.accentDark,
+            isPrivate ? Icons.lock_rounded : Icons.public_rounded,
+            size: 15,
+            color: foregroundColor,
           ),
           const SizedBox(width: 6),
           Text(
-            label,
-            style: const TextStyle(
-              color: PlanrDesign.ink,
+            isPrivate ? 'Private' : 'Public',
+            style: TextStyle(
+              color: foregroundColor,
               fontWeight: FontWeight.w900,
               fontSize: 12.5,
             ),

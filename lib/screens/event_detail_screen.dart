@@ -4,14 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/planr_design.dart';
 import '../core/widgets/planr_background.dart';
 import '../core/widgets/planr_card.dart';
+import '../models/event.dart';
 import '../providers/event_provider.dart';
 import '../widgets/event_detail/event_detail_action_panel.dart';
-import '../widgets/event_detail/event_detail_attendees_preview.dart';
 import '../widgets/event_detail/event_detail_fact_card.dart';
 import '../widgets/event_detail/event_detail_header_image.dart';
-import '../widgets/event_detail/event_detail_host_row.dart';
 import '../widgets/event_detail/event_detail_info_card.dart';
-import '../widgets/event_tag_chips.dart';
 
 class EventDetailScreen extends ConsumerWidget {
   const EventDetailScreen({
@@ -38,128 +36,189 @@ class EventDetailScreen extends ConsumerWidget {
 
     return PlanrBackground(
       variant: PlanrBackgroundVariant.events,
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: eventAsync.when(
-          data: (event) {
-            if (event == null) {
-              return const _EventNotFoundState();
-            }
+      child: eventAsync.when(
+        data: (event) {
+          if (event == null) {
+            return const Scaffold(
+              backgroundColor: Colors.transparent,
+              body: _EventNotFoundState(),
+            );
+          }
 
-            return CustomScrollView(
+          return Scaffold(
+            backgroundColor: Colors.transparent,
+            floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+            floatingActionButton: _FloatingGoingButton(event: event),
+            body: CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
                 EventDetailHeaderImage(event: event),
                 SliverToBoxAdapter(
-                  child: Transform.translate(
-                    offset: const Offset(0, -38),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        PlanrDesign.pagePadding,
-                        0,
-                        PlanrDesign.pagePadding,
-                        34,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          EventDetailInfoCard(
-                            padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: [
-                                    _VisibilityBadge(
-                                      visibility: event.visibility,
-                                    ),
-                                    EventTagChips(
-                                      tagIds: event.tags,
-                                      maxVisible: 3,
-                                    ),
-                                  ],
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      PlanrDesign.pagePadding,
+                      18,
+                      PlanrDesign.pagePadding,
+                      118,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        EventDetailInfoCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const _SectionTitle(
+                                title: 'About',
+                                icon: Icons.notes_rounded,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                event.description.trim().isEmpty
+                                    ? 'No description yet.'
+                                    : event.description,
+                                style: const TextStyle(
+                                  fontSize: 15.5,
+                                  height: 1.56,
+                                  color: PlanrDesign.muted,
+                                  fontWeight: FontWeight.w600,
                                 ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  event.title,
-                                  style: const TextStyle(
-                                    fontSize: 31,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: -1.0,
-                                    height: 1.05,
-                                    color: PlanrDesign.ink,
-                                  ),
-                                ),
-                                const SizedBox(height: 18),
-                                EventDetailHostRow(event: event),
-                                const SizedBox(height: 16),
-                                EventDetailFactCard(
-                                  icon: Icons.schedule_rounded,
-                                  label: 'Date & Time',
-                                  value: _formatDate(event.date),
-                                ),
-                                const SizedBox(height: 10),
-                                EventDetailFactCard(
-                                  icon: Icons.place_rounded,
-                                  label: 'Location',
-                                  value: event.address,
-                                ),
-                                const SizedBox(height: 10),
-                                EventDetailFactCard(
-                                  icon: Icons.people_alt_rounded,
-                                  label: 'Attendees',
-                                  value: event.attendeeCount == 1
-                                      ? '1 person going'
-                                      : '${event.attendeeCount} people going',
-                                ),
-                                const SizedBox(height: 14),
-                                EventDetailAttendeesPreview(
-                                  eventId: event.id,
-                                  attendeeCount: event.attendeeCount,
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 18),
-                          EventDetailInfoCard(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const _SectionTitle(
-                                  title: 'About this event',
-                                  icon: Icons.notes_rounded,
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  event.description.trim().isEmpty
-                                      ? 'No description yet.'
-                                      : event.description,
-                                  style: const TextStyle(
-                                    fontSize: 15.5,
-                                    height: 1.56,
-                                    color: PlanrDesign.muted,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
+                        ),
+                        const SizedBox(height: 16),
+                        EventDetailActionPanel(event: event),
+                        const SizedBox(height: 16),
+                        EventDetailInfoCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const _SectionTitle(
+                                title: 'Details',
+                                icon: Icons.info_outline_rounded,
+                              ),
+                              const SizedBox(height: 14),
+                              EventDetailFactCard(
+                                icon: Icons.schedule_rounded,
+                                label: 'Date & Time',
+                                value: _formatDate(event.date),
+                              ),
+                              const SizedBox(height: 10),
+                              EventDetailFactCard(
+                                icon: Icons.place_rounded,
+                                label: 'Location',
+                                value: event.address,
+                              ),
+                              const SizedBox(height: 10),
+                              EventDetailFactCard(
+                                icon: Icons.person_rounded,
+                                label: 'Host',
+                                value: event.creatorDisplayName,
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 18),
-                          EventDetailActionPanel(event: event),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ],
-            );
-          },
-          loading: () => const _EventLoadingState(),
-          error: (_, _) => const _EventErrorState(),
+            ),
+          );
+        },
+        loading: () => const Scaffold(
+          backgroundColor: Colors.transparent,
+          body: _EventLoadingState(),
+        ),
+        error: (_, _) => const Scaffold(
+          backgroundColor: Colors.transparent,
+          body: _EventErrorState(),
         ),
       ),
+    );
+  }
+}
+
+class _FloatingGoingButton extends ConsumerWidget {
+  const _FloatingGoingButton({
+    required this.event,
+  });
+
+  final Event event;
+
+  Future<void> _toggleGoing({
+    required BuildContext context,
+    required WidgetRef ref,
+    required bool isGoing,
+  }) async {
+    final service = ref.read(eventServiceProvider);
+
+    final error = isGoing
+        ? await service.leaveEvent(event)
+        : await service.joinEvent(event);
+
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          error ?? (isGoing ? 'You left the event.' : 'You are going.'),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isGoingAsync = ref.watch(isGoingProvider(event.id));
+
+    return isGoingAsync.when(
+      data: (isGoing) {
+        return FloatingActionButton.extended(
+          heroTag: 'event-going-${event.id}',
+          onPressed: () => _toggleGoing(
+            context: context,
+            ref: ref,
+            isGoing: isGoing,
+          ),
+          backgroundColor:
+              isGoing ? PlanrDesign.accentSoft : PlanrDesign.accent,
+          foregroundColor:
+              isGoing ? PlanrDesign.accentDark : Colors.white,
+          elevation: 8,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(999),
+          ),
+          icon: Icon(
+            isGoing
+                ? Icons.check_circle_rounded
+                : Icons.add_circle_rounded,
+          ),
+          label: Text(
+            isGoing ? 'Going' : 'I am going',
+            style: const TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 15,
+            ),
+          ),
+        );
+      },
+      loading: () {
+        return FloatingActionButton(
+          heroTag: 'event-going-loading-${event.id}',
+          onPressed: null,
+          backgroundColor: PlanrDesign.accentSoft,
+          foregroundColor: PlanrDesign.accentDark,
+          elevation: 4,
+          child: const SizedBox(
+            width: 21,
+            height: 21,
+            child: CircularProgressIndicator(strokeWidth: 2.4),
+          ),
+        );
+      },
+      error: (_, _) => const SizedBox.shrink(),
     );
   }
 }
@@ -201,56 +260,6 @@ class _SectionTitle extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _VisibilityBadge extends StatelessWidget {
-  const _VisibilityBadge({
-    required this.visibility,
-  });
-
-  final String visibility;
-
-  @override
-  Widget build(BuildContext context) {
-    final isPrivate = visibility == 'private';
-
-    final backgroundColor = isPrivate
-        ? Colors.orange.withOpacity(0.14)
-        : PlanrDesign.accentSoft.withOpacity(0.72);
-
-    final foregroundColor =
-        isPrivate ? Colors.orange.shade800 : PlanrDesign.accentDark;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.90),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            isPrivate ? Icons.lock_rounded : Icons.public_rounded,
-            size: 15,
-            color: foregroundColor,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            isPrivate ? 'Private' : 'Public',
-            style: TextStyle(
-              color: foregroundColor,
-              fontWeight: FontWeight.w900,
-              fontSize: 12.5,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

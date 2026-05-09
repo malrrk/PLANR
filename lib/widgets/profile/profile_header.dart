@@ -2,8 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../core/theme/planr_design.dart';
+import '../../core/widgets/planr_avatar.dart';
 import '../../models/user_profile.dart';
-import 'profile_design.dart';
 
 class ProfileHeader extends StatelessWidget {
   const ProfileHeader({
@@ -20,38 +21,30 @@ class ProfileHeader extends StatelessWidget {
     final hasBio = profile.bio != null && profile.bio!.trim().isNotEmpty;
 
     return Container(
-      decoration: ProfileDesign.cardDecoration(radius: 36),
+      decoration: BoxDecoration(
+        color: PlanrDesign.cardLight.withOpacity(0.88),
+        borderRadius: BorderRadius.circular(34),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.95),
+          width: 1.1,
+        ),
+        boxShadow: [PlanrDesign.softShadow],
+      ),
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
           SizedBox(
-            height: 190,
+            height: 185,
             width: double.infinity,
             child: Stack(
               fit: StackFit.expand,
               children: [
                 _CoverImage(profile: profile),
-                const _CoverOverlay(),
+                const _CoverFade(),
                 Positioned(
-                  top: 16,
-                  right: 16,
+                  top: 14,
+                  right: 14,
                   child: _FloatingEditButton(onTap: onEditPressed),
-                ),
-                Positioned(
-                  left: -26,
-                  top: -22,
-                  child: _SoftOrb(
-                    size: 96,
-                    color: Colors.white.withOpacity(0.20),
-                  ),
-                ),
-                Positioned(
-                  right: -36,
-                  bottom: 12,
-                  child: _SoftOrb(
-                    size: 118,
-                    color: Colors.white.withOpacity(0.14),
-                  ),
                 ),
               ],
             ),
@@ -62,63 +55,38 @@ class ProfileHeader extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
               child: Column(
                 children: [
-                  _Avatar(profile: profile),
-                  const SizedBox(height: 12),
+                  _ProfileAvatar(profile: profile),
+                  const SizedBox(height: 13),
                   Text(
                     profile.displayName,
                     textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 29,
+                      fontSize: 30,
                       fontWeight: FontWeight.w900,
-                      letterSpacing: -0.9,
-                      height: 1.05,
-                      color: ProfileDesign.ink,
+                      letterSpacing: -1.0,
+                      height: 1.04,
+                      color: PlanrDesign.ink,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: ProfileDesign.primary.withOpacity(0.10),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      '@${profile.username}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: ProfileDesign.primary,
-                        fontWeight: FontWeight.w900,
-                      ),
+                  const SizedBox(height: 8),
+                  _UsernamePill(username: profile.username),
+                  const SizedBox(height: 16),
+                  Text(
+                    hasBio
+                        ? profile.bio!.trim()
+                        : 'No bio yet. Add a few words about yourself.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: hasBio
+                          ? PlanrDesign.muted
+                          : PlanrDesign.softMuted,
+                      fontSize: hasBio ? 15.5 : 14.5,
+                      fontWeight: FontWeight.w600,
+                      height: 1.42,
                     ),
                   ),
-                  if (hasBio) ...[
-                    const SizedBox(height: 16),
-                    Text(
-                      profile.bio!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: ProfileDesign.muted,
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w500,
-                        height: 1.45,
-                      ),
-                    ),
-                  ] else ...[
-                    const SizedBox(height: 16),
-                    const Text(
-                      'No bio yet. Add a few words about yourself.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: ProfileDesign.muted,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -139,7 +107,8 @@ class _CoverImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (profile.backgroundImageUrl != null) {
+    if (profile.backgroundImageUrl != null &&
+        profile.backgroundImageUrl!.isNotEmpty) {
       return Image.network(
         profile.backgroundImageUrl!,
         fit: BoxFit.cover,
@@ -148,7 +117,7 @@ class _CoverImage extends StatelessWidget {
 
     return Container(
       decoration: const BoxDecoration(
-        gradient: ProfileDesign.warmGradient,
+        gradient: PlanrDesign.brandGradient,
       ),
       child: Stack(
         children: [
@@ -165,19 +134,19 @@ class _CoverImage extends StatelessWidget {
             ),
           ),
           Positioned(
-            right: 36,
-            bottom: 34,
+            right: 32,
+            bottom: 32,
             child: Icon(
               Icons.favorite_rounded,
-              size: 54,
-              color: Colors.white.withOpacity(0.24),
+              size: 56,
+              color: Colors.white.withOpacity(0.22),
             ),
           ),
           Center(
             child: Icon(
               Icons.waving_hand_rounded,
               size: 58,
-              color: Colors.white.withOpacity(0.72),
+              color: Colors.white.withOpacity(0.74),
             ),
           ),
         ],
@@ -186,8 +155,8 @@ class _CoverImage extends StatelessWidget {
   }
 }
 
-class _CoverOverlay extends StatelessWidget {
-  const _CoverOverlay();
+class _CoverFade extends StatelessWidget {
+  const _CoverFade();
 
   @override
   Widget build(BuildContext context) {
@@ -195,9 +164,11 @@ class _CoverOverlay extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            Color(0x11000000),
-            Color(0x66000000),
+            Color(0x22000000),
+            Color(0x22000000),
+            Color(0x55FFFAF3),
           ],
+          stops: [0.0, 0.52, 1.0],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
@@ -216,18 +187,31 @@ class _FloatingEditButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withOpacity(0.9),
+      color: Colors.white.withOpacity(0.88),
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
-        child: const SizedBox(
-          width: 44,
-          height: 44,
-          child: Icon(
+        child: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: Colors.white.withOpacity(0.96),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.10),
+                blurRadius: 14,
+                offset: const Offset(0, 7),
+              ),
+            ],
+          ),
+          child: const Icon(
             Icons.edit_rounded,
-            color: ProfileDesign.ink,
-            size: 20,
+            color: PlanrDesign.ink,
+            size: 19,
           ),
         ),
       ),
@@ -235,8 +219,8 @@ class _FloatingEditButton extends StatelessWidget {
   }
 }
 
-class _Avatar extends StatelessWidget {
-  const _Avatar({
+class _ProfileAvatar extends StatelessWidget {
+  const _ProfileAvatar({
     required this.profile,
   });
 
@@ -245,53 +229,62 @@ class _Avatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      padding: const EdgeInsets.all(3.2),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        boxShadow: [ProfileDesign.glowShadow],
+        gradient: PlanrDesign.storyRingGradient,
+        boxShadow: [
+          BoxShadow(
+            color: PlanrDesign.accent.withOpacity(0.16),
+            blurRadius: 26,
+            offset: const Offset(0, 13),
+          ),
+        ],
       ),
-      child: CircleAvatar(
-        radius: 59,
-        backgroundColor: Colors.white,
-        child: CircleAvatar(
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+        ),
+        child: PlanrAvatar(
+          imageUrl: profile.photoUrl,
+          name: profile.displayName,
           radius: 53,
-          backgroundColor: const Color(0xFFF1F2FA),
-          backgroundImage:
-              profile.photoUrl != null ? NetworkImage(profile.photoUrl!) : null,
-          child: profile.photoUrl == null
-              ? Text(
-                  profile.displayName.isNotEmpty
-                      ? profile.displayName[0].toUpperCase()
-                      : '?',
-                  style: const TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.w900,
-                    color: ProfileDesign.ink,
-                  ),
-                )
-              : null,
         ),
       ),
     );
   }
 }
 
-class _SoftOrb extends StatelessWidget {
-  const _SoftOrb({
-    required this.size,
-    required this.color,
+class _UsernamePill extends StatelessWidget {
+  const _UsernamePill({
+    required this.username,
   });
 
-  final double size;
-  final Color color;
+  final String username;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: size,
-      height: size,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 13,
+        vertical: 7,
+      ),
       decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
+        color: PlanrDesign.accentSoft.withOpacity(0.72),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.92),
+        ),
+      ),
+      child: Text(
+        '@$username',
+        style: const TextStyle(
+          fontSize: 14,
+          color: PlanrDesign.accentDark,
+          fontWeight: FontWeight.w900,
+        ),
       ),
     );
   }

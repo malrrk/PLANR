@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'profile_design.dart';
+import '../../core/theme/planr_design.dart';
+import '../../core/widgets/planr_button.dart';
+import '../../core/widgets/planr_card.dart';
 
 class ProfileEmptyState extends StatelessWidget {
   const ProfileEmptyState({
@@ -14,10 +16,9 @@ class ProfileEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Container(
+        padding: const EdgeInsets.all(PlanrDesign.pagePadding),
+        child: PlanrCard(
           padding: const EdgeInsets.all(24),
-          decoration: ProfileDesign.cardDecoration(radius: 32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -25,7 +26,7 @@ class ProfileEmptyState extends StatelessWidget {
                 width: 68,
                 height: 68,
                 decoration: BoxDecoration(
-                  gradient: ProfileDesign.warmGradient,
+                  gradient: PlanrDesign.brandGradient,
                   borderRadius: BorderRadius.circular(26),
                 ),
                 child: const Icon(
@@ -41,7 +42,7 @@ class ProfileEmptyState extends StatelessWidget {
                   fontSize: 23,
                   fontWeight: FontWeight.w900,
                   letterSpacing: -0.4,
-                  color: ProfileDesign.ink,
+                  color: PlanrDesign.ink,
                 ),
               ),
               const SizedBox(height: 8),
@@ -49,15 +50,16 @@ class ProfileEmptyState extends StatelessWidget {
                 'Your account exists, but your profile document is missing.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: ProfileDesign.muted,
+                  color: PlanrDesign.muted,
                   height: 1.4,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 20),
-              FilledButton(
+              PlanrButton(
+                label: 'Create profile now',
+                icon: Icons.add_rounded,
                 onPressed: onCreateProfile,
-                child: const Text('Create profile now'),
               ),
             ],
           ),

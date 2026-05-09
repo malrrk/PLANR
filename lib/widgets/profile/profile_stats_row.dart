@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/planr_design.dart';
 import '../../models/user_profile.dart';
-import 'profile_design.dart';
 
 class ProfileStatsRow extends StatelessWidget {
   const ProfileStatsRow({
@@ -14,8 +14,15 @@ class ProfileStatsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: ProfileDesign.cardDecoration(radius: 30),
-      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: PlanrDesign.cardLight.withOpacity(0.84),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.95),
+        ),
+        boxShadow: [PlanrDesign.softShadow],
+      ),
+      padding: const EdgeInsets.all(12),
       child: Row(
         children: [
           Expanded(
@@ -25,31 +32,24 @@ class ProfileStatsRow extends StatelessWidget {
               icon: Icons.bolt_rounded,
               gradient: const LinearGradient(
                 colors: [
-                  Color(0xFFFFB86B),
-                  Color(0xFFFF8A65),
+                  PlanrDesign.eventMetaOrange,
+                  PlanrDesign.accent,
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: _StatTile(
               label: 'Hosted',
               value: profile.hostedEventCount.toString(),
               icon: Icons.celebration_rounded,
-              gradient: const LinearGradient(
-                colors: [
-                  Color(0xFFFF6B9A),
-                  Color(0xFF7C5CFF),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              gradient: PlanrDesign.storyRingGradient,
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: _StatTile(
               label: 'Joined',
@@ -57,8 +57,8 @@ class ProfileStatsRow extends StatelessWidget {
               icon: Icons.groups_rounded,
               gradient: const LinearGradient(
                 colors: [
-                  Color(0xFF7C5CFF),
-                  Color(0xFF5B8DEF),
+                  PlanrDesign.accent,
+                  PlanrDesign.accentDark,
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -87,11 +87,13 @@ class _StatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F7FC),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: ProfileDesign.softBorder),
+        color: Colors.white.withOpacity(0.48),
+        borderRadius: BorderRadius.circular(23),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.92),
+        ),
       ),
       child: Column(
         children: [
@@ -112,7 +114,7 @@ class _StatTile extends StatelessWidget {
           Text(
             value,
             style: const TextStyle(
-              color: ProfileDesign.ink,
+              color: PlanrDesign.ink,
               fontSize: 20,
               fontWeight: FontWeight.w900,
               height: 1,
@@ -122,7 +124,7 @@ class _StatTile extends StatelessWidget {
           Text(
             label,
             style: const TextStyle(
-              color: ProfileDesign.muted,
+              color: PlanrDesign.muted,
               fontSize: 12.5,
               fontWeight: FontWeight.w800,
             ),

@@ -68,6 +68,44 @@ class PlanrDesign {
     ],
   );
 
+  static const LinearGradient profileBackgroundGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      backgroundTop,
+      backgroundMiddle,
+      backgroundBottom,
+    ],
+    stops: [0.0, 0.58, 1.0],
+  );
+
+  static const RadialGradient profileLeftTextureGradient = RadialGradient(
+    center: Alignment(-0.55, -0.20),
+    radius: 1.05,
+    colors: [
+      Color(0x88FFF4E8),
+      Color(0x00FFF4E8),
+    ],
+  );
+
+  static const RadialGradient profileRightTextureGradient = RadialGradient(
+    center: Alignment(0.80, 0.10),
+    radius: 1.15,
+    colors: [
+      Color(0x6EF9F1FF),
+      Color(0x00F9F1FF),
+    ],
+  );
+
+  static const RadialGradient profileBottomWarmGradient = RadialGradient(
+    center: Alignment(0.0, 1.15),
+    radius: 1.05,
+    colors: [
+      Color(0xCCFFF4E8),
+      Color(0x00FFF4E8),
+    ],
+  );
+
   static const LinearGradient plainBackgroundGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,

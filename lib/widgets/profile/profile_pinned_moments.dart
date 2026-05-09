@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/planr_design.dart';
 import '../../models/user_profile.dart';
-import 'profile_design.dart';
 
 class ProfilePinnedMoments extends StatelessWidget {
   const ProfilePinnedMoments({
@@ -17,37 +17,26 @@ class ProfilePinnedMoments extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      decoration: ProfileDesign.cardDecoration(radius: 30),
+      decoration: BoxDecoration(
+        color: PlanrDesign.cardLight.withOpacity(0.86),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.95),
+        ),
+        boxShadow: [PlanrDesign.softShadow],
+      ),
       padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.auto_awesome_rounded,
-                color: ProfileDesign.secondary,
-                size: 21,
-              ),
-              SizedBox(width: 8),
-              Text(
-                'Pinned moments',
-                style: TextStyle(
-                  fontSize: 21,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.4,
-                  color: ProfileDesign.ink,
-                ),
-              ),
-            ],
-          ),
+          const _SectionTitle(),
           const SizedBox(height: 5),
           const Text(
             'Your favorite memories, right on your profile.',
             style: TextStyle(
-              color: ProfileDesign.muted,
+              color: PlanrDesign.muted,
               fontSize: 13.5,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 16),
@@ -59,9 +48,23 @@ class ProfilePinnedMoments extends StatelessWidget {
                 child: Padding(
                   padding: EdgeInsets.only(right: index == 2 ? 0 : 10),
                   child: AspectRatio(
-                    aspectRatio: 0.75,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(24),
+                    aspectRatio: 0.76,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.95),
+                          width: 1.2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.055),
+                            blurRadius: 14,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      clipBehavior: Clip.antiAlias,
                       child: hasImage
                           ? Image.network(
                               pinned[index],
@@ -80,6 +83,41 @@ class ProfilePinnedMoments extends StatelessWidget {
   }
 }
 
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: PlanrDesign.accentSoft.withOpacity(0.72),
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: const Icon(
+            Icons.auto_awesome_rounded,
+            color: PlanrDesign.accentDark,
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: 10),
+        const Text(
+          'Pinned moments',
+          style: TextStyle(
+            fontSize: 21,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.4,
+            color: PlanrDesign.ink,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _MomentPlaceholder extends StatelessWidget {
   const _MomentPlaceholder({
     required this.index,
@@ -91,17 +129,19 @@ class _MomentPlaceholder extends StatelessWidget {
   Widget build(BuildContext context) {
     final gradients = [
       const LinearGradient(
-        colors: [Color(0xFFFFD6A5), Color(0xFFFF8A65)],
+        colors: [
+          Color(0xFFFFD6A5),
+          PlanrDesign.eventMetaOrange,
+        ],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
+      PlanrDesign.storyRingGradient,
       const LinearGradient(
-        colors: [Color(0xFFFFAFCC), Color(0xFF7C5CFF)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
-      const LinearGradient(
-        colors: [Color(0xFFA0C4FF), Color(0xFF5B8DEF)],
+        colors: [
+          PlanrDesign.accentSoft,
+          PlanrDesign.accent,
+        ],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),

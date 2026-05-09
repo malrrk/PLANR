@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'profile_design.dart';
+import '../../core/theme/planr_design.dart';
 
 class ProfileActionSection extends StatelessWidget {
   const ProfileActionSection({
@@ -93,33 +93,86 @@ class _ActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: ProfileDesign.cardDecoration(radius: 30),
+      decoration: BoxDecoration(
+        color: PlanrDesign.cardLight.withOpacity(0.86),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.95),
+        ),
+        boxShadow: [PlanrDesign.softShadow],
+      ),
       padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: ProfileDesign.ink,
-              fontSize: 21,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.4,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              color: ProfileDesign.muted,
-              fontSize: 13.5,
-              fontWeight: FontWeight.w500,
-            ),
+          _ActionCardHeader(
+            title: title,
+            subtitle: subtitle,
           ),
           const SizedBox(height: 14),
           ...children,
         ],
       ),
+    );
+  }
+}
+
+class _ActionCardHeader extends StatelessWidget {
+  const _ActionCardHeader({
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: PlanrDesign.accentSoft.withOpacity(0.72),
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Icon(
+            title == 'Social'
+                ? Icons.groups_rounded
+                : Icons.manage_accounts_rounded,
+            color: PlanrDesign.accentDark,
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: PlanrDesign.ink,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.4,
+                  height: 1.05,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: PlanrDesign.muted,
+                  fontSize: 13.2,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -141,21 +194,27 @@ class _ActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = danger ? Colors.red.shade600 : ProfileDesign.primary;
+    final accent = danger ? Colors.red.shade600 : PlanrDesign.accentDark;
     final background = danger
         ? Colors.red.shade50
-        : ProfileDesign.primary.withOpacity(0.09);
+        : PlanrDesign.accentSoft.withOpacity(0.62);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: const Color(0xFFF8F7FC),
+        color: Colors.white.withOpacity(0.46),
         borderRadius: BorderRadius.circular(22),
         child: InkWell(
           borderRadius: BorderRadius.circular(22),
           onTap: onTap,
-          child: Padding(
+          child: Container(
             padding: const EdgeInsets.all(13),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.92),
+              ),
+            ),
             child: Row(
               children: [
                 Container(
@@ -179,7 +238,9 @@ class _ActionRow extends StatelessWidget {
                       Text(
                         title,
                         style: TextStyle(
-                          color: danger ? Colors.red.shade700 : ProfileDesign.ink,
+                          color: danger
+                              ? Colors.red.shade700
+                              : PlanrDesign.ink,
                           fontSize: 15.5,
                           fontWeight: FontWeight.w900,
                         ),
@@ -188,9 +249,9 @@ class _ActionRow extends StatelessWidget {
                       Text(
                         subtitle,
                         style: const TextStyle(
-                          color: ProfileDesign.muted,
+                          color: PlanrDesign.muted,
                           fontSize: 12.8,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -198,7 +259,7 @@ class _ActionRow extends StatelessWidget {
                 ),
                 Icon(
                   Icons.chevron_right_rounded,
-                  color: danger ? Colors.red.shade300 : ProfileDesign.muted,
+                  color: danger ? Colors.red.shade300 : PlanrDesign.softMuted,
                 ),
               ],
             ),
