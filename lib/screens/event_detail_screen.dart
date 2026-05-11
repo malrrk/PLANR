@@ -10,6 +10,7 @@ import '../widgets/event_detail/event_detail_action_panel.dart';
 import '../widgets/event_detail/event_detail_fact_card.dart';
 import '../widgets/event_detail/event_detail_header_image.dart';
 import '../widgets/event_detail/event_detail_info_card.dart';
+import 'profile_screen.dart';
 
 class EventDetailScreen extends ConsumerWidget {
   const EventDetailScreen({
@@ -28,6 +29,15 @@ class EventDetailScreen extends ConsumerWidget {
     final minute = date.minute.toString().padLeft(2, '0');
 
     return '$weekday, $day.$month · $hour:$minute';
+  }
+
+  void _openProfile(BuildContext context, String userId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProfileScreen(userId: userId),
+      ),
+    );
   }
 
   @override
@@ -111,10 +121,9 @@ class EventDetailScreen extends ConsumerWidget {
                                 value: event.address,
                               ),
                               const SizedBox(height: 10),
-                              EventDetailFactCard(
-                                icon: Icons.person_rounded,
-                                label: 'Host',
-                                value: event.creatorDisplayName,
+                              _TappableHostFactCard(
+                                hostName: event.creatorDisplayName,
+                                onTap: () => _openProfile(context, event.creatorUid),
                               ),
                             ],
                           ),
@@ -260,6 +269,89 @@ class _SectionTitle extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _TappableHostFactCard extends StatelessWidget {
+  const _TappableHostFactCard({
+    required this.hostName,
+    required this.onTap,
+  });
+
+  final String hostName;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: PlanrDesign.cardLight.withOpacity(0.78),
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.92),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: PlanrDesign.accentSoft.withOpacity(0.72),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.88),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.person_rounded,
+                  color: PlanrDesign.accentDark,
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Host',
+                      style: TextStyle(
+                        color: PlanrDesign.muted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      hostName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PlanrDesign.ink,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: PlanrDesign.softMuted,
+                size: 26,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

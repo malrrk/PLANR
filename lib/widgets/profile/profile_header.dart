@@ -10,11 +10,13 @@ class ProfileHeader extends StatelessWidget {
   const ProfileHeader({
     super.key,
     required this.profile,
-    required this.onEditPressed,
+    this.onEditPressed,
+    this.isOwnProfile = true,
   });
 
   final UserProfile profile;
-  final VoidCallback onEditPressed;
+  final VoidCallback? onEditPressed;
+  final bool isOwnProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -41,11 +43,12 @@ class ProfileHeader extends StatelessWidget {
               children: [
                 _CoverImage(profile: profile),
                 const _CoverFade(),
-                Positioned(
-                  top: 14,
-                  right: 14,
-                  child: _FloatingEditButton(onTap: onEditPressed),
-                ),
+                if (isOwnProfile && onEditPressed != null)
+                  Positioned(
+                    top: 14,
+                    right: 14,
+                    child: _FloatingEditButton(onTap: onEditPressed!),
+                  ),
               ],
             ),
           ),
@@ -76,7 +79,9 @@ class ProfileHeader extends StatelessWidget {
                   Text(
                     hasBio
                         ? profile.bio!.trim()
-                        : 'No bio yet. Add a few words about yourself.',
+                        : isOwnProfile
+                            ? 'No bio yet. Add a few words about yourself.'
+                            : 'No bio yet.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: hasBio
@@ -91,7 +96,6 @@ class ProfileHeader extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 0),
         ],
       ),
     );

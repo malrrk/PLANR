@@ -47,6 +47,96 @@ final incomingFriendRequestsProvider =
       );
 });
 
+enum FriendRelationshipStatus {
+  self,
+  friends,
+  outgoingPending,
+  incomingPending,
+  none,
+}
+
+class FriendRelationship {
+  const FriendRelationship({
+    required this.status,
+    this.incomingRequestId,
+    this.incomingRequest,
+  });
+
+  final FriendRelationshipStatus status;
+  final String? incomingRequestId;
+  final Map<String, dynamic>? incomingRequest;
+}
+
+final friendRelationshipProvider =
+    FutureProvider.family<FriendRelationship, String>((ref, otherUid) async {
+  final user = FirebaseAuth.instance.currentUser;
+
+  if (user == null) {
+    return const FriendRelationship(
+      status: FriendRelationshipStatus.none,
+    );
+  }
+
+  if (user.uid == otherUid) {
+    return const FriendRelationship(
+      status: FriendRelationshipStatus.self,
+    );
+  }
+
+  final firestore = FirebaseFirestore.instance;
+
+  final friendDoc = await firestore
+      .collection('users')
+      .doc(user.uid)
+      .collection('friends')
+      .doc(otherUid)
+      .get();
+
+  if (friendDoc.exists) {
+    return const FriendRelationship(
+      status: FriendRelationshipStatus.friends,
+    );
+  }
+
+  final outgoing = await firestore
+      .collection('friend_requests')
+      .where('fromUid', isEqualTo: user.uid)
+      .where('toUid', isEqualTo: otherUid)
+      .where('status', isEqualTo: 'pending')
+      .limit(1)
+      .get();
+
+  if (outgoing.docs.isNotEmpty) {
+    return const FriendRelationship(
+      status: FriendRelationshipStatus.outgoingPending,
+    );
+  }
+
+  final incoming = await firestore
+      .collection('friend_requests')
+      .where('fromUid', isEqualTo: otherUid)
+      .where('toUid', isEqualTo: user.uid)
+      .where('status', isEqualTo: 'pending')
+      .limit(1)
+      .get();
+
+  if (incoming.docs.isNotEmpty) {
+    final doc = incoming.docs.first;
+    final data = doc.data();
+    data['docId'] = doc.id;
+
+    return FriendRelationship(
+      status: FriendRelationshipStatus.incomingPending,
+      incomingRequestId: doc.id,
+      incomingRequest: data,
+    );
+  }
+
+  return const FriendRelationship(
+    status: FriendRelationshipStatus.none,
+  );
+});
+
 class FriendsService {
   FriendsService(this._firestore, this._auth);
 

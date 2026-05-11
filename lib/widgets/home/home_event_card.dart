@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/event.dart';
 import '../../providers/event_provider.dart';
 import '../../screens/event_detail_screen.dart';
+import '../../screens/profile_screen.dart';
 import '../../core/theme/planr_design.dart';
 import '../../models/event_tag.dart';
 import '../event_tag_chips.dart';
@@ -70,6 +71,15 @@ class HomeEventCard extends ConsumerWidget {
     );
   }
 
+  void _openProfile(BuildContext context, String userId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProfileScreen(userId: userId),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return GestureDetector(
@@ -108,7 +118,10 @@ class HomeEventCard extends ConsumerWidget {
             Positioned(
               top: 16,
               right: 16,
-              child: _HostAvatarButton(event: event),
+              child: _HostAvatarButton(
+                          event: event,
+                          onTap: () => _openProfile(context, event.creatorUid),
+                        ),
             ),
             Positioned(
               left: 18,
@@ -301,9 +314,11 @@ class _CategoryPill extends StatelessWidget {
 class _HostAvatarButton extends StatelessWidget {
   const _HostAvatarButton({
     required this.event,
+    required this.onTap,
   });
 
   final Event event;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -313,34 +328,42 @@ class _HostAvatarButton extends StatelessWidget {
         ? 'User'
         : event.creatorDisplayName.trim();
 
-    return Container(
-      width: 48,
-      height: 48,
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.94),
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.14),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
+    return Material(
+      color: Colors.transparent,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Container(
+          width: 48,
+          height: 48,
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.94),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.14),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: CircleAvatar(
-        backgroundColor: const Color(0xFFFFDFC3),
-        backgroundImage: hasPhoto ? NetworkImage(photoUrl) : null,
-        child: !hasPhoto
-            ? Text(
-                name.characters.first.toUpperCase(),
-                style: const TextStyle(
-                  color: PlanrDesign.accent,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                ),
-              )
-            : null,
+          child: CircleAvatar(
+            backgroundColor: const Color(0xFFFFDFC3),
+            backgroundImage: hasPhoto ? NetworkImage(photoUrl) : null,
+            child: !hasPhoto
+                ? Text(
+                    name.characters.first.toUpperCase(),
+                    style: const TextStyle(
+                      color: PlanrDesign.accent,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  )
+                : null,
+          ),
+        ),
       ),
     );
   }

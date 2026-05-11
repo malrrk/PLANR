@@ -72,6 +72,78 @@ final eventAttendeesProvider =
       );
 });
 
+enum EventInviteFriendStatus {
+  invite,
+  invited,
+  going,
+  declined,
+  accepted,
+}
+
+final friendEventInviteStatusProvider =
+    StreamProvider.family<EventInviteFriendStatus, FriendEventInviteStatusArgs>(
+  (ref, args) {
+    final firestore = FirebaseFirestore.instance;
+
+    return firestore
+        .collection('events')
+        .doc(args.eventId)
+        .snapshots()
+        .asyncMap((_) async {
+      final attendeeDoc = await firestore
+          .collection('events')
+          .doc(args.eventId)
+          .collection('attendees')
+          .doc(args.userId)
+          .get();
+
+      if (attendeeDoc.exists) {
+        return EventInviteFriendStatus.going;
+      }
+
+      final inviteDoc = await firestore
+          .collection('events')
+          .doc(args.eventId)
+          .collection('invites')
+          .doc(args.userId)
+          .get();
+
+      if (!inviteDoc.exists) {
+        return EventInviteFriendStatus.invite;
+      }
+
+      final status = inviteDoc.data()?['status'] as String?;
+
+      return switch (status) {
+        'pending' => EventInviteFriendStatus.invited,
+        'accepted' => EventInviteFriendStatus.accepted,
+        'declined' => EventInviteFriendStatus.declined,
+        _ => EventInviteFriendStatus.invite,
+      };
+    });
+  },
+);
+
+class FriendEventInviteStatusArgs {
+  const FriendEventInviteStatusArgs({
+    required this.eventId,
+    required this.userId,
+  });
+
+  final String eventId;
+  final String userId;
+
+  @override
+  bool operator ==(Object other) {
+    return other is FriendEventInviteStatusArgs &&
+        other.eventId == eventId &&
+        other.userId == userId;
+  }
+
+  @override
+  int get hashCode => Object.hash(eventId, userId);
+}
+
 final myEventInvitesProvider =
     StreamProvider<List<Map<String, dynamic>>>((ref) {
   final user = FirebaseAuth.instance.currentUser;

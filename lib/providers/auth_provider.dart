@@ -202,15 +202,54 @@ class AuthService {
         await _auth.signOut();
       }
 
-      final credential = await _auth.signInWithEmailAndPassword(
-        email: email.trim(),
-        password: password.trim(),
-      );
+      final identifier = email.trim();
+      final trimmedPassword = password.trim();
 
-      final user = credential.user;
-      debugPrint('LOGGED IN USER UID: ${user?.uid}');
-      debugPrint('LOGGED IN USER EMAIL: ${user?.email}');
-      debugPrint('LOGGED IN USER NAME: ${user?.displayName}');
+      if (identifier.isEmpty || trimmedPassword.isEmpty) {
+        return 'Please fill in all fields.';
+      }
+
+      String loginEmail = identifier;
+
+      final looksLikeEmail = identifier.contains('@');
+
+      if (!looksLikeEmail) {
+        final normalizedUsername = normalizeUsername(identifier);
+
+        final usernameDoc = await _firestore
+            .collection('usernames')
+            .doc(normalizedUsername)
+            .get();
+
+        if (!usernameDoc.exists || usernameDoc.data() == null) {
+          return 'No account found with this username.';
+        }
+
+        final uid = usernameDoc.data()!['uid'] as String?;
+
+        if (uid == null || uid.isEmpty) {
+          return 'Account data is incomplete.';
+        }
+
+        final userDoc = await _firestore.collection('users').doc(uid).get();
+
+        if (!userDoc.exists || userDoc.data() == null) {
+          return 'User profile not found.';
+        }
+
+        final foundEmail = userDoc.data()!['email'] as String?;
+
+        if (foundEmail == null || foundEmail.isEmpty) {
+          return 'No email found for this username.';
+        }
+
+        loginEmail = foundEmail;
+      }
+
+      await _auth.signInWithEmailAndPassword(
+        email: loginEmail,
+        password: trimmedPassword,
+      );
 
       return null;
     } on FirebaseAuthException catch (e) {

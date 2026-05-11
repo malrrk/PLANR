@@ -7,9 +7,11 @@ class ProfilePinnedMoments extends StatelessWidget {
   const ProfilePinnedMoments({
     super.key,
     required this.profile,
+    this.isOwnProfile = true,
   });
 
   final UserProfile profile;
+  final bool isOwnProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -31,52 +33,61 @@ class ProfilePinnedMoments extends StatelessWidget {
         children: [
           const _SectionTitle(),
           const SizedBox(height: 5),
-          const Text(
-            'Your favorite memories, right on your profile.',
-            style: TextStyle(
+          Text(
+            isOwnProfile
+                ? 'Your favorite memories, right on your profile.'
+                : '${profile.displayName}’s favorite memories.',
+            style: const TextStyle(
               color: PlanrDesign.muted,
               fontSize: 13.5,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 16),
-          Row(
-            children: List.generate(3, (index) {
-              final hasImage = index < pinned.length;
+          if (!isOwnProfile && pinned.isEmpty)
+            const _NoPinnedMoments()
+          else
+            Row(
+              children: List.generate(isOwnProfile ? 3 : pinned.length, (index) {
+                final hasImage = index < pinned.length;
 
-              return Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(right: index == 2 ? 0 : 10),
-                  child: AspectRatio(
-                    aspectRatio: 0.76,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.95),
-                          width: 1.2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.055),
-                            blurRadius: 14,
-                            offset: const Offset(0, 8),
+                return Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      right: index == (isOwnProfile ? 2 : pinned.length - 1)
+                          ? 0
+                          : 10,
+                    ),
+                    child: AspectRatio(
+                      aspectRatio: 0.76,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.95),
+                            width: 1.2,
                           ),
-                        ],
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.055),
+                              blurRadius: 14,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: hasImage
+                            ? Image.network(
+                                pinned[index],
+                                fit: BoxFit.cover,
+                              )
+                            : _MomentPlaceholder(index: index),
                       ),
-                      clipBehavior: Clip.antiAlias,
-                      child: hasImage
-                          ? Image.network(
-                              pinned[index],
-                              fit: BoxFit.cover,
-                            )
-                          : _MomentPlaceholder(index: index),
                     ),
                   ),
-                ),
-              );
-            }),
-          ),
+                );
+              }),
+            ),
         ],
       ),
     );
@@ -114,6 +125,45 @@ class _SectionTitle extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _NoPinnedMoments extends StatelessWidget {
+  const _NoPinnedMoments();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.46),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.92),
+        ),
+      ),
+      child: const Row(
+        children: [
+          Icon(
+            Icons.auto_stories_outlined,
+            color: PlanrDesign.softMuted,
+            size: 22,
+          ),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'No pinned moments yet.',
+              style: TextStyle(
+                color: PlanrDesign.muted,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
