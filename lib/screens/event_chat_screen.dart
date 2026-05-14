@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,12 +27,40 @@ class EventChatScreen extends ConsumerStatefulWidget {
 
 class _EventChatScreenState extends ConsumerState<EventChatScreen> {
   final _controller = TextEditingController();
+
   bool _sending = false;
+  DateTime? _lastMarkedReadAt;
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  void _markLatestMessageReadIfNeeded(List<Map<String, dynamic>> messages) {
+    if (messages.isEmpty) return;
+
+    final latestCreatedAt = messages.first['createdAt'];
+
+    if (latestCreatedAt is! Timestamp) return;
+
+    final latestDate = latestCreatedAt.toDate();
+
+    if (_lastMarkedReadAt != null &&
+        !latestDate.isAfter(_lastMarkedReadAt!)) {
+      return;
+    }
+
+    _lastMarkedReadAt = latestDate;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      ref.read(eventServiceProvider).markEventChatReadAt(
+            eventId: widget.event.id,
+            lastMessageAt: latestDate,
+          );
+    });
   }
 
   Future<void> _send() async {
@@ -92,7 +121,6 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
             ),
             child: _ChatHeaderCard(event: widget.event),
           ),
-
           if (!widget.event.chatEnabled)
             Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -103,10 +131,11 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
               ),
               child: const _ChatDisabledBanner(),
             ),
-
           Expanded(
             child: messagesAsync.when(
               data: (messages) {
+                _markLatestMessageReadIfNeeded(messages);
+
                 if (messages.isEmpty) {
                   return Padding(
                     padding: const EdgeInsets.fromLTRB(
@@ -148,8 +177,9 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
                     final text = message['text'] as String? ?? '';
 
                     final currentUid = FirebaseAuth.instance.currentUser?.uid;
-                    final isMe =
-                        currentUid != null && senderUid != null && currentUid == senderUid;
+                    final isMe = currentUid != null &&
+                        senderUid != null &&
+                        currentUid == senderUid;
 
                     return _MessageBubble(
                       senderUid: senderUid,
@@ -177,7 +207,6 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
               ),
             ),
           ),
-
           _MessageComposer(
             controller: _controller,
             enabled: widget.event.chatEnabled && !_sending,

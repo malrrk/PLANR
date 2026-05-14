@@ -164,8 +164,7 @@ final myEventInvitesProvider =
   });
 });
 
-final isGoingProvider =
-    StreamProvider.family<bool, String>((ref, eventId) {
+final isGoingProvider = StreamProvider.family<bool, String>((ref, eventId) {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return Stream.value(false);
 
@@ -247,10 +246,10 @@ class EventService {
       final attendeeRef = eventRef.collection('attendees').doc(user.uid);
 
       final myEventRef = _firestore
-      .collection('users')
-      .doc(user.uid)
-      .collection('my_events')
-      .doc(eventId);
+          .collection('users')
+          .doc(user.uid)
+          .collection('my_events')
+          .doc(eventId);
 
       final batch = _firestore.batch();
 
@@ -269,6 +268,11 @@ class EventService {
         'guestsCanInvite': guestsCanInvite,
         'attendeeCount': 1,
         'createdAt': FieldValue.serverTimestamp(),
+        'lastMessageAt': null,
+        'lastReadMessageAt': null,
+        'lastMessageText': null,
+        'lastMessageSenderUid': null,
+        'lastMessageSenderName': null,
       };
 
       batch.set(eventRef, eventData);
@@ -304,7 +308,8 @@ class EventService {
           .doc(event.id);
 
       if (event.visibility == 'private') {
-        final inviteDoc = await eventRef.collection('invites').doc(user.uid).get();
+        final inviteDoc =
+            await eventRef.collection('invites').doc(user.uid).get();
 
         final isCreator = event.creatorUid == user.uid;
 
@@ -338,7 +343,12 @@ class EventService {
         return 'Event not found.';
       }
 
-      batch.set(myEventRef, eventDoc.data()!);
+      final eventData = eventDoc.data()!;
+
+      batch.set(myEventRef, {
+        ...eventData,
+        'lastReadMessageAt': eventData['lastMessageAt'],
+      });
 
       await batch.commit();
 
@@ -403,10 +413,10 @@ class EventService {
       }
 
       final userInviteRef = _firestore
-        .collection('users')
-        .doc(user.uid)
-        .collection('event_invites')
-        .doc(eventId);
+          .collection('users')
+          .doc(user.uid)
+          .collection('event_invites')
+          .doc(eventId);
 
       final inviteRef = eventRef.collection('invites').doc(user.uid);
       final attendeeRef = eventRef.collection('attendees').doc(user.uid);
@@ -455,6 +465,7 @@ class EventService {
       batch.set(myEventRef, {
         ...eventData,
         'attendeeCount': (eventData['attendeeCount'] as num? ?? 0).toInt() + 1,
+        'lastReadMessageAt': eventData['lastMessageAt'],
       });
 
       await batch.commit();
@@ -482,10 +493,10 @@ class EventService {
       }
 
       final userInviteRef = _firestore
-        .collection('users')
-        .doc(invitedUid)
-        .collection('event_invites')
-        .doc(event.id);
+          .collection('users')
+          .doc(invitedUid)
+          .collection('event_invites')
+          .doc(event.id);
 
       final eventRef = _firestore.collection('events').doc(event.id);
       final inviteRef = eventRef.collection('invites').doc(invitedUid);
@@ -631,7 +642,7 @@ class EventService {
       return 'Failed to update event.';
     }
   }
-  
+
   Future<String?> deleteEvent(Event event) async {
     try {
       final user = _auth.currentUser;
@@ -649,7 +660,6 @@ class EventService {
 
       final batch = _firestore.batch();
 
-      // Delete attendee documents and their copied my_events entries.
       for (final attendeeDoc in attendeesSnapshot.docs) {
         final attendeeUid = attendeeDoc.id;
 
@@ -664,7 +674,6 @@ class EventService {
         batch.delete(attendeeMyEventRef);
       }
 
-      // Delete invite documents under the event.
       for (final inviteDoc in invitesSnapshot.docs) {
         batch.delete(inviteDoc.reference);
 
@@ -679,12 +688,10 @@ class EventService {
         batch.delete(userInviteRef);
       }
 
-      // Delete chat messages under the event.
       for (final messageDoc in messagesSnapshot.docs) {
         batch.delete(messageDoc.reference);
       }
 
-      // Delete creator's my_events copy just in case it was not covered.
       final creatorMyEventRef = _firestore
           .collection('users')
           .doc(user.uid)
@@ -692,21 +699,14 @@ class EventService {
           .doc(event.id);
 
       batch.delete(creatorMyEventRef);
-
-      // Delete main event document.
       batch.delete(eventRef);
 
       await batch.commit();
 
-      // Delete event image from Storage if possible.
-      // This is intentionally after Firestore deletion so a Storage failure
-      // does not block deleting the event itself.
       if (event.imageUrl != null) {
         try {
           await _storage.refFromURL(event.imageUrl!).delete();
-        } catch (_) {
-          // Ignore image delete failure for now.
-        }
+        } catch (_) {}
       }
 
       return null;
@@ -730,22 +730,21 @@ class EventService {
         return 'Chat is disabled for this event.';
       }
 
-      final attendeeDoc = await _firestore
-          .collection('events')
-          .doc(event.id)
-          .collection('attendees')
-          .doc(user.uid)
-          .get();
+      final eventRef = _firestore.collection('events').doc(event.id);
+
+      final attendeeDoc =
+          await eventRef.collection('attendees').doc(user.uid).get();
 
       if (!attendeeDoc.exists) {
         return 'Only attendees can send messages.';
       }
 
-      await _firestore
-          .collection('events')
-          .doc(event.id)
-          .collection('messages')
-          .add({
+      final attendeesSnapshot = await eventRef.collection('attendees').get();
+
+      final batch = _firestore.batch();
+      final messageRef = eventRef.collection('messages').doc();
+
+      batch.set(messageRef, {
         'senderUid': user.uid,
         'senderDisplayName': user.displayName ?? 'User',
         'senderPhotoUrl': user.photoURL,
@@ -753,9 +752,65 @@ class EventService {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      final chatSummary = {
+        'lastMessageText': trimmedText,
+        'lastMessageSenderUid': user.uid,
+        'lastMessageSenderName': user.displayName ?? 'User',
+        'lastMessageAt': FieldValue.serverTimestamp(),
+      };
+
+      batch.update(eventRef, chatSummary);
+
+      for (final attendee in attendeesSnapshot.docs) {
+        final attendeeUid = attendee.id;
+
+        final myEventRef = _firestore
+            .collection('users')
+            .doc(attendeeUid)
+            .collection('my_events')
+            .doc(event.id);
+
+        if (attendeeUid == user.uid) {
+          batch.update(myEventRef, {
+            ...chatSummary,
+            'lastReadMessageAt': FieldValue.serverTimestamp(),
+          });
+        } else {
+          batch.update(myEventRef, chatSummary);
+        }
+      }
+
+      await batch.commit();
+
       return null;
     } catch (e) {
       return 'Failed to send message.';
+    }
+  }
+
+  Future<String?> markEventChatReadAt({
+    required String eventId,
+    required DateTime lastMessageAt,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return 'No user logged in.';
+
+      await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('my_events')
+          .doc(eventId)
+          .set(
+        {
+          'lastReadMessageAt': Timestamp.fromDate(lastMessageAt),
+        },
+        SetOptions(merge: true),
+      );
+
+      return null;
+    } catch (e) {
+      return 'Failed to mark chat as read.';
     }
   }
 }

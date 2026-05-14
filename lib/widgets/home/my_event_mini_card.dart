@@ -2,111 +2,108 @@ import 'package:flutter/material.dart';
 
 import '../../models/event.dart';
 import '../../core/theme/planr_design.dart';
-import '../../models/event_tag.dart';
 
 class MyEventMiniCard extends StatelessWidget {
   const MyEventMiniCard({
     super.key,
     required this.event,
     required this.onTap,
+    this.onChatTap,
   });
 
   final Event event;
   final VoidCallback onTap;
+  final VoidCallback? onChatTap;
 
-  String _formatSmallEventDate(DateTime date) {
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
+  String _formatImageDay(DateTime date) {
+    return date.day.toString().padLeft(2, '0');
+  }
+
+  String _formatImageMonth(DateTime date) {
+    const months = [
+      'JAN',
+      'FEB',
+      'MAR',
+      'APR',
+      'MAY',
+      'JUN',
+      'JUL',
+      'AUG',
+      'SEP',
+      'OCT',
+      'NOV',
+      'DEC',
+    ];
+
+    return months[date.month - 1];
+  }
+
+  String _formatDayTime(DateTime date) {
     final hour = date.hour.toString().padLeft(2, '0');
     final minute = date.minute.toString().padLeft(2, '0');
 
-    return '$day.$month · $hour:$minute';
+    const weekdays = [
+      'Mon',
+      'Tue',
+      'Wed',
+      'Thu',
+      'Fri',
+      'Sat',
+      'Sun',
+    ];
+
+    final weekday = weekdays[date.weekday - 1];
+
+    return '$weekday · $hour:$minute';
   }
 
   @override
   Widget build(BuildContext context) {
+    final location = event.address.trim().isEmpty
+        ? 'No location'
+        : event.address.trim();
+
+    final isPrivate = event.visibility == 'private';
+
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(28),
+      borderRadius: BorderRadius.circular(21),
       child: InkWell(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(21),
         onTap: onTap,
         child: Container(
-          width: 252,
+          height: 98,
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: PlanrDesign.ink,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.13),
-                blurRadius: 22,
-                offset: const Offset(0, 10),
-              ),
-            ],
+            color: Colors.white.withOpacity(0.43),
+            borderRadius: BorderRadius.circular(21),
+            border: Border.all(
+              color: Colors.black.withOpacity(0.07),
+              width: 1.1,
+            ),
           ),
-          clipBehavior: Clip.antiAlias,
-          child: Stack(
-            fit: StackFit.expand,
+          child: Row(
             children: [
-              _MiniEventImage(event: event),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: PlanrDesign.eventOverlayGradient(),
+              _EventImage(
+                event: event,
+                dayText: _formatImageDay(event.date),
+                monthText: _formatImageMonth(event.date),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _EventContent(
+                  title: event.title,
+                  location: location,
+                  dayTime: _formatDayTime(event.date),
+                  isPrivate: isPrivate,
+                  attendeeCount: event.attendeeCount,
                 ),
               ),
-              Positioned(
-                top: 12,
-                right: 12,
-                child: _MiniHostAvatar(event: event),
-              ),
-              Positioned(
-                top: 12,
-                left: 12,
-                child: _MiniPrimaryTagPill(event: event),
-              ),
-              Positioned(
-                left: 14,
-                right: 14,
-                bottom: 14,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _MiniGoingPill(attendeeCount: event.attendeeCount),
-                    const SizedBox(height: 9),
-                    Text(
-                      event.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        height: 1.08,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.4,
-                      ),
-                    ),
-                    const SizedBox(height: 9),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _MiniMetaLine(
-                            icon: Icons.calendar_month_rounded,
-                            label: _formatSmallEventDate(event.date),
-                          ),
-                        ),
-                        const SizedBox(width: 7),
-                        Expanded(
-                          child: _MiniMetaLine(
-                            icon: Icons.location_on_outlined,
-                            label: event.address.isEmpty
-                                ? 'No location'
-                                : event.address,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+              const SizedBox(width: 8),
+              _ChatButton(
+                enabled: event.chatEnabled,
+                hasUnread: event.hasUnreadMessages,
+                onTap: onChatTap,
               ),
             ],
           ),
@@ -116,31 +113,123 @@ class MyEventMiniCard extends StatelessWidget {
   }
 }
 
-class _MiniEventImage extends StatelessWidget {
-  const _MiniEventImage({
+class _EventImage extends StatelessWidget {
+  const _EventImage({
     required this.event,
+    required this.dayText,
+    required this.monthText,
   });
 
   final Event event;
+  final String dayText;
+  final String monthText;
 
   @override
   Widget build(BuildContext context) {
     final imageUrl = event.imageUrl?.trim();
+    final hasImage = imageUrl != null && imageUrl.isNotEmpty;
 
-    if (imageUrl != null && imageUrl.isNotEmpty) {
-      return Image.network(
-        imageUrl,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => const _MiniImagePlaceholder(),
-      );
-    }
-
-    return const _MiniImagePlaceholder();
+    return Container(
+      width: 74,
+      height: 82,
+      decoration: BoxDecoration(
+        color: PlanrDesign.accentSoft.withOpacity(0.75),
+        borderRadius: BorderRadius.circular(19),
+        border: Border.all(
+          color: Colors.black.withOpacity(0.16),
+          width: 1.35,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.045),
+            blurRadius: 9,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (hasImage)
+            Image.network(
+              imageUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => const _ImagePlaceholder(),
+            )
+          else
+            const _ImagePlaceholder(),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withOpacity(0.18),
+                  Colors.black.withOpacity(0.42),
+                ],
+              ),
+            ),
+          ),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    dayText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: PlanrDesign.eventMetaOrange,
+                      fontSize: 34,
+                      height: 0.86,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -1.6,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black45,
+                          blurRadius: 8,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Text(
+                    monthText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: PlanrDesign.eventMetaOrange,
+                      fontSize: 16,
+                      height: 0.9,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.2,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black45,
+                          blurRadius: 8,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
-class _MiniImagePlaceholder extends StatelessWidget {
-  const _MiniImagePlaceholder();
+class _ImagePlaceholder extends StatelessWidget {
+  const _ImagePlaceholder();
 
   @override
   Widget build(BuildContext context) {
@@ -152,183 +241,205 @@ class _MiniImagePlaceholder extends StatelessWidget {
         child: Icon(
           Icons.celebration_rounded,
           color: Colors.white,
-          size: 42,
+          size: 24,
         ),
       ),
     );
   }
 }
 
-class _MiniHostAvatar extends StatelessWidget {
-  const _MiniHostAvatar({
-    required this.event,
-  });
-
-  final Event event;
-
-  @override
-  Widget build(BuildContext context) {
-    final photoUrl = event.creatorPhotoUrl?.trim();
-    final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
-    final name = event.creatorDisplayName.trim().isEmpty
-        ? 'User'
-        : event.creatorDisplayName.trim();
-
-    return CircleAvatar(
-      radius: 18,
-      backgroundColor: Colors.black.withOpacity(0.42),
-      child: CircleAvatar(
-        radius: 15,
-        backgroundColor: Colors.white.withOpacity(0.18),
-        backgroundImage: hasPhoto ? NetworkImage(photoUrl) : null,
-        child: !hasPhoto
-            ? Text(
-                name.characters.first.toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                ),
-              )
-            : null,
-      ),
-    );
-  }
-}
-
-class _MiniGoingPill extends StatelessWidget {
-  const _MiniGoingPill({
+class _EventContent extends StatelessWidget {
+  const _EventContent({
+    required this.title,
+    required this.location,
+    required this.dayTime,
+    required this.isPrivate,
     required this.attendeeCount,
   });
 
+  final String title;
+  final String location;
+  final String dayTime;
+  final bool isPrivate;
   final int attendeeCount;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: PlanrDesign.accent.withOpacity(0.94),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+    return SizedBox(
+      height: 80,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.group_rounded,
-            color: Colors.white,
-            size: 15,
-          ),
-          const SizedBox(width: 5),
+          const SizedBox(height: 8),
           Text(
-            '$attendeeCount going',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MiniMetaLine extends StatelessWidget {
-  const _MiniMetaLine({
-    required this.icon,
-    required this.label,
-  });
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 14,
-          color: Colors.white.withOpacity(0.88),
-        ),
-        const SizedBox(width: 5),
-        Expanded(
-          child: Text(
-            label,
+            title,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
-              fontSize: 11.5,
-              fontWeight: FontWeight.w800,
+            style: const TextStyle(
+              color: PlanrDesign.ink,
+              fontSize: 19.2,
+              height: 1.0,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.85,
             ),
           ),
-        ),
-      ],
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Icon(
+                Icons.location_on_outlined,
+                size: 14.5,
+                color: PlanrDesign.muted.withOpacity(0.82),
+              ),
+              const SizedBox(width: 4),
+              Flexible(
+                flex: 6,
+                child: Text(
+                  location,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: PlanrDesign.muted.withOpacity(0.92),
+                    fontSize: 13,
+                    height: 1,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.1,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 7),
+              Flexible(
+                flex: 5,
+                child: Text(
+                  dayTime,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: PlanrDesign.eventMetaOrange,
+                    fontSize: 13,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.1,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(
+                isPrivate ? Icons.lock_rounded : Icons.public_rounded,
+                size: 13.5,
+                color: PlanrDesign.softMuted.withOpacity(0.78),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                isPrivate ? 'Private' : 'Public',
+                style: TextStyle(
+                  color: PlanrDesign.softMuted.withOpacity(0.9),
+                  fontSize: 12.5,
+                  height: 1,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Icon(
+                Icons.group_rounded,
+                size: 14.5,
+                color: PlanrDesign.softMuted.withOpacity(0.78),
+              ),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  '$attendeeCount going',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: PlanrDesign.softMuted.withOpacity(0.9),
+                    fontSize: 12.7,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 1),
+        ],
+      ),
     );
   }
 }
 
-class _MiniPrimaryTagPill extends StatelessWidget {
-  const _MiniPrimaryTagPill({
-    required this.event,
+class _ChatButton extends StatelessWidget {
+  const _ChatButton({
+    required this.enabled,
+    required this.hasUnread,
+    required this.onTap,
   });
 
-  final Event event;
+  final bool enabled;
+  final bool hasUnread;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final tag = primaryEventTag(event.tags);
+    final disabled = !enabled || onTap == null;
 
-    if (tag == null) {
-      final isPrivate = event.visibility == 'private';
-
-      return Container(
-        width: 34,
-        height: 34,
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.45),
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: Colors.white.withOpacity(0.14),
-          ),
-        ),
-        child: Icon(
-          isPrivate ? Icons.lock_rounded : Icons.public_rounded,
-          color: Colors.white,
-          size: 16,
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-      decoration: BoxDecoration(
-        color: PlanrDesign.accent.withOpacity(0.94),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.12),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            tag.icon,
-            color: Colors.white,
-            size: 14,
-          ),
-          const SizedBox(width: 5),
-          Text(
-            tag.label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Material(
+          color: disabled
+              ? Colors.black.withOpacity(0.045)
+              : PlanrDesign.accent.withOpacity(0.115),
+          borderRadius: BorderRadius.circular(15),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(15),
+            onTap: disabled ? null : onTap,
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(
+                  color: disabled
+                      ? Colors.black.withOpacity(0.04)
+                      : PlanrDesign.accent.withOpacity(0.14),
+                  width: 1.05,
+                ),
+              ),
+              child: Icon(
+                disabled
+                    ? Icons.speaker_notes_off_rounded
+                    : Icons.chat_bubble_rounded,
+                color: disabled
+                    ? PlanrDesign.softMuted.withOpacity(0.58)
+                    : PlanrDesign.accent,
+                size: 20,
+              ),
             ),
           ),
-        ],
-      ),
+        ),
+        if (!disabled && hasUnread)
+          Positioned(
+            top: -3,
+            right: -3,
+            child: Container(
+              width: 11,
+              height: 11,
+              decoration: BoxDecoration(
+                color: PlanrDesign.accent,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white,
+                  width: 1.7,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
