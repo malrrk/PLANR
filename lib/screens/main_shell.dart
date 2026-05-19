@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../core/theme/planr_design.dart';
 import 'create_event_screen.dart';
-import 'events_screen.dart';
+import 'discover_screen.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';
-import 'stories_screen.dart';
+import 'my_planr_screen.dart';
 
 // import 'test_screen.dart';
 
@@ -21,8 +21,8 @@ class _MainShellState extends State<MainShell> {
 
   final List<Widget> _screens = const [
     HomeScreen(),
-    EventsScreen(),
-    StoriesScreen(),
+    DiscoverScreen(),
+    MyPlanrScreen(),
     ProfileScreen(),
   ];
 
@@ -123,8 +123,8 @@ class _PlanrBottomNav extends StatelessWidget {
           ),
           Expanded(
             child: _BottomNavItem(
-              icon: Icons.auto_stories_rounded,
-              label: 'Stories',
+              icon: Icons.dashboard_customize_rounded,
+              label: 'Planr',
               selected: selectedIndex == 2,
               onTap: onStoriesTap,
             ),
