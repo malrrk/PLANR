@@ -41,6 +41,27 @@ class AuthService {
     'system',
   };
 
+  String _authErrorMessage(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'invalid-credential':
+      case 'wrong-password':
+      case 'user-not-found':
+        return 'Username or password is incorrect.';
+      case 'invalid-email':
+        return 'Please enter a valid email address.';
+      case 'user-disabled':
+        return 'This account has been disabled.';
+      case 'email-already-in-use':
+        return 'This email is already in use.';
+      case 'weak-password':
+        return 'Password is too weak.';
+      case 'network-request-failed':
+        return 'Network error. Please check your connection.';
+      default:
+        return 'Something went wrong. Please try again.';
+    }
+  }
+
   String normalizeUsername(String username) {
     return username.trim().toLowerCase();
   }
@@ -159,6 +180,7 @@ class AuthService {
             'uid': user.uid,
             'username': normalizedUsername,
             'displayName': trimmedName,
+            'email': trimmedEmail,
             'createdAt': FieldValue.serverTimestamp(),
           });
 
@@ -187,7 +209,7 @@ class AuthService {
         return 'Could not reserve username.';
       }
     } on FirebaseAuthException catch (e) {
-      return e.message ?? 'Sign up failed.';
+      return _authErrorMessage(e);
     } catch (_) {
       return 'Something went wrong.';
     }
@@ -225,19 +247,7 @@ class AuthService {
           return 'No account found with this username.';
         }
 
-        final uid = usernameDoc.data()!['uid'] as String?;
-
-        if (uid == null || uid.isEmpty) {
-          return 'Account data is incomplete.';
-        }
-
-        final userDoc = await _firestore.collection('users').doc(uid).get();
-
-        if (!userDoc.exists || userDoc.data() == null) {
-          return 'User profile not found.';
-        }
-
-        final foundEmail = userDoc.data()!['email'] as String?;
+        final foundEmail = usernameDoc.data()!['email'] as String?;
 
         if (foundEmail == null || foundEmail.isEmpty) {
           return 'No email found for this username.';
@@ -253,7 +263,7 @@ class AuthService {
 
       return null;
     } on FirebaseAuthException catch (e) {
-      return e.message ?? 'Login failed.';
+      return _authErrorMessage(e);
     } catch (_) {
       return 'Something went wrong.';
     }

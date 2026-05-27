@@ -9,7 +9,6 @@ class ProfileActionSection extends StatelessWidget {
     required this.onFriends,
     required this.onFindFriends,
     required this.onFriendRequests,
-    required this.onEventInvites,
     required this.onLogout,
   });
 
@@ -17,7 +16,6 @@ class ProfileActionSection extends StatelessWidget {
   final VoidCallback onFriends;
   final VoidCallback onFindFriends;
   final VoidCallback onFriendRequests;
-  final VoidCallback onEventInvites;
   final VoidCallback onLogout;
 
   @override
@@ -26,7 +24,7 @@ class ProfileActionSection extends StatelessWidget {
       children: [
         _ActionCard(
           title: 'Social',
-          subtitle: 'People, requests and invites',
+          subtitle: 'People and requests',
           children: [
             _ActionRow(
               icon: Icons.people_alt_rounded,
@@ -46,18 +44,12 @@ class ProfileActionSection extends StatelessWidget {
               subtitle: 'Accept new connections',
               onTap: onFriendRequests,
             ),
-            _ActionRow(
-              icon: Icons.mail_rounded,
-              title: 'Event invites',
-              subtitle: 'Plans waiting for you',
-              onTap: onEventInvites,
-            ),
           ],
         ),
         const SizedBox(height: 16),
         _ActionCard(
           title: 'Account',
-          subtitle: 'Profile and session',
+          subtitle: 'Profile, session and safety',
           children: [
             _ActionRow(
               icon: Icons.edit_rounded,
@@ -128,6 +120,8 @@ class _ActionCardHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isSocial = title == 'Social';
+
     return Row(
       children: [
         Container(
@@ -138,7 +132,7 @@ class _ActionCardHeader extends StatelessWidget {
             borderRadius: BorderRadius.circular(15),
           ),
           child: Icon(
-            title == 'Social'
+            isSocial
                 ? Icons.groups_rounded
                 : Icons.manage_accounts_rounded,
             color: PlanrDesign.accentDark,

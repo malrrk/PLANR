@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/planr_design.dart';
 import '../core/widgets/planr_background.dart';
+import '../core/widgets/planr_button.dart';
 import '../core/widgets/planr_card.dart';
 import '../models/user_profile.dart';
 import '../providers/auth_provider.dart';
+import '../providers/friends_provider.dart';
 import '../providers/user_profile_provider.dart';
 import '../widgets/profile/profile_action_section.dart';
 import '../widgets/profile/profile_empty_state.dart';
@@ -14,12 +16,9 @@ import '../widgets/profile/profile_header.dart';
 import '../widgets/profile/profile_pinned_moments.dart';
 import '../widgets/profile/profile_stats_row.dart';
 import 'edit_profile_screen.dart';
-import 'event_invites_screen.dart';
 import 'friend_requests_screen.dart';
 import 'friends_screen.dart';
 import 'user_search_screen.dart';
-import '../core/widgets/planr_button.dart';
-import '../providers/friends_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({
@@ -27,8 +26,6 @@ class ProfileScreen extends ConsumerWidget {
     this.userId,
   });
 
-  /// If null, this screen shows the current signed-in user's profile.
-  /// If provided, this screen shows that user's public profile.
   final String? userId;
 
   Future<void> _createMissingProfile(WidgetRef ref) async {
@@ -73,6 +70,8 @@ class ProfileScreen extends ConsumerWidget {
         ? ref.watch(currentUserProfileProvider)
         : ref.watch(userProfileByIdProvider(targetUid));
 
+    final friendsCountAsync = ref.watch(friendsCountProvider(targetUid));
+
     return PlanrBackground(
       variant: PlanrBackgroundVariant.profile,
       child: Scaffold(
@@ -95,6 +94,11 @@ class ProfileScreen extends ConsumerWidget {
                   subtitle: 'This user profile is no longer available.',
                 );
               }
+
+              final friendsCount = friendsCountAsync.maybeWhen(
+                data: (count) => count,
+                orElse: () => 0,
+              );
 
               return CustomScrollView(
                 physics: const BouncingScrollPhysics(),
@@ -129,16 +133,16 @@ class ProfileScreen extends ConsumerWidget {
                           ProfileHeader(
                             profile: profile,
                             isOwnProfile: isOwnProfile,
-                            onEditPressed: isOwnProfile
-                                ? () => _open(context, const EditProfileScreen())
-                                : null,
                           ),
                           if (!isOwnProfile) ...[
                             const SizedBox(height: 16),
                             _FriendProfileActionCard(profile: profile),
                           ],
                           const SizedBox(height: 16),
-                          ProfileStatsRow(profile: profile),
+                          ProfileStatsRow(
+                            profile: profile,
+                            friendsCount: friendsCount,
+                          ),
                           const SizedBox(height: 16),
                           ProfilePinnedMoments(
                             profile: profile,
@@ -147,19 +151,12 @@ class ProfileScreen extends ConsumerWidget {
                           if (isOwnProfile) ...[
                             const SizedBox(height: 16),
                             ProfileActionSection(
-                              onEditProfile: () =>
-                                  _open(context, const EditProfileScreen()),
-                              onFriends: () =>
-                                  _open(context, const FriendsScreen()),
-                              onFindFriends: () =>
-                                  _open(context, const UserSearchScreen()),
+                              onEditProfile: () => _open(context, const EditProfileScreen()),
+                              onFriends: () => _open(context, const FriendsScreen()),
+                              onFindFriends: () => _open(context, const UserSearchScreen()),
                               onFriendRequests: () => _open(
                                 context,
                                 const FriendRequestsScreen(),
-                              ),
-                              onEventInvites: () => _open(
-                                context,
-                                const EventInvitesScreen(),
                               ),
                               onLogout: () async {
                                 await ref.read(authProvider).logout();
@@ -366,6 +363,7 @@ class _FriendProfileActionCardState
     ref.invalidate(friendRelationshipProvider(widget.profile.uid));
     ref.invalidate(myFriendsProvider);
     ref.invalidate(incomingFriendRequestsProvider);
+    ref.invalidate(friendsCountProvider(widget.profile.uid));
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

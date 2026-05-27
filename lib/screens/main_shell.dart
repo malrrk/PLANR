@@ -124,7 +124,7 @@ class _PlanrBottomNav extends StatelessWidget {
           Expanded(
             child: _BottomNavItem(
               icon: Icons.dashboard_customize_rounded,
-              label: 'Planr',
+              label: 'MyPlanr',
               selected: selectedIndex == 2,
               onTap: onStoriesTap,
             ),

@@ -110,6 +110,7 @@ class UserProfileService {
     }
 
     final data = <String, dynamic>{
+      'uid': uid,
       'displayName': trimmedDisplayName,
       'bio': trimmedBio == null || trimmedBio.isEmpty ? null : trimmedBio,
       'updatedAt': FieldValue.serverTimestamp(),
@@ -133,18 +134,60 @@ class UserProfileService {
     required String uid,
     required File file,
   }) async {
-    final ref = _storage.ref().child('users/$uid/profile.jpg');
-    await ref.putFile(file);
-    return ref.getDownloadURL();
+    try {
+      final ref = _storage.ref().child('users/$uid/profile.jpg');
+
+      await ref.putFile(
+        file,
+        SettableMetadata(
+          contentType: 'image/jpeg',
+          customMetadata: {
+            'ownerUid': uid,
+            'kind': 'profilePhoto',
+          },
+        ),
+      );
+
+      return ref.getDownloadURL();
+    } on FirebaseException catch (e) {
+      if (e.code == 'unauthorized') {
+        throw Exception(
+          'Profile photo upload is not allowed. Check Firebase Storage rules for users/$uid/profile.jpg.',
+        );
+      }
+
+      throw Exception('Profile photo upload failed: ${e.message ?? e.code}');
+    }
   }
 
   Future<String> uploadProfileBackground({
     required String uid,
     required File file,
   }) async {
-    final ref = _storage.ref().child('users/$uid/background.jpg');
-    await ref.putFile(file);
-    return ref.getDownloadURL();
+    try {
+      final ref = _storage.ref().child('users/$uid/background.jpg');
+
+      await ref.putFile(
+        file,
+        SettableMetadata(
+          contentType: 'image/jpeg',
+          customMetadata: {
+            'ownerUid': uid,
+            'kind': 'profileBackground',
+          },
+        ),
+      );
+
+      return ref.getDownloadURL();
+    } on FirebaseException catch (e) {
+      if (e.code == 'unauthorized') {
+        throw Exception(
+          'Background upload is not allowed. Check Firebase Storage rules for users/$uid/background.jpg.',
+        );
+      }
+
+      throw Exception('Background upload failed: ${e.message ?? e.code}');
+    }
   }
 
   Future<void> updatePinnedStoryImageUrls({
@@ -157,6 +200,7 @@ class UserProfileService {
 
     await _firestore.collection('users').doc(uid).set(
       {
+        'uid': uid,
         'pinnedStoryImageUrls': imageUrls,
         'updatedAt': FieldValue.serverTimestamp(),
       },

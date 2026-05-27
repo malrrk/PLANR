@@ -7,9 +7,11 @@ class ProfileStatsRow extends StatelessWidget {
   const ProfileStatsRow({
     super.key,
     required this.profile,
+    required this.friendsCount,
   });
 
   final UserProfile profile;
+  final int friendsCount;
 
   @override
   Widget build(BuildContext context) {
@@ -27,9 +29,9 @@ class ProfileStatsRow extends StatelessWidget {
         children: [
           Expanded(
             child: _StatTile(
-              label: 'Score',
+              label: 'Host Score',
               value: profile.score.toString(),
-              icon: Icons.bolt_rounded,
+              icon: Icons.workspace_premium_rounded,
               gradient: const LinearGradient(
                 colors: [
                   PlanrDesign.eventMetaOrange,
@@ -43,26 +45,10 @@ class ProfileStatsRow extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: _StatTile(
-              label: 'Hosted',
-              value: profile.hostedEventCount.toString(),
-              icon: Icons.celebration_rounded,
-              gradient: PlanrDesign.storyRingGradient,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _StatTile(
-              label: 'Joined',
-              value: profile.joinedEventCount.toString(),
+              label: 'Friends',
+              value: friendsCount.toString(),
               icon: Icons.groups_rounded,
-              gradient: const LinearGradient(
-                colors: [
-                  PlanrDesign.accent,
-                  PlanrDesign.accentDark,
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              gradient: PlanrDesign.storyRingGradient,
             ),
           ),
         ],
@@ -87,7 +73,7 @@ class _StatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
+      padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 8),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.48),
         borderRadius: BorderRadius.circular(23),
@@ -98,24 +84,24 @@ class _StatTile extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            width: 38,
-            height: 38,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
               gradient: gradient,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(17),
             ),
             child: Icon(
               icon,
               color: Colors.white,
-              size: 21,
+              size: 22,
             ),
           ),
-          const SizedBox(height: 9),
+          const SizedBox(height: 10),
           Text(
             value,
             style: const TextStyle(
               color: PlanrDesign.ink,
-              fontSize: 20,
+              fontSize: 22,
               fontWeight: FontWeight.w900,
               height: 1,
             ),
@@ -125,7 +111,7 @@ class _StatTile extends StatelessWidget {
             label,
             style: const TextStyle(
               color: PlanrDesign.muted,
-              fontSize: 12.5,
+              fontSize: 13,
               fontWeight: FontWeight.w800,
             ),
           ),

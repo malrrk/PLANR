@@ -10,12 +10,10 @@ class ProfileHeader extends StatelessWidget {
   const ProfileHeader({
     super.key,
     required this.profile,
-    this.onEditPressed,
     this.isOwnProfile = true,
   });
 
   final UserProfile profile;
-  final VoidCallback? onEditPressed;
   final bool isOwnProfile;
 
   @override
@@ -43,12 +41,6 @@ class ProfileHeader extends StatelessWidget {
               children: [
                 _CoverImage(profile: profile),
                 const _CoverFade(),
-                if (isOwnProfile && onEditPressed != null)
-                  Positioned(
-                    top: 14,
-                    right: 14,
-                    child: _FloatingEditButton(onTap: onEditPressed!),
-                  ),
               ],
             ),
           ),
@@ -175,48 +167,6 @@ class _CoverFade extends StatelessWidget {
           stops: [0.0, 0.52, 1.0],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-        ),
-      ),
-    );
-  }
-}
-
-class _FloatingEditButton extends StatelessWidget {
-  const _FloatingEditButton({
-    required this.onTap,
-  });
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white.withOpacity(0.88),
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: Colors.white.withOpacity(0.96),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.10),
-                blurRadius: 14,
-                offset: const Offset(0, 7),
-              ),
-            ],
-          ),
-          child: const Icon(
-            Icons.edit_rounded,
-            color: PlanrDesign.ink,
-            size: 19,
-          ),
         ),
       ),
     );

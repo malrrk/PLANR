@@ -177,7 +177,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   Widget build(BuildContext context) {
     final title = _isLogin ? 'Welcome back' : 'Create account';
     final subtitle = _isLogin
-        ? 'Log in with your username.'
+        ? 'Log in with your username or email.'
         : 'Create your PLANR account.';
 
     return PlanrBackground(

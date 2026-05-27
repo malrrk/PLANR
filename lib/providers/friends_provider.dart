@@ -67,6 +67,15 @@ class FriendRelationship {
   final Map<String, dynamic>? incomingRequest;
 }
 
+final friendsCountProvider = StreamProvider.family<int, String>((ref, uid) {
+  return FirebaseFirestore.instance
+      .collection('users')
+      .doc(uid)
+      .collection('friends')
+      .snapshots()
+      .map((snapshot) => snapshot.size);
+});
+
 final friendRelationshipProvider =
     FutureProvider.family<FriendRelationship, String>((ref, otherUid) async {
   final user = FirebaseAuth.instance.currentUser;
