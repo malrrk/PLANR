@@ -19,13 +19,6 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _index = 0;
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    DiscoverScreen(),
-    MyPlanrScreen(),
-    ProfileScreen(),
-  ];
-
   void _selectTab(int index) {
     setState(() {
       _index = index;
@@ -43,9 +36,18 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    final screens = [
+      HomeScreen(
+        onOpenMyPlanr: () => _selectTab(2),
+      ),
+      const DiscoverScreen(),
+      const MyPlanrScreen(),
+      const ProfileScreen(),
+    ];
+
     return Scaffold(
       extendBody: true,
-      body: _screens[_index],
+      body: screens[_index],
       bottomNavigationBar: SafeArea(
         top: false,
         minimum: const EdgeInsets.fromLTRB(14, 0, 14, 12),

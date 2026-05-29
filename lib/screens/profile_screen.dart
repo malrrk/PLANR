@@ -19,6 +19,7 @@ import 'edit_profile_screen.dart';
 import 'friend_requests_screen.dart';
 import 'friends_screen.dart';
 import 'user_search_screen.dart';
+import 'manage_pinned_moments_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({
@@ -147,6 +148,12 @@ class ProfileScreen extends ConsumerWidget {
                           ProfilePinnedMoments(
                             profile: profile,
                             isOwnProfile: isOwnProfile,
+                            onManage: isOwnProfile
+                                ? () => _open(
+                                      context,
+                                      ManagePinnedMomentsScreen(profile: profile),
+                                    )
+                                : null,
                           ),
                           if (isOwnProfile) ...[
                             const SizedBox(height: 16),

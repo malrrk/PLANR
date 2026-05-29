@@ -8,7 +8,12 @@ import '../widgets/home/stories_section.dart';
 import '../core/widgets/planr_background.dart';
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({
+    super.key,
+    this.onOpenMyPlanr,
+  });
+
+  final VoidCallback? onOpenMyPlanr;
 
   void _openCreateStory(BuildContext context) {
     Navigator.push(
@@ -41,7 +46,9 @@ class HomeScreen extends StatelessWidget {
                 onCreateStory: () => _openCreateStory(context),
               ),
               const SizedBox(height: 16),
-              const MyEventsSection(),
+              MyEventsSection(
+                onOpenMyPlanr: onOpenMyPlanr,
+              ),
               const SizedBox(height: 30),
               const EventsNearYouSection(),
             ],
