@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 import '../models/event.dart';
+import '../models/event_tag.dart';
 import '../models/public_page.dart';
 
 final publicPageServiceProvider = Provider<PublicPageService>((ref) {
@@ -37,6 +39,44 @@ final publicPageByIdProvider =
   });
 });
 
+final myManagedPublicPagesProvider = StreamProvider<List<PublicPage>>((ref) {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return Stream.value([]);
+
+  final firestore = FirebaseFirestore.instance;
+
+  final ownedStream = firestore
+      .collection('public_pages')
+      .where('ownerUid', isEqualTo: user.uid)
+      .snapshots();
+
+  final adminStream = firestore
+      .collection('public_pages')
+      .where('adminUids', arrayContains: user.uid)
+      .snapshots();
+
+  return ownedStream.asyncMap((ownedSnapshot) async {
+    final adminSnapshot = await adminStream.first;
+
+    final pagesById = <String, PublicPage>{};
+
+    for (final doc in ownedSnapshot.docs) {
+      final page = PublicPage.fromMap(doc.data(), doc.id);
+      if (page.isActive) pagesById[page.id] = page;
+    }
+
+    for (final doc in adminSnapshot.docs) {
+      final page = PublicPage.fromMap(doc.data(), doc.id);
+      if (page.isActive) pagesById[page.id] = page;
+    }
+
+    final pages = pagesById.values.toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    return pages;
+  });
+});
+
 final followedPagesProvider = StreamProvider<List<PublicPage>>((ref) {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return Stream.value([]);
@@ -56,7 +96,8 @@ final followedPagesProvider = StreamProvider<List<PublicPage>>((ref) {
     final pages = <PublicPage>[];
 
     for (final pageId in pageIds) {
-      final pageDoc = await firestore.collection('public_pages').doc(pageId).get();
+      final pageDoc =
+          await firestore.collection('public_pages').doc(pageId).get();
 
       if (!pageDoc.exists || pageDoc.data() == null) continue;
 
@@ -87,8 +128,6 @@ final publicPageEventsProvider =
   return FirebaseFirestore.instance
       .collection('events')
       .where('visibility', isEqualTo: 'public')
-      .where('hostType', isEqualTo: 'page')
-      .where('hostId', isEqualTo: pageId)
       .orderBy('date')
       .snapshots()
       .map((snapshot) {
@@ -96,16 +135,335 @@ final publicPageEventsProvider =
 
     return snapshot.docs
         .map((doc) => Event.fromMap(doc.data(), doc.id))
-        .where((event) => event.date.isAfter(now))
+        .where((event) {
+          return event.date.isAfter(now) &&
+              event.eventKind == 'public' &&
+              event.organizerType == 'publicPage' &&
+              event.organizerId == pageId;
+        })
         .toList();
   });
 });
+
+class PublicPageCreationResult {
+  const PublicPageCreationResult({
+    required this.pageId,
+    required this.error,
+  });
+
+  final String? pageId;
+  final String? error;
+
+  bool get success => pageId != null && error == null;
+}
 
 class PublicPageService {
   PublicPageService(this._firestore, this._auth);
 
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
+  final Uuid _uuid = const Uuid();
+
+  Future<String?> createPublicPage({
+    required String name,
+    required String handle,
+    required String description,
+    required String category,
+    required List<String> tags,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return 'No user logged in.';
+
+      final trimmedName = name.trim();
+      final normalizedHandle = _normalizeHandle(handle);
+      final trimmedDescription = description.trim();
+      final trimmedCategory = category.trim().isEmpty
+          ? 'page'
+          : category.trim().toLowerCase();
+
+      if (trimmedName.isEmpty) {
+        return 'Please enter a page name.';
+      }
+
+      if (normalizedHandle.isEmpty) {
+        return 'Please enter a page handle.';
+      }
+
+      final existingHandle = await _firestore
+          .collection('public_pages')
+          .where('handle', isEqualTo: normalizedHandle)
+          .limit(1)
+          .get();
+
+      if (existingHandle.docs.isNotEmpty) {
+        return 'This page handle is already taken.';
+      }
+
+      final pageId = _uuid.v4();
+      final pageRef = _firestore.collection('public_pages').doc(pageId);
+
+      final sanitizedTags = sanitizeEventTagIds(tags);
+
+      await pageRef.set({
+        'id': pageId,
+        'name': trimmedName,
+        'handle': normalizedHandle,
+        'description': trimmedDescription,
+        'photoUrl': null,
+        'backgroundImageUrl': null,
+        'category': trimmedCategory,
+        'tags': sanitizedTags,
+        'followerCount': 0,
+        'eventCount': 0,
+        'isVerified': false,
+        'isActive': true,
+        'ownerUid': user.uid,
+        'adminUids': <String>[user.uid],
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      return null;
+    } catch (_) {
+      return 'Failed to create public page.';
+    }
+  }
+
+  Future<PublicPageCreationResult> createPublicPageAndReturnId({
+    required String name,
+    required String handle,
+    required String description,
+    required String category,
+    required List<String> tags,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        return const PublicPageCreationResult(
+          pageId: null,
+          error: 'No user logged in.',
+        );
+      }
+
+      final trimmedName = name.trim();
+      final normalizedHandle = _normalizeHandle(handle);
+      final trimmedDescription = description.trim();
+      final trimmedCategory =
+          category.trim().isEmpty ? 'page' : category.trim().toLowerCase();
+
+      if (trimmedName.isEmpty) {
+        return const PublicPageCreationResult(
+          pageId: null,
+          error: 'Please enter a page name.',
+        );
+      }
+
+      if (normalizedHandle.isEmpty) {
+        return const PublicPageCreationResult(
+          pageId: null,
+          error: 'Please enter a page handle.',
+        );
+      }
+
+      final existingHandle = await _firestore
+          .collection('public_pages')
+          .where('handle', isEqualTo: normalizedHandle)
+          .limit(1)
+          .get();
+
+      if (existingHandle.docs.isNotEmpty) {
+        return const PublicPageCreationResult(
+          pageId: null,
+          error: 'This page handle is already taken.',
+        );
+      }
+
+      final pageId = _uuid.v4();
+      final pageRef = _firestore.collection('public_pages').doc(pageId);
+      final sanitizedTags = sanitizeEventTagIds(tags);
+
+      await pageRef.set({
+        'id': pageId,
+        'name': trimmedName,
+        'handle': normalizedHandle,
+        'description': trimmedDescription,
+        'photoUrl': null,
+        'backgroundImageUrl': null,
+        'category': trimmedCategory,
+        'tags': sanitizedTags,
+        'followerCount': 0,
+        'eventCount': 0,
+        'isVerified': false,
+        'isActive': true,
+        'ownerUid': user.uid,
+        'adminUids': <String>[user.uid],
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      return PublicPageCreationResult(
+        pageId: pageId,
+        error: null,
+      );
+    } catch (_) {
+      return const PublicPageCreationResult(
+        pageId: null,
+        error: 'Failed to create public page.',
+      );
+    }
+  }
+
+  Future<String?> updatePublicPage({
+    required PublicPage page,
+    required String name,
+    required String handle,
+    required String description,
+    required String category,
+    required List<String> tags,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return 'No user logged in.';
+
+      if (page.ownerUid != user.uid && !page.adminUids.contains(user.uid)) {
+        return 'You cannot edit this page.';
+      }
+
+      final trimmedName = name.trim();
+      final normalizedHandle = _normalizeHandle(handle);
+      final trimmedDescription = description.trim();
+      final trimmedCategory = category.trim().isEmpty
+          ? 'page'
+          : category.trim().toLowerCase();
+
+      if (trimmedName.isEmpty) {
+        return 'Please enter a page name.';
+      }
+
+      if (normalizedHandle.isEmpty) {
+        return 'Please enter a page handle.';
+      }
+
+      if (normalizedHandle != page.handle) {
+        final existingHandle = await _firestore
+            .collection('public_pages')
+            .where('handle', isEqualTo: normalizedHandle)
+            .limit(1)
+            .get();
+
+        final handleTakenByOtherPage = existingHandle.docs.any(
+          (doc) => doc.id != page.id,
+        );
+
+        if (handleTakenByOtherPage) {
+          return 'This page handle is already taken.';
+        }
+      }
+
+      await _firestore.collection('public_pages').doc(page.id).set(
+        {
+          'name': trimmedName,
+          'handle': normalizedHandle,
+          'description': trimmedDescription,
+          'category': trimmedCategory,
+          'tags': sanitizeEventTagIds(tags),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+
+      return null;
+    } catch (_) {
+      return 'Failed to update public page.';
+    }
+  }
+
+  Future<String?> addPageAdminByUsername({
+    required PublicPage page,
+    required String username,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return 'No user logged in.';
+
+      if (page.ownerUid != user.uid) {
+        return 'Only the page owner can manage admins.';
+      }
+
+      final normalizedUsername = username
+          .trim()
+          .toLowerCase()
+          .replaceAll('@', '');
+
+      if (normalizedUsername.isEmpty) {
+        return 'Please enter a username.';
+      }
+
+      final userQuery = await _firestore
+          .collection('users')
+          .where('username', isEqualTo: normalizedUsername)
+          .limit(1)
+          .get();
+
+      if (userQuery.docs.isEmpty) {
+        return 'No user with this username was found.';
+      }
+
+      final targetDoc = userQuery.docs.first;
+      final targetUid = targetDoc.id;
+
+      if (targetUid == page.ownerUid) {
+        return 'The owner is already allowed to manage this page.';
+      }
+
+      if (page.adminUids.contains(targetUid)) {
+        return 'This user is already an admin.';
+      }
+
+      await _firestore.collection('public_pages').doc(page.id).set(
+        {
+          'adminUids': FieldValue.arrayUnion([targetUid]),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+
+      return null;
+    } catch (_) {
+      return 'Failed to add admin.';
+    }
+  }
+
+  Future<String?> removePageAdmin({
+    required PublicPage page,
+    required String adminUid,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return 'No user logged in.';
+
+      if (page.ownerUid != user.uid) {
+        return 'Only the page owner can manage admins.';
+      }
+
+      if (adminUid == page.ownerUid) {
+        return 'The owner cannot be removed from the page.';
+      }
+
+      await _firestore.collection('public_pages').doc(page.id).set(
+        {
+          'adminUids': FieldValue.arrayRemove([adminUid]),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+
+      return null;
+    } catch (_) {
+      return 'Failed to remove admin.';
+    }
+  }
 
   Future<String?> followPage(PublicPage page) async {
     try {
@@ -198,5 +556,13 @@ class PublicPageService {
     }
 
     return followPage(page);
+  }
+
+  String _normalizeHandle(String value) {
+    return value
+        .trim()
+        .toLowerCase()
+        .replaceAll('@', '')
+        .replaceAll(RegExp(r'[^a-z0-9._-]'), '');
   }
 }

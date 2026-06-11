@@ -10,11 +10,18 @@ import '../core/widgets/planr_button.dart';
 import '../core/widgets/planr_card.dart';
 import '../core/widgets/planr_scaffold.dart';
 import '../core/widgets/planr_text_field.dart';
+import '../models/public_page.dart';
 import '../providers/event_provider.dart';
+import '../providers/public_page_provider.dart';
 import '../widgets/event_tag_selector.dart';
 
 class CreateEventScreen extends ConsumerStatefulWidget {
-  const CreateEventScreen({super.key});
+  const CreateEventScreen({
+    super.key,
+    this.initialOrganizerPage,
+  });
+
+  final PublicPage? initialOrganizerPage;
 
   @override
   ConsumerState<CreateEventScreen> createState() => _CreateEventScreenState();
@@ -32,10 +39,26 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   bool _saving = false;
 
   String _visibility = 'public';
-  bool _chatEnabled = true;
+  bool _chatEnabled = false;
   bool _guestsCanInvite = true;
 
+  PublicPage? _selectedOrganizerPage;
+
   List<String> _selectedTagIds = [];
+
+  bool get _isPublicEvent => _visibility == 'public';
+  bool get _isPrivateEvent => _visibility == 'private';
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (widget.initialOrganizerPage != null) {
+      _visibility = 'public';
+      _chatEnabled = false;
+      _selectedOrganizerPage = widget.initialOrganizerPage;
+    }
+  }
 
   @override
   void dispose() {
@@ -131,6 +154,8 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
       _saving = true;
     });
 
+    final eventKind = _isPublicEvent ? 'public' : 'private';
+
     final error = await ref.read(eventServiceProvider).createEvent(
           title: title,
           description: description,
@@ -138,8 +163,10 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
           tags: _selectedTagIds,
           date: _selectedDate,
           visibility: _visibility,
-          chatEnabled: _chatEnabled,
-          guestsCanInvite: _guestsCanInvite,
+          eventKind: eventKind,
+          chatEnabled: _isPublicEvent ? false : _chatEnabled,
+          guestsCanInvite: _isPrivateEvent ? _guestsCanInvite : true,
+          organizerPage: _isPublicEvent ? _selectedOrganizerPage : null,
           imageFile: _imagePath != null ? File(_imagePath!) : null,
         );
 
@@ -175,6 +202,8 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final managedPagesAsync = ref.watch(myManagedPublicPagesProvider);
+
     return PlanrScaffold(
       title: 'Create Event',
       variant: PlanrBackgroundVariant.create,
@@ -194,7 +223,9 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                 PlanrTextField(
                   controller: _titleController,
                   label: 'Title',
-                  hintText: 'e.g. Friday house party',
+                  hintText: _isPublicEvent
+                      ? 'e.g. Campus techno night'
+                      : 'e.g. Friday house party',
                   textInputAction: TextInputAction.next,
                   prefixIcon: Icons.edit_rounded,
                 ),
@@ -252,6 +283,14 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                   onChanged: (value) {
                     setState(() {
                       _visibility = value;
+
+                      if (value == 'public') {
+                        _chatEnabled = false;
+                      }
+
+                      if (value == 'private') {
+                        _selectedOrganizerPage = null;
+                      }
                     });
                   },
                 ),
@@ -259,29 +298,60 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
             ),
           ),
 
+          if (_isPublicEvent) ...[
+            const SizedBox(height: 18),
+            managedPagesAsync.when(
+              data: (pages) {
+                return PlanrCard(
+                  padding: const EdgeInsets.all(18),
+                  child: _OrganizerSelector(
+                    pages: pages,
+                    selectedPage: _selectedOrganizerPage,
+                    onChanged: (page) {
+                      setState(() {
+                        _selectedOrganizerPage = page;
+                      });
+                    },
+                  ),
+                );
+              },
+              loading: () => const PlanrCard(
+                padding: EdgeInsets.all(18),
+                child: _LoadingOrganizerState(),
+              ),
+              error: (_, _) => const PlanrCard(
+                padding: EdgeInsets.all(18),
+                child: _OrganizerLoadErrorState(),
+              ),
+            ),
+          ],
+
           const SizedBox(height: 18),
 
           PlanrCard(
             padding: const EdgeInsets.all(18),
             child: Column(
               children: [
-                _SettingsToggle(
-                  icon: Icons.chat_bubble_outline_rounded,
-                  title: 'Enable event chat',
-                  subtitle: 'People who join can write in the event chat.',
-                  value: _chatEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _chatEnabled = value;
-                    });
-                  },
-                ),
-                if (_visibility == 'private') ...[
+                if (_isPublicEvent)
+                  const _PublicEventInfoCard()
+                else ...[
+                  _SettingsToggle(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    title: 'Enable event chat',
+                    subtitle: 'People who join can write in the event chat.',
+                    value: _chatEnabled,
+                    onChanged: (value) {
+                      setState(() {
+                        _chatEnabled = value;
+                      });
+                    },
+                  ),
                   const SizedBox(height: 14),
                   _SettingsToggle(
                     icon: Icons.group_add_rounded,
                     title: 'Guests can invite others',
-                    subtitle: 'Attendees can bring more people into this event.',
+                    subtitle:
+                        'Attendees can bring more people into this event.',
                     value: _guestsCanInvite,
                     onChanged: (value) {
                       setState(() {
@@ -304,6 +374,349 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
           ),
 
           const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+}
+
+class _OrganizerSelector extends StatelessWidget {
+  const _OrganizerSelector({
+    required this.pages,
+    required this.selectedPage,
+    required this.onChanged,
+  });
+
+  final List<PublicPage> pages;
+  final PublicPage? selectedPage;
+  final ValueChanged<PublicPage?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Organizer',
+          style: TextStyle(
+            color: PlanrDesign.muted,
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.2,
+          ),
+        ),
+        const SizedBox(height: 8),
+        _OrganizerOption(
+          icon: Icons.person_rounded,
+          title: 'My profile',
+          subtitle: 'Create this public event as yourself',
+          selected: selectedPage == null,
+          onTap: () => onChanged(null),
+        ),
+        if (pages.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          for (final page in pages)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _OrganizerOption(
+                icon: page.isVerified
+                    ? Icons.verified_rounded
+                    : Icons.storefront_rounded,
+                title: page.name,
+                subtitle: page.displayHandle.isEmpty
+                    ? 'Public page'
+                    : page.displayHandle,
+                imageUrl: page.photoUrl,
+                selected: selectedPage?.id == page.id,
+                onTap: () => onChanged(page),
+              ),
+            ),
+        ] else ...[
+          const SizedBox(height: 10),
+          const _NoManagedPagesHint(),
+        ],
+      ],
+    );
+  }
+}
+
+class _OrganizerOption extends StatelessWidget {
+  const _OrganizerOption({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+    this.imageUrl,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final background = selected
+        ? PlanrDesign.accentSoft.withOpacity(0.95)
+        : PlanrDesign.cardLight.withOpacity(0.74);
+
+    final borderColor = selected
+        ? PlanrDesign.accent.withOpacity(0.55)
+        : Colors.white.withOpacity(0.95);
+
+    return Material(
+      color: background,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: borderColor,
+              width: selected ? 1.4 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              _OrganizerIcon(
+                icon: icon,
+                imageUrl: imageUrl,
+                selected: selected,
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: selected
+                            ? PlanrDesign.accentDark
+                            : PlanrDesign.ink,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PlanrDesign.muted,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (selected)
+                const Icon(
+                  Icons.check_circle_rounded,
+                  color: PlanrDesign.accentDark,
+                  size: 22,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OrganizerIcon extends StatelessWidget {
+  const _OrganizerIcon({
+    required this.icon,
+    required this.imageUrl,
+    required this.selected,
+  });
+
+  final IconData icon;
+  final String? imageUrl;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final trimmedImage = imageUrl?.trim();
+
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(selected ? 0.88 : 0.7),
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.92),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: trimmedImage != null && trimmedImage.isNotEmpty
+          ? Image.network(
+              trimmedImage,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => Icon(
+                icon,
+                color: PlanrDesign.accentDark,
+                size: 22,
+              ),
+            )
+          : Icon(
+              icon,
+              color: PlanrDesign.accentDark,
+              size: 22,
+            ),
+    );
+  }
+}
+
+class _NoManagedPagesHint extends StatelessWidget {
+  const _NoManagedPagesHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: PlanrDesign.cardLight.withOpacity(0.72),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.92),
+        ),
+      ),
+      child: const Row(
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            color: PlanrDesign.accentDark,
+            size: 21,
+          ),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'You do not manage any public pages yet. This event will be created as your profile.',
+              style: TextStyle(
+                color: PlanrDesign.muted,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingOrganizerState extends StatelessWidget {
+  const _LoadingOrganizerState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      children: [
+        SizedBox(
+          width: 19,
+          height: 19,
+          child: CircularProgressIndicator(strokeWidth: 2.2),
+        ),
+        SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            'Loading organizer options...',
+            style: TextStyle(
+              color: PlanrDesign.muted,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _OrganizerLoadErrorState extends StatelessWidget {
+  const _OrganizerLoadErrorState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      children: [
+        Icon(
+          Icons.error_outline_rounded,
+          color: PlanrDesign.accentDark,
+        ),
+        SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'Could not load public pages. The event can still be created as your profile.',
+            style: TextStyle(
+              color: PlanrDesign.muted,
+              fontWeight: FontWeight.w700,
+              height: 1.3,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PublicEventInfoCard extends StatelessWidget {
+  const _PublicEventInfoCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+      decoration: BoxDecoration(
+        color: PlanrDesign.cardLight.withOpacity(0.78),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.92),
+        ),
+      ),
+      child: Row(
+        children: [
+          _SettingIcon(icon: Icons.public_rounded),
+          const SizedBox(width: 13),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Public event',
+                  style: TextStyle(
+                    color: PlanrDesign.ink,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  'Public events are discoverable and do not have a public chat. Friends can coordinate through private groups later.',
+                  style: TextStyle(
+                    color: PlanrDesign.muted,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -347,14 +760,12 @@ class _ImagePickerCard extends StatelessWidget {
               )
             else
               const _EmptyImageState(),
-
             if (hasImage)
               DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: PlanrDesign.eventOverlayGradient(),
                 ),
               ),
-
             if (hasImage)
               Positioned(
                 left: 18,
@@ -564,7 +975,7 @@ class _VisibilitySelector extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Visibility',
+          'Event Type',
           style: TextStyle(
             color: PlanrDesign.muted,
             fontSize: 12,
@@ -618,11 +1029,13 @@ class _VisibilityOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final background =
-        selected ? PlanrDesign.accentSoft.withOpacity(0.95) : PlanrDesign.cardLight.withOpacity(0.74);
+    final background = selected
+        ? PlanrDesign.accentSoft.withOpacity(0.95)
+        : PlanrDesign.cardLight.withOpacity(0.74);
 
-    final borderColor =
-        selected ? PlanrDesign.accent.withOpacity(0.55) : Colors.white.withOpacity(0.95);
+    final borderColor = selected
+        ? PlanrDesign.accent.withOpacity(0.55)
+        : Colors.white.withOpacity(0.95);
 
     final iconColor = selected ? PlanrDesign.accentDark : PlanrDesign.softMuted;
 

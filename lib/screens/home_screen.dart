@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/planr_design.dart';
 import '../screens/create_story_screen.dart';
+import '../screens/notification_center_screen.dart';
 import '../widgets/home/events_near_you_section.dart';
 import '../widgets/home/my_events_section.dart';
 import '../widgets/home/stories_section.dart';
 import '../core/widgets/planr_background.dart';
+import '../providers/event_provider.dart';
+import '../providers/friends_provider.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({
@@ -20,6 +24,15 @@ class HomeScreen extends StatelessWidget {
       context,
       MaterialPageRoute(
         builder: (_) => const CreateStoryScreen(),
+      ),
+    );
+  }
+
+  void _openNotifications(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const NotificationCenterScreen(),
       ),
     );
   }
@@ -40,7 +53,9 @@ class HomeScreen extends StatelessWidget {
               118,
             ),
             children: [
-              const _PlanrHeaderRow(),
+              _PlanrHeaderRow(
+                onNotificationTap: () => _openNotifications(context),
+              ),
               const SizedBox(height: 26),
               StoriesSection(
                 onCreateStory: () => _openCreateStory(context),
@@ -59,54 +74,85 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _BellButton extends StatelessWidget {
-  const _BellButton();
+class _BellButton extends ConsumerWidget {
+  const _BellButton({
+    required this.onTap,
+  });
+
+  final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final invitesAsync = ref.watch(myEventInvitesProvider);
+    final friendRequestsAsync = ref.watch(incomingFriendRequestsProvider);
+
+    final inviteCount = invitesAsync.maybeWhen(
+      data: (invites) => invites.length,
+      orElse: () => 0,
+    );
+
+    final friendRequestCount = friendRequestsAsync.maybeWhen(
+      data: (requests) => requests.length,
+      orElse: () => 0,
+    );
+
+    final hasNotifications = inviteCount + friendRequestCount > 0;
+
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: PlanrDesign.backgroundButton,
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: Colors.black.withOpacity(0.12),
-              width: 1.2,
-            ),
-          ),
-          child: const Icon(
-            Icons.notifications_none_rounded,
-            color: PlanrDesign.accent,
-            size: 20,
-          ),
-        ),
-        Positioned(
-          right: 3,
-          top: 2,
-          child: Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: PlanrDesign.accent,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: PlanrDesign.backgroundButton,
-                width: 1.4,
+        Material(
+          color: PlanrDesign.backgroundButton,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.black.withOpacity(0.12),
+                  width: 1.2,
+                ),
+              ),
+              child: const Icon(
+                Icons.notifications_none_rounded,
+                color: PlanrDesign.accent,
+                size: 20,
               ),
             ),
           ),
         ),
+        if (hasNotifications)
+          Positioned(
+            right: 3,
+            top: 2,
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: PlanrDesign.accent,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: PlanrDesign.backgroundButton,
+                  width: 1.4,
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
 }
 
 class _PlanrHeaderRow extends StatelessWidget {
-  const _PlanrHeaderRow();
+  const _PlanrHeaderRow({
+    required this.onNotificationTap,
+  });
+
+  final VoidCallback onNotificationTap;
 
   @override
   Widget build(BuildContext context) {
@@ -114,8 +160,8 @@ class _PlanrHeaderRow extends StatelessWidget {
       height: 64,
       child: Stack(
         alignment: Alignment.center,
-        children: const [
-          Column(
+        children: [
+          const Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
@@ -133,7 +179,9 @@ class _PlanrHeaderRow extends StatelessWidget {
           ),
           Align(
             alignment: Alignment.topRight,
-            child: _BellButton(),
+            child: _BellButton(
+              onTap: onNotificationTap,
+            ),
           ),
         ],
       ),

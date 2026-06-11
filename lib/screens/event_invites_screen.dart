@@ -83,7 +83,7 @@ class _EventInvitesScreenState extends ConsumerState<EventInvitesScreen> {
                 icon: Icons.mark_email_unread_outlined,
                 title: 'No event invites',
                 subtitle:
-                    'When friends invite you to private events, they will appear here.',
+                    'Private event and group invites will appear here.',
               ),
             );
           }
@@ -105,16 +105,41 @@ class _EventInvitesScreenState extends ConsumerState<EventInvitesScreen> {
               final invitedBy =
                   invite['invitedByDisplayName'] as String? ?? 'someone';
               final imageUrl = invite['eventImageUrl'] as String?;
+              final status = invite['status'] as String? ?? 'pending';
+
+              final eventKind = invite['eventKind'] as String? ?? 'private';
+              final linkedPublicEventTitle =
+                  invite['linkedPublicEventTitle'] as String?;
+              final linkedPublicEventImageUrl =
+                  invite['linkedPublicEventImageUrl'] as String?;
+
+              final isLinkedGroup = eventKind == 'linkedGroup';
+              final displayTitle = isLinkedGroup &&
+                      linkedPublicEventTitle != null &&
+                      linkedPublicEventTitle.trim().isNotEmpty
+                  ? linkedPublicEventTitle.trim()
+                  : title;
+
+              final displayImageUrl = isLinkedGroup &&
+                      linkedPublicEventImageUrl != null &&
+                      linkedPublicEventImageUrl.trim().isNotEmpty
+                  ? linkedPublicEventImageUrl
+                  : imageUrl;
 
               final isProcessing = _processingInviteIds.contains(eventId);
 
               return _InviteCard(
-                title: title,
+                title: displayTitle,
+                groupTitle: isLinkedGroup ? title : null,
                 description: description,
                 invitedBy: invitedBy,
-                imageUrl: imageUrl,
+                imageUrl: displayImageUrl,
                 tagIds: tagIds,
                 isProcessing: isProcessing,
+                status: status,
+                inviteKind: isLinkedGroup
+                    ? _InviteKind.linkedGroup
+                    : _InviteKind.privateEvent,
                 onAccept: () => _acceptInvite(context, eventId),
                 onDecline: () => _declineInvite(context, eventId),
               );
@@ -136,26 +161,58 @@ class _EventInvitesScreenState extends ConsumerState<EventInvitesScreen> {
   }
 }
 
+enum _InviteKind {
+  privateEvent,
+  linkedGroup,
+}
+
 class _InviteCard extends StatelessWidget {
   const _InviteCard({
     required this.title,
+    required this.groupTitle,
     required this.description,
     required this.invitedBy,
     required this.imageUrl,
     required this.tagIds,
     required this.isProcessing,
+    required this.status,
+    required this.inviteKind,
     required this.onAccept,
     required this.onDecline,
   });
 
   final String title;
+  final String? groupTitle;
   final String description;
   final String invitedBy;
   final String? imageUrl;
   final List<String> tagIds;
   final bool isProcessing;
+  final String status;
+  final _InviteKind inviteKind;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
+
+  bool get _isDeclined => status == 'declined';
+
+  String get _kindLabel {
+    return switch (inviteKind) {
+      _InviteKind.privateEvent => 'Private invite',
+      _InviteKind.linkedGroup => 'Group invite',
+    };
+  }
+
+  IconData get _kindIcon {
+    return switch (inviteKind) {
+      _InviteKind.privateEvent => Icons.lock_outline_rounded,
+      _InviteKind.linkedGroup => Icons.group_work_rounded,
+    };
+  }
+
+  String get _statusText {
+    if (_isDeclined) return 'You declined this invite';
+    return 'Invited by $invitedBy';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -168,8 +225,9 @@ class _InviteCard extends StatelessWidget {
           _InviteImageHeader(
             imageUrl: imageUrl,
             title: title,
+            groupTitle: groupTitle,
+            inviteKind: inviteKind,
           ),
-
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 15, 16, 16),
             child: Column(
@@ -187,8 +245,8 @@ class _InviteCard extends StatelessWidget {
                           color: Colors.white.withOpacity(0.9),
                         ),
                       ),
-                      child: const Icon(
-                        Icons.mail_outline_rounded,
+                      child: Icon(
+                        _kindIcon,
                         color: PlanrDesign.accentDark,
                         size: 20,
                       ),
@@ -198,9 +256,9 @@ class _InviteCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Private invite',
-                            style: TextStyle(
+                          Text(
+                            _kindLabel,
+                            style: const TextStyle(
                               color: PlanrDesign.eventMetaOrange,
                               fontSize: 12,
                               fontWeight: FontWeight.w900,
@@ -208,11 +266,13 @@ class _InviteCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Invited by $invitedBy',
+                            _statusText,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: PlanrDesign.muted,
+                            style: TextStyle(
+                              color: _isDeclined
+                                  ? PlanrDesign.softMuted
+                                  : PlanrDesign.muted,
                               fontSize: 13,
                               fontWeight: FontWeight.w800,
                             ),
@@ -253,17 +313,18 @@ class _InviteCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: PlanrButton(
-                        label: 'Decline',
+                        label: _isDeclined ? 'Declined' : 'Decline',
                         icon: Icons.close_rounded,
                         variant: PlanrButtonVariant.outlined,
                         isLoading: false,
-                        onPressed: isProcessing ? null : onDecline,
+                        onPressed:
+                            isProcessing || _isDeclined ? null : onDecline,
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: PlanrButton(
-                        label: 'Accept',
+                        label: _isDeclined ? 'Accept again' : 'Accept',
                         icon: Icons.check_rounded,
                         isLoading: isProcessing,
                         onPressed: isProcessing ? null : onAccept,
@@ -284,17 +345,26 @@ class _InviteImageHeader extends StatelessWidget {
   const _InviteImageHeader({
     required this.imageUrl,
     required this.title,
+    required this.groupTitle,
+    required this.inviteKind,
   });
 
   final String? imageUrl;
   final String title;
+  final String? groupTitle;
+  final _InviteKind inviteKind;
 
   @override
   Widget build(BuildContext context) {
     final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
 
+    final eyebrow = switch (inviteKind) {
+      _InviteKind.privateEvent => 'Private event',
+      _InviteKind.linkedGroup => 'Private group for',
+    };
+
     return Container(
-      height: 158,
+      height: 168,
       width: double.infinity,
       decoration: BoxDecoration(
         color: PlanrDesign.accentSoft.withOpacity(0.45),
@@ -324,36 +394,65 @@ class _InviteImageHeader extends StatelessWidget {
                   end: Alignment.bottomRight,
                 ),
               ),
-              child: const Center(
+              child: Center(
                 child: Icon(
-                  Icons.event_available_rounded,
+                  inviteKind == _InviteKind.linkedGroup
+                      ? Icons.group_work_rounded
+                      : Icons.event_available_rounded,
                   color: PlanrDesign.accent,
                   size: 42,
                 ),
               ),
             ),
-
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: PlanrDesign.eventOverlayGradient(),
             ),
           ),
-
           Positioned(
             left: 16,
             right: 16,
             bottom: 15,
-            child: Text(
-              title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.55,
-                height: 1.05,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  eyebrow,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.55,
+                    height: 1.05,
+                  ),
+                ),
+                if (groupTitle != null &&
+                    groupTitle!.trim().isNotEmpty &&
+                    groupTitle!.trim() != title.trim()) ...[
+                  const SizedBox(height: 5),
+                  Text(
+                    groupTitle!.trim(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ],

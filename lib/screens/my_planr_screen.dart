@@ -150,7 +150,6 @@ class _MyPlanrScreenState extends ConsumerState<MyPlanrScreen> {
             children: [
               const _MyPlanrHeader(),
               const SizedBox(height: 20),
-
               storiesAsync.when(
                 data: (stories) {
                   final groups = ref
@@ -172,9 +171,7 @@ class _MyPlanrScreenState extends ConsumerState<MyPlanrScreen> {
                   onTap: _openStories,
                 ),
               ),
-
               const SizedBox(height: 24),
-
               invitesAsync.when(
                 data: (invites) {
                   return _InvitePreviewSection(
@@ -195,9 +192,7 @@ class _MyPlanrScreenState extends ConsumerState<MyPlanrScreen> {
                   onTap: _openInvites,
                 ),
               ),
-
               const SizedBox(height: 26),
-
               myEventsAsync.when(
                 data: (events) {
                   final upcomingEvents = _futureEvents(events);
@@ -466,28 +461,45 @@ class _InvitePreviewSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (invites.isEmpty) {
+    final pendingInvites = invites
+        .where(
+          (invite) => (invite['status'] as String? ?? 'pending') == 'pending',
+        )
+        .toList();
+
+    final declinedInvites = invites
+      .where(
+        (invite) => (invite['status'] as String?) == 'declined',
+      )
+      .toList();
+
+    if (pendingInvites.isEmpty && declinedInvites.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    final visibleInvites = invites.take(2).toList();
+    final visiblePendingInvites = pendingInvites.take(2).toList();
+    final visibleDeclinedInvites = declinedInvites.take(2).toList();
+    final hiddenInviteCount =
+        invites.length - visiblePendingInvites.length - visibleDeclinedInvites.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SectionHeader(
           title: 'Invites',
-          subtitle:
-              '${invites.length} open ${invites.length == 1 ? 'invitation' : 'invitations'} waiting.',
-          actionLabel: invites.length > 2 ? 'View all' : null,
-          onActionTap: invites.length > 2 ? onOpenAll : null,
+          subtitle: pendingInvites.isNotEmpty
+              ? '${pendingInvites.length} open ${pendingInvites.length == 1 ? 'invitation' : 'invitations'} waiting.'
+              : '${declinedInvites.length} declined ${declinedInvites.length == 1 ? 'invite' : 'invites'} you can still accept.',
+          actionLabel: hiddenInviteCount > 0 ? 'View all' : null,
+          onActionTap: hiddenInviteCount > 0 ? onOpenAll : null,
         ),
         const SizedBox(height: 14),
-        for (final invite in visibleInvites)
+        for (final invite in visiblePendingInvites)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: _InvitePreviewCard(
               invite: invite,
+              isDeclined: false,
               isProcessing: processingInviteIds.contains(
                 invite['eventId'] as String?,
               ),
@@ -496,6 +508,34 @@ class _InvitePreviewSection extends StatelessWidget {
               onDecline: onDecline,
             ),
           ),
+        if (visibleDeclinedInvites.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          const Padding(
+            padding: EdgeInsets.only(bottom: 10),
+            child: Text(
+              'Declined invites',
+              style: TextStyle(
+                color: PlanrDesign.muted,
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          for (final invite in visibleDeclinedInvites)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _InvitePreviewCard(
+                invite: invite,
+                isDeclined: true,
+                isProcessing: processingInviteIds.contains(
+                  invite['eventId'] as String?,
+                ),
+                onOpenEvent: onOpenEvent,
+                onAccept: onAccept,
+                onDecline: onDecline,
+              ),
+            ),
+        ],
       ],
     );
   }
@@ -504,6 +544,7 @@ class _InvitePreviewSection extends StatelessWidget {
 class _InvitePreviewCard extends StatelessWidget {
   const _InvitePreviewCard({
     required this.invite,
+    required this.isDeclined,
     required this.isProcessing,
     required this.onOpenEvent,
     required this.onAccept,
@@ -511,6 +552,7 @@ class _InvitePreviewCard extends StatelessWidget {
   });
 
   final Map<String, dynamic> invite;
+  final bool isDeclined;
   final bool isProcessing;
   final ValueChanged<String> onOpenEvent;
   final ValueChanged<String> onAccept;
@@ -545,28 +587,43 @@ class _InvitePreviewCard extends StatelessWidget {
 
     return PlanrCard(
       padding: const EdgeInsets.all(12),
-      color: PlanrDesign.cardLight.withOpacity(0.88),
+      color: PlanrDesign.cardLight.withOpacity(
+        isDeclined ? 0.74 : 0.88,
+      ),
       radius: 28,
       child: Column(
         children: [
           Row(
             children: [
-              Container(
-                width: 76,
-                height: 88,
-                decoration: BoxDecoration(
-                  color: PlanrDesign.accentSoft.withOpacity(0.72),
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: imageUrl != null && imageUrl.isNotEmpty
-                    ? Image.network(
-                        imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) =>
-                            const _EventPlaceholderSmall(),
-                      )
-                    : const _EventPlaceholderSmall(),
+              Stack(
+                children: [
+                  Container(
+                    width: 76,
+                    height: 88,
+                    decoration: BoxDecoration(
+                      color: PlanrDesign.accentSoft.withOpacity(0.72),
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: imageUrl != null && imageUrl.isNotEmpty
+                        ? Image.network(
+                            imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) =>
+                                const _EventPlaceholderSmall(),
+                          )
+                        : const _EventPlaceholderSmall(),
+                  ),
+                  if (isDeclined)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.38),
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(width: 13),
               Expanded(
@@ -576,11 +633,15 @@ class _InvitePreviewCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '$invitedBy invited you',
+                        isDeclined
+                            ? 'You declined this invite'
+                            : '$invitedBy invited you',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: PlanrDesign.accentDark,
+                        style: TextStyle(
+                          color: isDeclined
+                              ? PlanrDesign.softMuted
+                              : PlanrDesign.accentDark,
                           fontSize: 12.5,
                           fontWeight: FontWeight.w900,
                         ),
@@ -593,6 +654,9 @@ class _InvitePreviewCard extends StatelessWidget {
                         style: PlanrDesign.cardTitleStyle.copyWith(
                           fontSize: 17.5,
                           height: 1.08,
+                          color: isDeclined
+                              ? PlanrDesign.ink.withOpacity(0.74)
+                              : PlanrDesign.ink,
                         ),
                       ),
                       const Spacer(),
@@ -636,20 +700,22 @@ class _InvitePreviewCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Expanded(
-                child: PlanrButton(
-                  label: 'Decline',
-                  icon: Icons.close_rounded,
-                  variant: PlanrButtonVariant.outlined,
-                  onPressed: isProcessing || eventId.isEmpty
-                      ? null
-                      : () => onDecline(eventId),
+              if (!isDeclined) ...[
+                Expanded(
+                  child: PlanrButton(
+                    label: 'Decline',
+                    icon: Icons.close_rounded,
+                    variant: PlanrButtonVariant.outlined,
+                    onPressed: isProcessing || eventId.isEmpty
+                        ? null
+                        : () => onDecline(eventId),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
+                const SizedBox(width: 8),
+              ],
               Expanded(
                 child: PlanrButton(
-                  label: 'Accept',
+                  label: isDeclined ? 'Accept now' : 'Accept',
                   icon: Icons.check_rounded,
                   isLoading: isProcessing,
                   onPressed: isProcessing || eventId.isEmpty
@@ -744,6 +810,14 @@ class _NextPlanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (event.isLinkedGroup) {
+      return _NextLinkedGroupCard(
+        event: event,
+        onTap: onTap,
+        formatDate: _formatDate,
+      );
+    }
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -824,6 +898,183 @@ class _NextPlanCard extends StatelessWidget {
                     ],
                   ),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NextLinkedGroupCard extends StatelessWidget {
+  const _NextLinkedGroupCard({
+    required this.event,
+    required this.onTap,
+    required this.formatDate,
+  });
+
+  final Event event;
+  final VoidCallback onTap;
+  final String Function(DateTime date) formatDate;
+
+  @override
+  Widget build(BuildContext context) {
+    final publicTitle =
+        event.linkedPublicEventTitle?.trim().isNotEmpty == true
+            ? event.linkedPublicEventTitle!.trim()
+            : event.title;
+
+    final publicAddress =
+        event.linkedPublicEventAddress?.trim().isNotEmpty == true
+            ? event.linkedPublicEventAddress!.trim()
+            : event.address;
+
+    final publicDate = event.linkedPublicEventDate ?? event.date;
+    final publicImageUrl = event.linkedPublicEventImageUrl?.trim();
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 260,
+        decoration: BoxDecoration(
+          color: PlanrDesign.ink,
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.16),
+              blurRadius: 24,
+              offset: const Offset(0, 11),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (publicImageUrl != null && publicImageUrl.isNotEmpty)
+              Image.network(
+                publicImageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => _EventImage(event: event),
+              )
+            else
+              _EventImage(event: event),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.black.withOpacity(0.12),
+                    Colors.black.withOpacity(0.42),
+                    Colors.black.withOpacity(0.86),
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+            ),
+            const Positioned(
+              top: 16,
+              left: 16,
+              child: _ImagePill(
+                icon: Icons.group_work_rounded,
+                label: 'PRIVATE GROUP',
+              ),
+            ),
+            Positioned(
+              left: 18,
+              right: 18,
+              top: 68,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'for',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    publicTitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 25,
+                      height: 1.04,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.75,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              left: 18,
+              right: 18,
+              bottom: 18,
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: PlanrDesign.cardLight.withOpacity(0.93),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.92),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: PlanrDesign.accentSoft.withOpacity(0.78),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Icon(
+                        Icons.lock_rounded,
+                        color: PlanrDesign.accentDark,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Your private plan',
+                            style: TextStyle(
+                              color: PlanrDesign.ink,
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${formatDate(publicDate)} · ${publicAddress.isEmpty ? 'No location' : publicAddress}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: PlanrDesign.eventMetaOrange,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: PlanrDesign.softMuted,
+                      size: 26,
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

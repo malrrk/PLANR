@@ -26,42 +26,6 @@ class HomeEventCard extends ConsumerWidget {
     return '$day.$month · $hour:$minute';
   }
 
-  EventTag? _primaryTag(Event event) {
-    return primaryEventTag(event.tags);
-  }
-
-  String _categoryLabel(Event event) {
-    final tag = _primaryTag(event);
-    if (tag != null) return tag.label.toUpperCase();
-
-    if (event.visibility == 'private') return 'PRIVATE';
-    if (event.attendeeCount >= 20) return 'TRENDING';
-
-    return 'EVENT';
-  }
-
-  IconData _categoryIcon(Event event) {
-    final tag = _primaryTag(event);
-    if (tag != null) return tag.icon;
-
-    if (event.visibility == 'private') return Icons.lock_rounded;
-    if (event.attendeeCount >= 20) {
-      return Icons.local_fire_department_rounded;
-    }
-
-    return Icons.celebration_rounded;
-  }
-
-  Color _categoryColor(Event event) {
-    final tag = _primaryTag(event);
-
-    if (tag == null && event.visibility == 'private') {
-      return const Color(0xFF6D5DF6);
-    }
-
-    return PlanrDesign.accent;
-  }
-
   void _openDetails(BuildContext context) {
     Navigator.push(
       context,
@@ -106,15 +70,6 @@ class HomeEventCard extends ConsumerWidget {
               child: _EventImage(event: event),
             ),
             const _EventImageOverlay(),
-            Positioned(
-              top: 18,
-              left: 18,
-              child: _CategoryPill(
-                icon: _categoryIcon(event),
-                label: _categoryLabel(event),
-                color: _categoryColor(event),
-              ),
-            ),
             Positioned(
               top: 16,
               right: 16,

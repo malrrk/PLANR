@@ -6,9 +6,12 @@ import '../core/widgets/planr_background.dart';
 import '../core/widgets/planr_card.dart';
 import '../models/event.dart';
 import '../models/event_tag.dart';
+import '../models/public_page.dart';
 import '../providers/event_provider.dart';
+import '../providers/public_page_provider.dart';
 import '../widgets/event_tag_chips.dart';
 import 'event_detail_screen.dart';
+import 'public_page_screen.dart';
 
 class DiscoverScreen extends ConsumerStatefulWidget {
   const DiscoverScreen({super.key});
@@ -22,6 +25,9 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
 
   String _searchQuery = '';
   String? _selectedTagId;
+
+  bool get _hasSearch => _searchQuery.isNotEmpty;
+  bool get _hasFilter => _selectedTagId != null || _hasSearch;
 
   @override
   void dispose() {
@@ -45,6 +51,15 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     });
   }
 
+  void _resetFilters() {
+    _searchController.clear();
+
+    setState(() {
+      _searchQuery = '';
+      _selectedTagId = null;
+    });
+  }
+
   List<Event> _futureEvents(List<Event> events) {
     final now = DateTime.now();
 
@@ -58,8 +73,8 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     final selectedTagId = _selectedTagId;
 
     return events.where((event) {
-      final matchesTag = selectedTagId == null ||
-          event.tags.contains(selectedTagId);
+      final matchesTag =
+          selectedTagId == null || event.tags.contains(selectedTagId);
 
       if (!matchesTag) return false;
 
@@ -76,7 +91,40 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
         event.description,
         event.address,
         event.creatorDisplayName,
+        event.organizerDisplayName,
         event.tags.join(' '),
+        tagLabels,
+      ].join(' ').toLowerCase();
+
+      return searchableText.contains(query);
+    }).toList();
+  }
+
+  List<PublicPage> _filteredPages(List<PublicPage> pages) {
+    final query = _searchQuery;
+    final selectedTagId = _selectedTagId;
+
+    return pages.where((page) {
+      final matchesTag =
+          selectedTagId == null || page.tags.contains(selectedTagId);
+
+      if (!matchesTag) return false;
+
+      if (query.isEmpty) return true;
+
+      final tagLabels = page.tags
+          .map(eventTagById)
+          .whereType<EventTag>()
+          .map((tag) => tag.label.toLowerCase())
+          .join(' ');
+
+      final searchableText = [
+        page.name,
+        page.handle,
+        page.displayHandle,
+        page.description,
+        page.category,
+        page.tags.join(' '),
         tagLabels,
       ].join(' ').toLowerCase();
 
@@ -97,6 +145,22 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     return sorted.take(5).toList();
   }
 
+  List<PublicPage> _topPages(List<PublicPage> pages) {
+    final sorted = [...pages];
+
+    sorted.sort((a, b) {
+      final followerComparison = b.followerCount.compareTo(a.followerCount);
+      if (followerComparison != 0) return followerComparison;
+
+      final eventComparison = b.eventCount.compareTo(a.eventCount);
+      if (eventComparison != 0) return eventComparison;
+
+      return b.createdAt.compareTo(a.createdAt);
+    });
+
+    return sorted.take(8).toList();
+  }
+
   void _openEvent(Event event) {
     Navigator.push(
       context,
@@ -106,9 +170,19 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     );
   }
 
+  void _openPage(PublicPage page) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PublicPageScreen(pageId: page.id),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final eventsAsync = ref.watch(eventsProvider);
+    final pagesAsync = ref.watch(publicPagesProvider);
 
     return PlanrBackground(
       variant: PlanrBackgroundVariant.events,
@@ -118,87 +192,164 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
           bottom: false,
           child: eventsAsync.when(
             data: (events) {
-              final futureEvents = _futureEvents(events);
-              final filteredEvents = _filteredEvents(futureEvents);
-              final hotEvents = _hotEvents(futureEvents);
+              return pagesAsync.when(
+                data: (pages) {
+                  final futureEvents = _futureEvents(events);
+                  final filteredEvents = _filteredEvents(futureEvents);
+                  final filteredPages = _filteredPages(pages);
+                  final hotEvents = _hotEvents(futureEvents);
+                  final topPages = _topPages(pages);
 
-              return ListView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(
-                  PlanrDesign.pagePadding,
-                  18,
-                  PlanrDesign.pagePadding,
-                  118,
-                ),
-                children: [
-                  const _DiscoverHeader(),
-                  const SizedBox(height: 18),
-                  _DiscoverSearchBar(
-                    controller: _searchController,
-                    onChanged: _setSearchQuery,
-                  ),
-                  const SizedBox(height: 16),
-                  _DiscoverTagFilter(
-                    selectedTagId: _selectedTagId,
-                    onTagSelected: _toggleTag,
-                  ),
-                  const SizedBox(height: 28),
-                  if (hotEvents.isNotEmpty) ...[
-                    _SectionHeader(
-                      title: 'Hot Events',
-                      subtitle: 'Popular plans people are joining.',
+                  final showExploreSections = !_hasSearch;
+                  final showSearchSections = _hasSearch;
+
+                  return ListView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(
+                      PlanrDesign.pagePadding,
+                      18,
+                      PlanrDesign.pagePadding,
+                      118,
                     ),
-                    const SizedBox(height: 14),
-                    _HotEventsStrip(
-                      events: hotEvents,
-                      onEventTap: _openEvent,
-                    ),
-                    const SizedBox(height: 30),
-                  ],
-                  _SectionHeader(
-                    title: _selectedTagId == null && _searchQuery.isEmpty
-                        ? 'Explore Events'
-                        : 'Results',
-                    subtitle: _resultSubtitle(filteredEvents.length),
-                  ),
-                  const SizedBox(height: 14),
-                  if (filteredEvents.isEmpty)
-                    _DiscoverEmptyState(
-                      hasFilter:
-                          _selectedTagId != null || _searchQuery.isNotEmpty,
-                      onReset: () {
-                        _searchController.clear();
-                        setState(() {
-                          _searchQuery = '';
-                          _selectedTagId = null;
-                        });
-                      },
-                    )
-                  else
-                    ...filteredEvents.map(
-                      (event) => Padding(
-                        padding: const EdgeInsets.only(bottom: 14),
-                        child: _DiscoverEventCard(
-                          event: event,
-                          onTap: () => _openEvent(event),
-                        ),
+                    children: [
+                      const _DiscoverHeader(),
+                      const SizedBox(height: 18),
+                      _DiscoverSearchBar(
+                        controller: _searchController,
+                        onChanged: _setSearchQuery,
                       ),
-                    ),
-                ],
+                      const SizedBox(height: 16),
+                      _DiscoverTagFilter(
+                        selectedTagId: _selectedTagId,
+                        onTagSelected: _toggleTag,
+                      ),
+                      const SizedBox(height: 28),
+
+                      if (showExploreSections) ...[
+                        if (topPages.isNotEmpty) ...[
+                          const _SectionHeader(
+                            title: 'Public Pages',
+                            subtitle:
+                                'Follow clubs, groups and venues around you.',
+                          ),
+                          const SizedBox(height: 14),
+                          _PublicPagesStrip(
+                            pages: topPages,
+                            onPageTap: _openPage,
+                          ),
+                          const SizedBox(height: 30),
+                        ],
+                        if (hotEvents.isNotEmpty) ...[
+                          const _SectionHeader(
+                            title: 'Hot Events',
+                            subtitle: 'Popular plans people are joining.',
+                          ),
+                          const SizedBox(height: 14),
+                          _HotEventsStrip(
+                            events: hotEvents,
+                            onEventTap: _openEvent,
+                          ),
+                          const SizedBox(height: 30),
+                        ],
+                        _SectionHeader(
+                          title:
+                              _selectedTagId == null ? 'Explore Events' : 'Results',
+                          subtitle: _eventResultSubtitle(filteredEvents.length),
+                        ),
+                        const SizedBox(height: 14),
+                        if (filteredEvents.isEmpty)
+                          _DiscoverEmptyState(
+                            hasFilter: _hasFilter,
+                            onReset: _resetFilters,
+                          )
+                        else
+                          ...filteredEvents.map(
+                            (event) => Padding(
+                              padding: const EdgeInsets.only(bottom: 14),
+                              child: _DiscoverEventCard(
+                                event: event,
+                                onTap: () => _openEvent(event),
+                              ),
+                            ),
+                          ),
+                      ],
+
+                      if (showSearchSections) ...[
+                        _SectionHeader(
+                          title: 'Page Results',
+                          subtitle: _pageResultSubtitle(filteredPages.length),
+                        ),
+                        const SizedBox(height: 14),
+                        if (filteredPages.isEmpty)
+                          const _SmallEmptyResultCard(
+                            icon: Icons.storefront_rounded,
+                            title: 'No matching pages.',
+                            subtitle:
+                                'Try another name, handle, category or tag.',
+                          )
+                        else
+                          ...filteredPages.map(
+                            (page) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _PublicPageResultCard(
+                                page: page,
+                                onTap: () => _openPage(page),
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 24),
+                        _SectionHeader(
+                          title: 'Event Results',
+                          subtitle: _eventResultSubtitle(filteredEvents.length),
+                        ),
+                        const SizedBox(height: 14),
+                        if (filteredEvents.isEmpty)
+                          _DiscoverEmptyState(
+                            hasFilter: true,
+                            onReset: _resetFilters,
+                          )
+                        else
+                          ...filteredEvents.map(
+                            (event) => Padding(
+                              padding: const EdgeInsets.only(bottom: 14),
+                              child: _DiscoverEventCard(
+                                event: event,
+                                onTap: () => _openEvent(event),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ],
+                  );
+                },
+                loading: () => const _DiscoverLoadingState(),
+                error: (_, _) => const _DiscoverErrorState(
+                  title: 'Could not load pages.',
+                  subtitle: 'Please try again in a moment.',
+                ),
               );
             },
             loading: () => const _DiscoverLoadingState(),
-            error: (_, _) => const _DiscoverErrorState(),
+            error: (_, _) => const _DiscoverErrorState(
+              title: 'Could not load events.',
+              subtitle: 'Please try again in a moment.',
+            ),
           ),
         ),
       ),
     );
   }
 
-  String _resultSubtitle(int count) {
+  String _eventResultSubtitle(int count) {
     if (count == 0) return 'No public events found.';
     if (count == 1) return '1 public event found.';
     return '$count public events found.';
+  }
+
+  String _pageResultSubtitle(int count) {
+    if (count == 0) return 'No public pages found.';
+    if (count == 1) return '1 public page found.';
+    return '$count public pages found.';
   }
 }
 
@@ -222,7 +373,7 @@ class _DiscoverHeader extends StatelessWidget {
         ),
         SizedBox(height: 8),
         Text(
-          'Find public events, new plans and places to join.',
+          'Find public events, pages and places to join.',
           style: TextStyle(
             color: PlanrDesign.muted,
             fontSize: 14.5,
@@ -265,7 +416,7 @@ class _DiscoverSearchBar extends StatelessWidget {
             color: PlanrDesign.accentDark,
             size: 23,
           ),
-          hintText: 'Search events, tags, places...',
+          hintText: 'Search events, pages, tags, places...',
           hintStyle: TextStyle(
             color: PlanrDesign.softMuted,
             fontSize: 14.5,
@@ -439,6 +590,342 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
+class _PublicPagesStrip extends StatelessWidget {
+  const _PublicPagesStrip({
+    required this.pages,
+    required this.onPageTap,
+  });
+
+  final List<PublicPage> pages;
+  final ValueChanged<PublicPage> onPageTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 158,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: pages.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 12),
+        itemBuilder: (context, index) {
+          final page = pages[index];
+
+          return _PublicPageStripCard(
+            page: page,
+            onTap: () => onPageTap(page),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _PublicPageStripCard extends StatelessWidget {
+  const _PublicPageStripCard({
+    required this.page,
+    required this.onTap,
+  });
+
+  final PublicPage page;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final category = _categoryLabel(page.category);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 226,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: PlanrDesign.cardLight.withOpacity(0.88),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.9),
+          ),
+          boxShadow: [PlanrDesign.softShadow],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                _PublicPageLogo(page: page, size: 48),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              page.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: PlanrDesign.ink,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                          ),
+                          if (page.isVerified) ...[
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.verified_rounded,
+                              color: PlanrDesign.accentDark,
+                              size: 16,
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        page.displayHandle.isEmpty
+                            ? category
+                            : page.displayHandle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: PlanrDesign.muted,
+                          fontSize: 12.4,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            EventTagChips(
+              tagIds: page.tags,
+              maxVisible: 2,
+              compact: true,
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                _MiniPageMeta(
+                  icon: Icons.group_rounded,
+                  text: _followersLabel(page.followerCount),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _MiniPageMeta(
+                    icon: Icons.category_rounded,
+                    text: category,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PublicPageResultCard extends StatelessWidget {
+  const _PublicPageResultCard({
+    required this.page,
+    required this.onTap,
+  });
+
+  final PublicPage page;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final category = _categoryLabel(page.category);
+
+    return PlanrCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(14),
+      radius: 28,
+      color: PlanrDesign.cardLight.withOpacity(0.86),
+      child: Row(
+        children: [
+          _PublicPageLogo(page: page, size: 58),
+          const SizedBox(width: 13),
+          Expanded(
+            child: SizedBox(
+              height: 66,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          page.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: PlanrDesign.ink,
+                            fontSize: 17.5,
+                            height: 1,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.45,
+                          ),
+                        ),
+                      ),
+                      if (page.isVerified) ...[
+                        const SizedBox(width: 5),
+                        const Icon(
+                          Icons.verified_rounded,
+                          color: PlanrDesign.accentDark,
+                          size: 17,
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    page.displayHandle.isEmpty
+                        ? category
+                        : '${page.displayHandle} · $category',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: PlanrDesign.muted,
+                      fontSize: 12.5,
+                      height: 1,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const Spacer(),
+                  Row(
+                    children: [
+                      _MiniPageMeta(
+                        icon: Icons.group_rounded,
+                        text: _followersLabel(page.followerCount),
+                      ),
+                      const SizedBox(width: 10),
+                      _MiniPageMeta(
+                        icon: Icons.event_rounded,
+                        text: '${page.eventCount} events',
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: PlanrDesign.softMuted,
+            size: 27,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PublicPageLogo extends StatelessWidget {
+  const _PublicPageLogo({
+    required this.page,
+    required this.size,
+  });
+
+  final PublicPage page;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final photoUrl = page.photoUrl?.trim();
+    final hasPhoto = photoUrl != null && photoUrl.isNotEmpty;
+    final initial = page.name.trim().isEmpty
+        ? '?'
+        : page.name.trim().characters.first.toUpperCase();
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: PlanrDesign.accentSoft.withOpacity(0.76),
+        borderRadius: BorderRadius.circular(size * 0.36),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.92),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: hasPhoto
+          ? Image.network(
+              photoUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => _PageInitial(initial: initial),
+            )
+          : _PageInitial(initial: initial),
+    );
+  }
+}
+
+class _PageInitial extends StatelessWidget {
+  const _PageInitial({
+    required this.initial,
+  });
+
+  final String initial;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text(
+        initial,
+        style: const TextStyle(
+          color: PlanrDesign.accentDark,
+          fontSize: 22,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniPageMeta extends StatelessWidget {
+  const _MiniPageMeta({
+    required this.icon,
+    required this.text,
+  });
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          icon,
+          color: PlanrDesign.eventMetaOrange,
+          size: 14.5,
+        ),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: PlanrDesign.eventMetaOrange,
+              fontSize: 12.2,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _HotEventsStrip extends StatelessWidget {
   const _HotEventsStrip({
     required this.events,
@@ -521,8 +1008,7 @@ class _HotEventCard extends StatelessWidget {
               top: 14,
               left: 14,
               child: _ImagePill(
-                icon: primaryTag?.icon ??
-                    Icons.local_fire_department_rounded,
+                icon: primaryTag?.icon ?? Icons.local_fire_department_rounded,
                 label: primaryTag?.label.toUpperCase() ?? 'HOT',
               ),
             ),
@@ -875,9 +1361,7 @@ class _DiscoverEmptyState extends StatelessWidget {
       child: Column(
         children: [
           Icon(
-            hasFilter
-                ? Icons.manage_search_rounded
-                : Icons.event_busy_rounded,
+            hasFilter ? Icons.manage_search_rounded : Icons.event_busy_rounded,
             color: PlanrDesign.accentDark,
             size: 34,
           ),
@@ -924,6 +1408,62 @@ class _DiscoverEmptyState extends StatelessWidget {
   }
 }
 
+class _SmallEmptyResultCard extends StatelessWidget {
+  const _SmallEmptyResultCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return PlanrCard(
+      padding: const EdgeInsets.all(18),
+      color: PlanrDesign.cardLight.withOpacity(0.86),
+      radius: 28,
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            color: PlanrDesign.accentDark,
+            size: 28,
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: PlanrDesign.ink,
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: PlanrDesign.muted,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _DiscoverLoadingState extends StatelessWidget {
   const _DiscoverLoadingState();
 
@@ -936,7 +1476,13 @@ class _DiscoverLoadingState extends StatelessWidget {
 }
 
 class _DiscoverErrorState extends StatelessWidget {
-  const _DiscoverErrorState();
+  const _DiscoverErrorState({
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String title;
+  final String subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -947,27 +1493,27 @@ class _DiscoverErrorState extends StatelessWidget {
           padding: const EdgeInsets.all(22),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(
+            children: [
+              const Icon(
                 Icons.error_outline_rounded,
                 color: PlanrDesign.accentDark,
                 size: 34,
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               Text(
-                'Could not load events.',
+                title,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: PlanrDesign.ink,
                   fontSize: 17,
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              SizedBox(height: 6),
+              const SizedBox(height: 6),
               Text(
-                'Please try again in a moment.',
+                subtitle,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: PlanrDesign.muted,
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,
@@ -979,4 +1525,23 @@ class _DiscoverErrorState extends StatelessWidget {
       ),
     );
   }
+}
+
+String _categoryLabel(String category) {
+  final normalized = category.trim().toLowerCase();
+
+  return switch (normalized) {
+    'club' => 'Club',
+    'bar' => 'Bar',
+    'venue' => 'Venue',
+    'organization' => 'Organization',
+    'collective' => 'Collective',
+    'student_group' => 'Student Group',
+    _ => 'Page',
+  };
+}
+
+String _followersLabel(int count) {
+  if (count == 1) return '1 follower';
+  return '$count followers';
 }

@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/event.dart';
 import '../models/event_tag.dart';
+import '../models/public_page.dart';
 
 final eventsProvider = StreamProvider<List<Event>>((ref) {
   return FirebaseFirestore.instance
@@ -18,6 +19,7 @@ final eventsProvider = StreamProvider<List<Event>>((ref) {
       .map(
         (snapshot) => snapshot.docs
             .map((doc) => Event.fromMap(doc.data(), doc.id))
+            .where((event) => event.eventKind == 'public')
             .toList(),
       );
 });
@@ -70,6 +72,26 @@ final eventAttendeesProvider =
       .map(
         (snapshot) => snapshot.docs.map((doc) => doc.data()).toList(),
       );
+});
+
+final linkedGroupForPublicEventProvider =
+    StreamProvider.family<Event?, String>((ref, publicEventId) {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return Stream.value(null);
+
+  return FirebaseFirestore.instance
+      .collection('events')
+      .where('creatorUid', isEqualTo: user.uid)
+      .where('eventKind', isEqualTo: 'linkedGroup')
+      .where('linkedPublicEventId', isEqualTo: publicEventId)
+      .limit(1)
+      .snapshots()
+      .map((snapshot) {
+    if (snapshot.docs.isEmpty) return null;
+
+    final doc = snapshot.docs.first;
+    return Event.fromMap(doc.data(), doc.id);
+  });
 });
 
 enum EventInviteFriendStatus {
@@ -153,14 +175,33 @@ final myEventInvitesProvider =
       .collection('users')
       .doc(user.uid)
       .collection('event_invites')
-      .where('status', isEqualTo: 'pending')
+      .where('status', whereIn: ['pending', 'declined'])
       .snapshots()
       .map((snapshot) {
-    return snapshot.docs.map((doc) {
+    final invites = snapshot.docs.map((doc) {
       final data = doc.data();
       data['eventId'] = doc.id;
       return data;
     }).toList();
+
+    invites.sort((a, b) {
+      final aStatus = a['status'] as String? ?? 'pending';
+      final bStatus = b['status'] as String? ?? 'pending';
+
+      if (aStatus == 'pending' && bStatus == 'declined') return -1;
+      if (aStatus == 'declined' && bStatus == 'pending') return 1;
+
+      final aDate = a['eventDate'];
+      final bDate = b['eventDate'];
+
+      if (aDate is Timestamp && bDate is Timestamp) {
+        return aDate.compareTo(bDate);
+      }
+
+      return 0;
+    });
+
+    return invites;
   });
 });
 
@@ -193,6 +234,18 @@ final eventMessagesProvider =
           }).toList());
 });
 
+class LinkedGroupCreationResult {
+  const LinkedGroupCreationResult({
+    required this.group,
+    required this.error,
+  });
+
+  final Event? group;
+  final String? error;
+
+  bool get success => group != null && error == null;
+}
+
 class EventService {
   EventService(this._firestore, this._storage, this._auth);
 
@@ -211,6 +264,16 @@ class EventService {
     required bool guestsCanInvite,
     required List<String> tags,
     File? imageFile,
+
+    /// New optional phase-1 fields.
+    /// Existing screens do not need to pass them yet.
+    String? eventKind,
+    String organizerType = 'profile',
+    String? organizerId,
+    String? organizerDisplayName,
+    String? organizerPhotoUrl,
+    bool organizerVerified = false,
+    PublicPage? organizerPage,
   }) async {
     try {
       final user = _auth.currentUser;
@@ -232,6 +295,33 @@ class EventService {
       if (date.isBefore(DateTime.now())) {
         return 'Event date must be in the future.';
       }
+
+      final resolvedEventKind =
+          eventKind ?? (visibility == 'public' ? 'public' : 'private');
+
+      final resolvedVisibility =
+          resolvedEventKind == 'public' ? 'public' : visibility;
+
+      final resolvedChatEnabled =
+          resolvedEventKind == 'public' ? false : chatEnabled;
+
+      final resolvedOrganizerType =
+          organizerPage != null ? 'publicPage' : organizerType;
+
+      final resolvedOrganizerId =
+          organizerPage?.id ?? organizerId ?? user.uid;
+
+      final resolvedOrganizerDisplayName =
+          organizerPage?.name ??
+              organizerDisplayName ??
+              user.displayName ??
+              'User';
+
+      final resolvedOrganizerPhotoUrl =
+          organizerPage?.photoUrl ?? organizerPhotoUrl ?? user.photoURL;
+
+      final resolvedOrganizerVerified =
+          organizerPage?.isVerified ?? organizerVerified;
 
       final eventId = _uuid.v4();
 
@@ -257,16 +347,28 @@ class EventService {
         'creatorUid': user.uid,
         'creatorDisplayName': user.displayName ?? 'User',
         'creatorPhotoUrl': user.photoURL,
+        'eventKind': resolvedEventKind,
+        'organizerType': resolvedOrganizerType,
+        'organizerId': resolvedOrganizerId,
+        'organizerDisplayName': resolvedOrganizerDisplayName,
+        'organizerPhotoUrl': resolvedOrganizerPhotoUrl,
+        'organizerVerified': resolvedOrganizerVerified,
         'title': trimmedTitle,
         'description': trimmedDescription,
         'address': trimmedAddress,
         'date': Timestamp.fromDate(date),
         'tags': sanitizedTags,
         'imageUrl': imageUrl,
-        'visibility': visibility,
-        'chatEnabled': chatEnabled,
+        'visibility': resolvedVisibility,
+        'chatEnabled': resolvedChatEnabled,
         'guestsCanInvite': guestsCanInvite,
         'attendeeCount': 1,
+        'interestedCount': 0,
+        'linkedPublicEventId': null,
+        'linkedPublicEventTitle': null,
+        'linkedPublicEventImageUrl': null,
+        'linkedPublicEventDate': null,
+        'linkedPublicEventAddress': null,
         'createdAt': FieldValue.serverTimestamp(),
         'lastMessageAt': null,
         'lastReadMessageAt': null,
@@ -286,11 +388,291 @@ class EventService {
         'joinedAt': FieldValue.serverTimestamp(),
       });
 
+      if (organizerPage != null) {
+        final pageRef =
+            _firestore.collection('public_pages').doc(organizerPage.id);
+
+        batch.update(pageRef, {
+          'eventCount': FieldValue.increment(1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
       await batch.commit();
 
       return null;
-    } catch (e) {
+    } catch (_) {
       return 'Failed to create event.';
+    }
+  }
+
+  Future<String?> createLinkedGroupFromPublicEvent({
+    required Event publicEvent,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return 'No user logged in.';
+
+      if (!publicEvent.isPublicEvent) {
+        return 'Groups can only be created from public events.';
+      }
+
+      final existingGroupQuery = await _firestore
+          .collection('events')
+          .where('creatorUid', isEqualTo: user.uid)
+          .where('eventKind', isEqualTo: 'linkedGroup')
+          .where('linkedPublicEventId', isEqualTo: publicEvent.id)
+          .limit(1)
+          .get();
+
+      if (existingGroupQuery.docs.isNotEmpty) {
+        return null;
+      }
+
+      final groupId = _uuid.v4();
+
+      final groupRef = _firestore.collection('events').doc(groupId);
+      final groupAttendeeRef = groupRef.collection('attendees').doc(user.uid);
+
+      final publicEventRef =
+          _firestore.collection('events').doc(publicEvent.id);
+      final publicAttendeeRef =
+          publicEventRef.collection('attendees').doc(user.uid);
+
+      final userMyGroupRef = _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('my_events')
+          .doc(groupId);
+
+      final userMyPublicEventRef = _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('my_events')
+          .doc(publicEvent.id);
+
+      final publicAttendeeDoc = await publicAttendeeRef.get();
+
+      final groupData = {
+        'creatorUid': user.uid,
+        'creatorDisplayName': user.displayName ?? 'User',
+        'creatorPhotoUrl': user.photoURL,
+        'eventKind': 'linkedGroup',
+        'organizerType': 'profile',
+        'organizerId': user.uid,
+        'organizerDisplayName': user.displayName ?? 'User',
+        'organizerPhotoUrl': user.photoURL,
+        'organizerVerified': false,
+        'title': 'Going to ${publicEvent.title}',
+        'description':
+            'Private group for coordinating with friends around this public event.',
+        'address': publicEvent.address,
+        'date': Timestamp.fromDate(publicEvent.date),
+        'tags': publicEvent.tags,
+        'imageUrl': publicEvent.imageUrl,
+        'visibility': 'private',
+        'chatEnabled': true,
+        'guestsCanInvite': true,
+        'attendeeCount': 1,
+        'interestedCount': 0,
+        'linkedPublicEventId': publicEvent.id,
+        'linkedPublicEventTitle': publicEvent.title,
+        'linkedPublicEventImageUrl': publicEvent.imageUrl,
+        'linkedPublicEventDate': Timestamp.fromDate(publicEvent.date),
+        'linkedPublicEventAddress': publicEvent.address,
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastMessageAt': null,
+        'lastReadMessageAt': null,
+        'lastMessageText': null,
+        'lastMessageSenderUid': null,
+        'lastMessageSenderName': null,
+      };
+
+      final batch = _firestore.batch();
+
+      batch.set(groupRef, groupData);
+      batch.set(userMyGroupRef, groupData);
+
+      batch.set(groupAttendeeRef, {
+        'uid': user.uid,
+        'displayName': user.displayName ?? 'User',
+        'photoUrl': user.photoURL,
+        'role': 'creator',
+        'joinedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!publicAttendeeDoc.exists) {
+        batch.set(publicAttendeeRef, {
+          'uid': user.uid,
+          'displayName': user.displayName ?? 'User',
+          'photoUrl': user.photoURL,
+          'role': 'member',
+          'joinedAt': FieldValue.serverTimestamp(),
+        });
+
+        batch.update(publicEventRef, {
+          'attendeeCount': FieldValue.increment(1),
+        });
+
+        final publicEventDoc = await publicEventRef.get();
+
+        if (publicEventDoc.exists && publicEventDoc.data() != null) {
+          batch.set(userMyPublicEventRef, {
+            ...publicEventDoc.data()!,
+            'lastReadMessageAt': publicEventDoc.data()!['lastMessageAt'],
+          });
+        }
+      }
+
+      await batch.commit();
+
+      return null;
+    } catch (_) {
+      return 'Failed to create group.';
+    }
+  }
+
+  Future<LinkedGroupCreationResult> createLinkedGroupFromPublicEventAndReturn({
+    required Event publicEvent,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        return const LinkedGroupCreationResult(
+          group: null,
+          error: 'No user logged in.',
+        );
+      }
+
+      if (!publicEvent.isPublicEvent) {
+        return const LinkedGroupCreationResult(
+          group: null,
+          error: 'Groups can only be created from public events.',
+        );
+      }
+
+      final existingGroupQuery = await _firestore
+          .collection('events')
+          .where('creatorUid', isEqualTo: user.uid)
+          .where('eventKind', isEqualTo: 'linkedGroup')
+          .where('linkedPublicEventId', isEqualTo: publicEvent.id)
+          .limit(1)
+          .get();
+
+      if (existingGroupQuery.docs.isNotEmpty) {
+        final doc = existingGroupQuery.docs.first;
+        return LinkedGroupCreationResult(
+          group: Event.fromMap(doc.data(), doc.id),
+          error: null,
+        );
+      }
+
+      final groupId = _uuid.v4();
+      final now = DateTime.now();
+
+      final groupRef = _firestore.collection('events').doc(groupId);
+      final groupAttendeeRef = groupRef.collection('attendees').doc(user.uid);
+
+      final publicEventRef = _firestore.collection('events').doc(publicEvent.id);
+      final publicAttendeeRef =
+          publicEventRef.collection('attendees').doc(user.uid);
+
+      final userMyGroupRef = _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('my_events')
+          .doc(groupId);
+
+      final userMyPublicEventRef = _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('my_events')
+          .doc(publicEvent.id);
+
+      final publicAttendeeDoc = await publicAttendeeRef.get();
+
+      final groupData = {
+        'creatorUid': user.uid,
+        'creatorDisplayName': user.displayName ?? 'User',
+        'creatorPhotoUrl': user.photoURL,
+        'eventKind': 'linkedGroup',
+        'organizerType': 'profile',
+        'organizerId': user.uid,
+        'organizerDisplayName': user.displayName ?? 'User',
+        'organizerPhotoUrl': user.photoURL,
+        'organizerVerified': false,
+        'title': 'Group for ${publicEvent.title}',
+        'description':
+            'Private group for coordinating with friends around this public event.',
+        'address': publicEvent.address,
+        'date': Timestamp.fromDate(publicEvent.date),
+        'tags': publicEvent.tags,
+        'imageUrl': publicEvent.imageUrl,
+        'visibility': 'private',
+        'chatEnabled': true,
+        'guestsCanInvite': true,
+        'attendeeCount': 1,
+        'interestedCount': 0,
+        'linkedPublicEventId': publicEvent.id,
+        'linkedPublicEventTitle': publicEvent.title,
+        'linkedPublicEventImageUrl': publicEvent.imageUrl,
+        'linkedPublicEventDate': Timestamp.fromDate(publicEvent.date),
+        'linkedPublicEventAddress': publicEvent.address,
+        'createdAt': Timestamp.fromDate(now),
+        'lastMessageAt': null,
+        'lastReadMessageAt': null,
+        'lastMessageText': null,
+        'lastMessageSenderUid': null,
+        'lastMessageSenderName': null,
+      };
+
+      final batch = _firestore.batch();
+
+      batch.set(groupRef, groupData);
+      batch.set(userMyGroupRef, groupData);
+
+      batch.set(groupAttendeeRef, {
+        'uid': user.uid,
+        'displayName': user.displayName ?? 'User',
+        'photoUrl': user.photoURL,
+        'role': 'creator',
+        'joinedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!publicAttendeeDoc.exists) {
+        batch.set(publicAttendeeRef, {
+          'uid': user.uid,
+          'displayName': user.displayName ?? 'User',
+          'photoUrl': user.photoURL,
+          'role': 'member',
+          'joinedAt': FieldValue.serverTimestamp(),
+        });
+
+        batch.update(publicEventRef, {
+          'attendeeCount': FieldValue.increment(1),
+        });
+
+        final publicEventDoc = await publicEventRef.get();
+
+        if (publicEventDoc.exists && publicEventDoc.data() != null) {
+          batch.set(userMyPublicEventRef, {
+            ...publicEventDoc.data()!,
+            'lastReadMessageAt': publicEventDoc.data()!['lastMessageAt'],
+          });
+        }
+      }
+
+      await batch.commit();
+
+      return LinkedGroupCreationResult(
+        group: Event.fromMap(groupData, groupId),
+        error: null,
+      );
+    } catch (_) {
+      return const LinkedGroupCreationResult(
+        group: null,
+        error: 'Failed to create group.',
+      );
     }
   }
 
@@ -307,7 +689,7 @@ class EventService {
           .collection('my_events')
           .doc(event.id);
 
-      if (event.visibility == 'private') {
+      if (!event.isPublicEvent) {
         final inviteDoc =
             await eventRef.collection('invites').doc(user.uid).get();
 
@@ -324,6 +706,13 @@ class EventService {
         return 'You are already going.';
       }
 
+      final eventDoc = await eventRef.get();
+      if (!eventDoc.exists || eventDoc.data() == null) {
+        return 'Event not found.';
+      }
+
+      final eventData = eventDoc.data()!;
+
       final batch = _firestore.batch();
 
       batch.set(attendeeRef, {
@@ -338,13 +727,6 @@ class EventService {
         'attendeeCount': FieldValue.increment(1),
       });
 
-      final eventDoc = await eventRef.get();
-      if (!eventDoc.exists || eventDoc.data() == null) {
-        return 'Event not found.';
-      }
-
-      final eventData = eventDoc.data()!;
-
       batch.set(myEventRef, {
         ...eventData,
         'lastReadMessageAt': eventData['lastMessageAt'],
@@ -353,7 +735,7 @@ class EventService {
       await batch.commit();
 
       return null;
-    } catch (e) {
+    } catch (_) {
       return 'Failed to join event.';
     }
   }
@@ -393,7 +775,7 @@ class EventService {
       await batch.commit();
 
       return null;
-    } catch (e) {
+    } catch (_) {
       return 'Failed to leave event.';
     }
   }
@@ -408,9 +790,11 @@ class EventService {
       final eventRef = _firestore.collection('events').doc(eventId);
       final eventDoc = await eventRef.get();
 
-      if (!eventDoc.exists) {
+      if (!eventDoc.exists || eventDoc.data() == null) {
         return 'Event not found.';
       }
+
+      final eventData = eventDoc.data()!;
 
       final userInviteRef = _firestore
           .collection('users')
@@ -426,14 +810,21 @@ class EventService {
           .collection('my_events')
           .doc(eventId);
 
+      final attendeeDoc = await attendeeRef.get();
+      if (attendeeDoc.exists) {
+        return 'You are already going.';
+      }
+
       final inviteDoc = await inviteRef.get();
       if (!inviteDoc.exists) {
         return 'Invite not found.';
       }
 
       final inviteData = inviteDoc.data();
-      if (inviteData?['status'] != 'pending') {
-        return 'Invite is no longer pending.';
+      final inviteStatus = inviteData?['status'] as String?;
+
+      if (inviteStatus != 'pending' && inviteStatus != 'declined') {
+        return 'Invite is no longer available.';
       }
 
       final batch = _firestore.batch();
@@ -460,8 +851,6 @@ class EventService {
         'acceptedAt': FieldValue.serverTimestamp(),
       });
 
-      final eventData = eventDoc.data()!;
-
       batch.set(myEventRef, {
         ...eventData,
         'attendeeCount': (eventData['attendeeCount'] as num? ?? 0).toInt() + 1,
@@ -471,7 +860,7 @@ class EventService {
       await batch.commit();
 
       return null;
-    } catch (e) {
+    } catch (_) {
       return 'Failed to accept invite.';
     }
   }
@@ -485,6 +874,10 @@ class EventService {
     try {
       final user = _auth.currentUser;
       if (user == null) return 'No user logged in.';
+
+      if (event.isPublicEvent) {
+        return 'Create a group for this public event before inviting friends.';
+      }
 
       final isCreator = event.creatorUid == user.uid;
 
@@ -514,12 +907,16 @@ class EventService {
         'displayName': invitedDisplayName,
         'photoUrl': invitedPhotoUrl,
         'eventId': event.id,
+        'eventKind': event.eventKind,
         'eventTitle': event.title,
         'eventDescription': event.description,
         'eventImageUrl': event.imageUrl,
         'eventAddress': event.address,
         'eventTags': event.tags,
         'eventDate': Timestamp.fromDate(event.date),
+        'linkedPublicEventId': event.linkedPublicEventId,
+        'linkedPublicEventTitle': event.linkedPublicEventTitle,
+        'linkedPublicEventImageUrl': event.linkedPublicEventImageUrl,
         'invitedByUid': user.uid,
         'invitedByDisplayName': user.displayName ?? 'User',
         'status': 'pending',
@@ -532,7 +929,7 @@ class EventService {
       await batch.commit();
 
       return null;
-    } catch (e) {
+    } catch (_) {
       return 'Failed to invite user.';
     }
   }
@@ -571,7 +968,7 @@ class EventService {
       await batch.commit();
 
       return null;
-    } catch (e) {
+    } catch (_) {
       return 'Failed to decline invite.';
     }
   }
@@ -615,6 +1012,10 @@ class EventService {
         imageUrl = await ref.getDownloadURL();
       }
 
+      final resolvedVisibility = event.isPublicEvent ? 'public' : visibility;
+      final resolvedChatEnabled =
+          event.isPublicEvent ? false : chatEnabled;
+
       final updateData = {
         'title': trimmedTitle,
         'description': trimmedDescription,
@@ -622,23 +1023,37 @@ class EventService {
         'tags': sanitizedTags,
         'date': Timestamp.fromDate(date),
         'imageUrl': imageUrl,
-        'visibility': visibility,
-        'chatEnabled': chatEnabled,
+        'visibility': event.isLinkedGroup ? 'private' : resolvedVisibility,
+        'chatEnabled': resolvedChatEnabled,
         'guestsCanInvite': guestsCanInvite,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      await _firestore.collection('events').doc(event.id).update(updateData);
+      final eventRef = _firestore.collection('events').doc(event.id);
+      final attendeesSnapshot = await eventRef.collection('attendees').get();
 
-      await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('my_events')
-          .doc(event.id)
-          .set(updateData, SetOptions(merge: true));
+      final batch = _firestore.batch();
+
+      batch.update(eventRef, updateData);
+
+      for (final attendee in attendeesSnapshot.docs) {
+        final attendeeMyEventRef = _firestore
+            .collection('users')
+            .doc(attendee.id)
+            .collection('my_events')
+            .doc(event.id);
+
+        batch.set(
+          attendeeMyEventRef,
+          updateData,
+          SetOptions(merge: true),
+        );
+      }
+
+      await batch.commit();
 
       return null;
-    } catch (e) {
+    } catch (_) {
       return 'Failed to update event.';
     }
   }
@@ -701,6 +1116,16 @@ class EventService {
       batch.delete(creatorMyEventRef);
       batch.delete(eventRef);
 
+      if (event.isOrganizedByPage) {
+        final pageRef =
+            _firestore.collection('public_pages').doc(event.organizerId);
+
+        batch.update(pageRef, {
+          'eventCount': FieldValue.increment(-1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
       await batch.commit();
 
       if (event.imageUrl != null) {
@@ -710,7 +1135,7 @@ class EventService {
       }
 
       return null;
-    } catch (e) {
+    } catch (_) {
       return 'Failed to delete event.';
     }
   }
@@ -726,7 +1151,7 @@ class EventService {
       final trimmedText = text.trim();
       if (trimmedText.isEmpty) return 'Message cannot be empty.';
 
-      if (!event.chatEnabled) {
+      if (event.isPublicEvent || !event.chatEnabled) {
         return 'Chat is disabled for this event.';
       }
 
@@ -783,7 +1208,7 @@ class EventService {
       await batch.commit();
 
       return null;
-    } catch (e) {
+    } catch (_) {
       return 'Failed to send message.';
     }
   }
@@ -809,7 +1234,7 @@ class EventService {
       );
 
       return null;
-    } catch (e) {
+    } catch (_) {
       return 'Failed to mark chat as read.';
     }
   }

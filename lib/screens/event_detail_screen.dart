@@ -11,6 +11,7 @@ import '../widgets/event_detail/event_detail_fact_card.dart';
 import '../widgets/event_detail/event_detail_header_image.dart';
 import '../widgets/event_detail/event_detail_info_card.dart';
 import 'profile_screen.dart';
+import 'public_page_screen.dart';
 
 class EventDetailScreen extends ConsumerWidget {
   const EventDetailScreen({
@@ -40,6 +41,24 @@ class EventDetailScreen extends ConsumerWidget {
     );
   }
 
+  void _openPublicPage(BuildContext context, String pageId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PublicPageScreen(pageId: pageId),
+      ),
+    );
+  }
+
+  void _openOrganizer(BuildContext context, Event event) {
+    if (event.isOrganizedByPage) {
+      _openPublicPage(context, event.organizerId);
+      return;
+    }
+
+    _openProfile(context, event.organizerId);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final eventAsync = ref.watch(eventByIdProvider(eventId));
@@ -58,29 +77,41 @@ class EventDetailScreen extends ConsumerWidget {
           return Scaffold(
             backgroundColor: Colors.transparent,
             floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-            floatingActionButton: _FloatingGoingButton(event: event),
+            floatingActionButton:
+                event.isLinkedGroup ? null : _FloatingGoingButton(event: event),
             body: CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
                 EventDetailHeaderImage(event: event),
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
+                    padding: EdgeInsets.fromLTRB(
                       PlanrDesign.pagePadding,
                       18,
                       PlanrDesign.pagePadding,
-                      118,
+                      event.isLinkedGroup ? 34 : 118,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (event.isLinkedGroup) ...[
+                          _LinkedPublicEventCard(
+                            event: event,
+                            formatDate: _formatDate,
+                          ),
+                          const SizedBox(height: 16),
+                        ],
                         EventDetailInfoCard(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const _SectionTitle(
-                                title: 'About',
-                                icon: Icons.notes_rounded,
+                              _SectionTitle(
+                                title: event.isLinkedGroup
+                                    ? 'Private group'
+                                    : 'About',
+                                icon: event.isLinkedGroup
+                                    ? Icons.group_work_rounded
+                                    : Icons.notes_rounded,
                               ),
                               const SizedBox(height: 12),
                               Text(
@@ -122,8 +153,10 @@ class EventDetailScreen extends ConsumerWidget {
                               ),
                               const SizedBox(height: 10),
                               _TappableHostFactCard(
-                                hostName: event.creatorDisplayName,
-                                onTap: () => _openProfile(context, event.creatorUid),
+                                hostName: event.publicOrganizerName,
+                                isPage: event.isOrganizedByPage,
+                                verified: event.organizerVerified,
+                                onTap: () => _openOrganizer(context, event),
                               ),
                             ],
                           ),
@@ -149,6 +182,258 @@ class EventDetailScreen extends ConsumerWidget {
   }
 }
 
+class _LinkedPublicEventCard extends StatelessWidget {
+  const _LinkedPublicEventCard({
+    required this.event,
+    required this.formatDate,
+  });
+
+  final Event event;
+  final String Function(DateTime date) formatDate;
+
+  @override
+  Widget build(BuildContext context) {
+    final publicEventId = event.linkedPublicEventId;
+    final title = event.linkedPublicEventTitle?.trim().isNotEmpty == true
+        ? event.linkedPublicEventTitle!.trim()
+        : 'Public event';
+
+    final address = event.linkedPublicEventAddress?.trim().isNotEmpty == true
+        ? event.linkedPublicEventAddress!.trim()
+        : event.address;
+
+    final date = event.linkedPublicEventDate ?? event.date;
+    final imageUrl = event.linkedPublicEventImageUrl?.trim();
+
+    return PlanrCard(
+      padding: EdgeInsets.zero,
+      radius: 26,
+      color: PlanrDesign.cardLight.withOpacity(0.88),
+      onTap: publicEventId == null || publicEventId.isEmpty
+          ? null
+          : () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => EventDetailScreen(eventId: publicEventId),
+                ),
+              );
+            },
+      child: Padding(
+        padding: const EdgeInsets.all(11),
+        child: Row(
+          children: [
+            Container(
+              width: 78,
+              height: 88,
+              decoration: BoxDecoration(
+                color: PlanrDesign.accentSoft.withOpacity(0.62),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.9),
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (imageUrl != null && imageUrl.isNotEmpty)
+                    Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) =>
+                          const _LinkedEventPlaceholder(),
+                    )
+                  else
+                    const _LinkedEventPlaceholder(),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.black.withOpacity(0.08),
+                          Colors.black.withOpacity(0.35),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                  ),
+                  const Center(
+                    child: Icon(
+                      Icons.link_rounded,
+                      color: Colors.white,
+                      size: 27,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: SizedBox(
+                height: 88,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.public_rounded,
+                          color: PlanrDesign.accentDark,
+                          size: 15,
+                        ),
+                        const SizedBox(width: 5),
+                        const Text(
+                          'Linked public event',
+                          style: TextStyle(
+                            color: PlanrDesign.accentDark,
+                            fontSize: 12.2,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (publicEventId != null && publicEventId.isNotEmpty)
+                          const Icon(
+                            Icons.chevron_right_rounded,
+                            color: PlanrDesign.softMuted,
+                            size: 22,
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PlanrDesign.ink,
+                        fontSize: 17,
+                        height: 1.08,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.35,
+                      ),
+                    ),
+                    const Spacer(),
+                    _LinkedMetaLine(
+                      icon: Icons.schedule_rounded,
+                      text: formatDate(date),
+                    ),
+                    const SizedBox(height: 4),
+                    _LinkedMetaLine(
+                      icon: Icons.place_rounded,
+                      text: address.isEmpty ? 'No location' : address,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LinkedEventPlaceholder extends StatelessWidget {
+  const _LinkedEventPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: PlanrDesign.brandGradient,
+      ),
+      child: const Center(
+        child: Icon(
+          Icons.celebration_rounded,
+          color: Colors.white,
+          size: 42,
+        ),
+      ),
+    );
+  }
+}
+
+class _DarkPill extends StatelessWidget {
+  const _DarkPill({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 32,
+      padding: const EdgeInsets.symmetric(horizontal: 11),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.34),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.22),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            color: Colors.white,
+            size: 14,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LinkedMetaLine extends StatelessWidget {
+  const _LinkedMetaLine({
+    required this.icon,
+    required this.text,
+  });
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          color: PlanrDesign.eventMetaOrange,
+          size: 16,
+        ),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: PlanrDesign.eventMetaOrange,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _FloatingGoingButton extends ConsumerWidget {
   const _FloatingGoingButton({
     required this.event,
@@ -163,9 +448,8 @@ class _FloatingGoingButton extends ConsumerWidget {
   }) async {
     final service = ref.read(eventServiceProvider);
 
-    final error = isGoing
-        ? await service.leaveEvent(event)
-        : await service.joinEvent(event);
+    final error =
+        isGoing ? await service.leaveEvent(event) : await service.joinEvent(event);
 
     if (!context.mounted) return;
 
@@ -200,9 +484,7 @@ class _FloatingGoingButton extends ConsumerWidget {
             borderRadius: BorderRadius.circular(999),
           ),
           icon: Icon(
-            isGoing
-                ? Icons.check_circle_rounded
-                : Icons.add_circle_rounded,
+            isGoing ? Icons.check_circle_rounded : Icons.add_circle_rounded,
           ),
           label: Text(
             isGoing ? 'Going' : 'I am going',
@@ -276,10 +558,14 @@ class _SectionTitle extends StatelessWidget {
 class _TappableHostFactCard extends StatelessWidget {
   const _TappableHostFactCard({
     required this.hostName,
+    required this.isPage,
+    required this.verified,
     required this.onTap,
   });
 
   final String hostName;
+  final bool isPage;
+  final bool verified;
   final VoidCallback onTap;
 
   @override
@@ -310,8 +596,8 @@ class _TappableHostFactCard extends StatelessWidget {
                     color: Colors.white.withOpacity(0.88),
                   ),
                 ),
-                child: const Icon(
-                  Icons.person_rounded,
+                child: Icon(
+                  isPage ? Icons.storefront_rounded : Icons.person_rounded,
                   color: PlanrDesign.accentDark,
                   size: 21,
                 ),
@@ -321,24 +607,38 @@ class _TappableHostFactCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Host',
-                      style: TextStyle(
+                    Text(
+                      isPage ? 'Organizer page' : 'Host',
+                      style: const TextStyle(
                         color: PlanrDesign.muted,
                         fontSize: 12,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
                     const SizedBox(height: 3),
-                    Text(
-                      hostName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: PlanrDesign.ink,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            hostName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: PlanrDesign.ink,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        if (verified) ...[
+                          const SizedBox(width: 6),
+                          const Icon(
+                            Icons.verified_rounded,
+                            color: PlanrDesign.accentDark,
+                            size: 17,
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),

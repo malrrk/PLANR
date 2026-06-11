@@ -20,6 +20,7 @@ import 'friend_requests_screen.dart';
 import 'friends_screen.dart';
 import 'user_search_screen.dart';
 import 'manage_pinned_moments_screen.dart';
+import 'managed_public_pages_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({
@@ -156,6 +157,13 @@ class ProfileScreen extends ConsumerWidget {
                                 : null,
                           ),
                           if (isOwnProfile) ...[
+                            const SizedBox(height: 16),
+                            _PublicPagesEntryCard(
+                              onTap: () => _open(
+                                context,
+                                const ManagedPublicPagesScreen(),
+                              ),
+                            ),
                             const SizedBox(height: 16),
                             ProfileActionSection(
                               onEditProfile: () => _open(context, const EditProfileScreen()),
@@ -625,6 +633,77 @@ class _ProfileFriendCompactButton extends StatelessWidget {
                   ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PublicPagesEntryCard extends StatelessWidget {
+  const _PublicPagesEntryCard({
+    required this.onTap,
+  });
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PlanrCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(16),
+      radius: 28,
+      color: PlanrDesign.cardLight.withOpacity(0.88),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: PlanrDesign.accentSoft.withOpacity(0.74),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.92),
+              ),
+            ),
+            child: const Icon(
+              Icons.storefront_rounded,
+              color: PlanrDesign.accentDark,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 13),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Public Pages',
+                  style: TextStyle(
+                    color: PlanrDesign.ink,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.25,
+                  ),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  'Create and manage pages for public events.',
+                  style: TextStyle(
+                    color: PlanrDesign.muted,
+                    fontSize: 12.8,
+                    fontWeight: FontWeight.w700,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: PlanrDesign.softMuted,
+            size: 27,
+          ),
+        ],
       ),
     );
   }

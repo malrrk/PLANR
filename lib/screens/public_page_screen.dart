@@ -11,6 +11,12 @@ import '../models/public_page.dart';
 import '../providers/public_page_provider.dart';
 import '../widgets/event_tag_chips.dart';
 import 'event_detail_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'managed_public_pages_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'create_event_screen.dart';
+import 'edit_public_page_screen.dart';
+import 'manage_page_admins_screen.dart';
 
 class PublicPageScreen extends ConsumerStatefulWidget {
   const PublicPageScreen({
@@ -32,6 +38,42 @@ class _PublicPageScreenState extends ConsumerState<PublicPageScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => EventDetailScreen(eventId: event.id),
+      ),
+    );
+  }
+
+  void _openEditPage(PublicPage page) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditPublicPageScreen(page: page),
+      ),
+    );
+  }
+
+  void _openCreateEventAsPage(PublicPage page) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CreateEventScreen(initialOrganizerPage: page),
+      ),
+    );
+  }
+
+  void _openManageAdmins(PublicPage page) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ManagePageAdminsScreen(pageId: page.id),
+      ),
+    );
+  }
+
+  void _openManagePages() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const ManagedPublicPagesScreen(),
       ),
     );
   }
@@ -83,7 +125,16 @@ class _PublicPageScreenState extends ConsumerState<PublicPageScreen> {
               return const _PageNotFoundState();
             }
 
-            final followingAsync = ref.watch(isFollowingPageProvider(page.id));
+            final currentUid = FirebaseAuth.instance.currentUser?.uid;
+            final canManage = currentUid != null &&
+                (page.ownerUid == currentUid || page.adminUids.contains(currentUid));
+
+            final isOwner = currentUid != null && page.ownerUid == currentUid;
+
+            final followingAsync = canManage
+                ? const AsyncValue.data(false)
+                : ref.watch(isFollowingPageProvider(page.id));
+
             final eventsAsync = ref.watch(publicPageEventsProvider(page.id));
 
             return CustomScrollView(
@@ -91,11 +142,13 @@ class _PublicPageScreenState extends ConsumerState<PublicPageScreen> {
               slivers: [
                 _PublicPageHeader(
                   page: page,
+                  canManage: canManage,
                   followingAsync: followingAsync,
                   processingFollow: _processingFollow,
                   onBack: Navigator.of(context).canPop()
                       ? () => Navigator.pop(context)
                       : null,
+                  onManage: () => _openEditPage(page),
                   onToggleFollow: (isFollowing) => _toggleFollow(
                     page: page,
                     isFollowing: isFollowing,
@@ -112,6 +165,16 @@ class _PublicPageScreenState extends ConsumerState<PublicPageScreen> {
                     delegate: SliverChildListDelegate(
                       [
                         _AboutPageCard(page: page),
+                        if (canManage) ...[
+                          const SizedBox(height: 16),
+                          _PageManagerActionsCard(
+                            page: page,
+                            isOwner: isOwner,
+                            onEditPage: () => _openEditPage(page),
+                            onCreateEvent: () => _openCreateEventAsPage(page),
+                            onManageAdmins: () => _openManageAdmins(page),
+                          ),
+                        ],
                         const SizedBox(height: 24),
                         eventsAsync.when(
                           data: (events) {
@@ -146,16 +209,20 @@ class _PublicPageScreenState extends ConsumerState<PublicPageScreen> {
 class _PublicPageHeader extends StatelessWidget {
   const _PublicPageHeader({
     required this.page,
+    required this.canManage,
     required this.followingAsync,
     required this.processingFollow,
     required this.onToggleFollow,
+    required this.onManage,
     required this.onBack,
   });
 
   final PublicPage page;
+  final bool canManage;
   final AsyncValue<bool> followingAsync;
   final bool processingFollow;
   final ValueChanged<bool> onToggleFollow;
+  final VoidCallback onManage;
   final VoidCallback? onBack;
 
   @override
@@ -264,37 +331,45 @@ class _PublicPageHeader extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 18),
-                    followingAsync.when(
-                      data: (isFollowing) {
-                        return PlanrButton(
-                          label: isFollowing ? 'Following' : 'Follow Page',
-                          icon: isFollowing
-                              ? Icons.check_circle_rounded
-                              : Icons.add_circle_rounded,
-                          variant: isFollowing
-                              ? PlanrButtonVariant.soft
-                              : PlanrButtonVariant.filled,
-                          isLoading: processingFollow,
+                    if (canManage)
+                      PlanrButton(
+                        label: 'Edit Page',
+                        icon: Icons.edit_rounded,
+                        variant: PlanrButtonVariant.filled,
+                        onPressed: onManage,
+                      )
+                    else
+                      followingAsync.when(
+                        data: (isFollowing) {
+                          return PlanrButton(
+                            label: isFollowing ? 'Following' : 'Follow Page',
+                            icon: isFollowing
+                                ? Icons.check_circle_rounded
+                                : Icons.add_circle_rounded,
+                            variant: isFollowing
+                                ? PlanrButtonVariant.soft
+                                : PlanrButtonVariant.filled,
+                            isLoading: processingFollow,
+                            onPressed: processingFollow
+                                ? null
+                                : () => onToggleFollow(isFollowing),
+                          );
+                        },
+                        loading: () => const PlanrButton(
+                          label: 'Loading...',
+                          icon: Icons.hourglass_top_rounded,
+                          variant: PlanrButtonVariant.soft,
+                          isLoading: true,
+                          onPressed: null,
+                        ),
+                        error: (_, _) => PlanrButton(
+                          label: 'Follow Page',
+                          icon: Icons.add_circle_rounded,
                           onPressed: processingFollow
                               ? null
-                              : () => onToggleFollow(isFollowing),
-                        );
-                      },
-                      loading: () => const PlanrButton(
-                        label: 'Loading...',
-                        icon: Icons.hourglass_top_rounded,
-                        variant: PlanrButtonVariant.soft,
-                        isLoading: true,
-                        onPressed: null,
+                              : () => onToggleFollow(false),
+                        ),
                       ),
-                      error: (_, _) => PlanrButton(
-                        label: 'Follow Page',
-                        icon: Icons.add_circle_rounded,
-                        onPressed: processingFollow
-                            ? null
-                            : () => onToggleFollow(false),
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -500,6 +575,232 @@ class _AboutPageCard extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _PageManagerActionsCard extends StatelessWidget {
+  const _PageManagerActionsCard({
+    required this.page,
+    required this.isOwner,
+    required this.onEditPage,
+    required this.onCreateEvent,
+    required this.onManageAdmins,
+  });
+
+  final PublicPage page;
+  final bool isOwner;
+  final VoidCallback onEditPage;
+  final VoidCallback onCreateEvent;
+  final VoidCallback onManageAdmins;
+
+  @override
+  Widget build(BuildContext context) {
+    return PlanrCard(
+      padding: const EdgeInsets.all(18),
+      color: PlanrDesign.cardLight.withOpacity(0.88),
+      radius: 30,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _InfoIcon(icon: Icons.admin_panel_settings_rounded),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Text(
+                  'Page management',
+                  style: PlanrDesign.cardTitleStyle.copyWith(
+                    fontSize: 21,
+                    letterSpacing: -0.45,
+                  ),
+                ),
+              ),
+              _CategoryPill(
+                label: isOwner ? 'Owner' : 'Admin',
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _ManagerActionTile(
+                  icon: Icons.edit_rounded,
+                  title: 'Edit',
+                  subtitle: 'Update page',
+                  onTap: onEditPage,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _ManagerActionTile(
+                  icon: Icons.add_circle_rounded,
+                  title: 'Event',
+                  subtitle: 'Create as page',
+                  onTap: onCreateEvent,
+                ),
+              ),
+            ],
+          ),
+          if (isOwner) ...[
+            const SizedBox(height: 12),
+            _WideManagerActionTile(
+              icon: Icons.group_add_rounded,
+              title: 'Manage admins',
+              subtitle: 'Add or remove people who can manage this page',
+              onTap: onManageAdmins,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ManagerActionTile extends StatelessWidget {
+  const _ManagerActionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: PlanrDesign.accentSoft.withOpacity(0.72),
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.9),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                icon,
+                color: PlanrDesign.accentDark,
+                size: 23,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: PlanrDesign.accentDark,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: PlanrDesign.muted,
+                  fontSize: 12.2,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WideManagerActionTile extends StatelessWidget {
+  const _WideManagerActionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: PlanrDesign.accentSoft.withOpacity(0.72),
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.9),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: PlanrDesign.accentDark,
+                size: 23,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PlanrDesign.accentDark,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PlanrDesign.muted,
+                        fontSize: 12.2,
+                        fontWeight: FontWeight.w800,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: PlanrDesign.accentDark,
+                size: 24,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

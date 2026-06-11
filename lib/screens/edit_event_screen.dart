@@ -42,6 +42,10 @@ class _EditEventScreenState extends ConsumerState<EditEventScreen> {
   File? _selectedImage;
   bool _saving = false;
 
+  bool get _isPublicEvent => widget.event.isPublicEvent;
+  bool get _isLinkedGroup => widget.event.isLinkedGroup;
+  bool get _isPrivateEvent => widget.event.isPrivateEvent;
+
   @override
   void initState() {
     super.initState();
@@ -150,6 +154,14 @@ class _EditEventScreenState extends ConsumerState<EditEventScreen> {
       _saving = true;
     });
 
+    final resolvedVisibility = _isPublicEvent
+        ? 'public'
+        : _isLinkedGroup
+            ? 'private'
+            : _visibility;
+
+    final resolvedChatEnabled = _isPublicEvent ? false : _chatEnabled;
+
     final error = await ref.read(eventServiceProvider).updateEvent(
           event: widget.event,
           title: title,
@@ -157,9 +169,9 @@ class _EditEventScreenState extends ConsumerState<EditEventScreen> {
           address: address,
           tags: _selectedTagIds,
           date: _selectedDate,
-          visibility: _visibility,
-          chatEnabled: _chatEnabled,
-          guestsCanInvite: _guestsCanInvite,
+          visibility: resolvedVisibility,
+          chatEnabled: resolvedChatEnabled,
+          guestsCanInvite: _isPublicEvent ? true : _guestsCanInvite,
           newImageFile: _selectedImage,
         );
 
@@ -193,6 +205,24 @@ class _EditEventScreenState extends ConsumerState<EditEventScreen> {
     return '$day.$month.$year · $hour:$minute';
   }
 
+  String get _typeTitle {
+    if (_isPublicEvent) return 'Public event';
+    if (_isLinkedGroup) return 'Linked private group';
+    return 'Private plan';
+  }
+
+  String get _typeSubtitle {
+    if (_isPublicEvent) {
+      return 'Discoverable event. Public chat stays disabled.';
+    }
+
+    if (_isLinkedGroup) {
+      return 'Private group connected to a public event.';
+    }
+
+    return 'Invite-only plan with optional chat.';
+  }
+
   @override
   Widget build(BuildContext context) {
     final previewImage = _selectedImage != null
@@ -210,6 +240,21 @@ class _EditEventScreenState extends ConsumerState<EditEventScreen> {
           _EditImageCard(
             imageProvider: previewImage,
             onTap: _pickImage,
+          ),
+
+          const SizedBox(height: 18),
+
+          PlanrCard(
+            padding: const EdgeInsets.all(18),
+            child: _EventTypeInfoCard(
+              title: _typeTitle,
+              subtitle: _typeSubtitle,
+              icon: _isPublicEvent
+                  ? Icons.public_rounded
+                  : _isLinkedGroup
+                      ? Icons.group_work_rounded
+                      : Icons.lock_outline_rounded,
+            ),
           ),
 
           const SizedBox(height: 18),
@@ -273,15 +318,17 @@ class _EditEventScreenState extends ConsumerState<EditEventScreen> {
                   subtitle: _formatDate(_selectedDate),
                   onTap: _pickDateTime,
                 ),
-                const SizedBox(height: 16),
-                _VisibilitySelector(
-                  value: _visibility,
-                  onChanged: (value) {
-                    setState(() {
-                      _visibility = value;
-                    });
-                  },
-                ),
+                if (_isPrivateEvent) ...[
+                  const SizedBox(height: 16),
+                  _VisibilitySelector(
+                    value: _visibility,
+                    onChanged: (value) {
+                      setState(() {
+                        _visibility = value;
+                      });
+                    },
+                  ),
+                ],
               ],
             ),
           ),
@@ -292,23 +339,28 @@ class _EditEventScreenState extends ConsumerState<EditEventScreen> {
             padding: const EdgeInsets.all(18),
             child: Column(
               children: [
-                _SettingsToggle(
-                  icon: Icons.chat_bubble_outline_rounded,
-                  title: 'Enable event chat',
-                  subtitle: 'People who joined can write in the event chat.',
-                  value: _chatEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _chatEnabled = value;
-                    });
-                  },
-                ),
-                if (_visibility == 'private') ...[
+                if (_isPublicEvent)
+                  const _PublicEditNotice()
+                else ...[
+                  _SettingsToggle(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    title: 'Enable event chat',
+                    subtitle: _isLinkedGroup
+                        ? 'People in this private group can coordinate here.'
+                        : 'People who joined can write in the event chat.',
+                    value: _chatEnabled,
+                    onChanged: (value) {
+                      setState(() {
+                        _chatEnabled = value;
+                      });
+                    },
+                  ),
                   const SizedBox(height: 14),
                   _SettingsToggle(
                     icon: Icons.group_add_rounded,
                     title: 'Guests can invite others',
-                    subtitle: 'Attendees can bring more people into this event.',
+                    subtitle:
+                        'Attendees can bring more people into this event.',
                     value: _guestsCanInvite,
                     onChanged: (value) {
                       setState(() {
@@ -331,6 +383,111 @@ class _EditEventScreenState extends ConsumerState<EditEventScreen> {
           ),
 
           const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+}
+
+class _EventTypeInfoCard extends StatelessWidget {
+  const _EventTypeInfoCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _SettingIcon(icon: icon),
+        const SizedBox(width: 13),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Event type',
+                style: TextStyle(
+                  color: PlanrDesign.muted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: PlanrDesign.ink,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: PlanrDesign.muted,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  height: 1.25,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PublicEditNotice extends StatelessWidget {
+  const _PublicEditNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+      decoration: BoxDecoration(
+        color: PlanrDesign.cardLight.withOpacity(0.78),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.92),
+        ),
+      ),
+      child: Row(
+        children: [
+          _SettingIcon(icon: Icons.public_rounded),
+          const SizedBox(width: 13),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Public event settings',
+                  style: TextStyle(
+                    color: PlanrDesign.ink,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  'Public events stay discoverable and public chat remains disabled. Friends can coordinate through linked private groups.',
+                  style: TextStyle(
+                    color: PlanrDesign.muted,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -374,14 +531,12 @@ class _EditImageCard extends StatelessWidget {
               )
             else
               const _EmptyImageState(),
-
             if (hasImage)
               DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: PlanrDesign.eventOverlayGradient(),
                 ),
               ),
-
             Positioned(
               left: 18,
               right: 18,

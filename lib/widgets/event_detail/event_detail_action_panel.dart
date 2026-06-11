@@ -2,11 +2,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/theme/planr_design.dart';
-import '../../models/event.dart';
-import '../../providers/event_provider.dart';
+import '../../../core/theme/planr_design.dart';
+import '../../../models/event.dart';
+import '../../../providers/event_provider.dart';
 import '../../screens/edit_event_screen.dart';
 import '../../screens/event_chat_screen.dart';
+import '../../screens/event_detail_screen.dart';
 import '../../screens/invite_to_event_screen.dart';
 import 'event_detail_info_card.dart';
 
@@ -18,134 +19,52 @@ class EventDetailActionPanel extends ConsumerWidget {
 
   final Event event;
 
-  void _openEditEvent(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => EditEventScreen(event: event),
-      ),
-    );
-  }
-
-  void _openInviteFriends(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => InviteToEventScreen(event: event),
-      ),
-    );
-  }
-
-  void _openChat(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => EventChatScreen(event: event),
-      ),
-    );
-  }
-
-  Future<void> _confirmAndDeleteEvent({
-    required BuildContext context,
-    required WidgetRef ref,
-  }) async {
-    final shouldDelete = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Delete event?'),
-          content: Text(
-            'This will permanently delete "${event.title}" for everyone. '
-            'This action cannot be undone.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.red.shade600,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Delete'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (shouldDelete != true) return;
-
-    final service = ref.read(eventServiceProvider);
-    final error = await service.deleteEvent(event);
-
-    if (!context.mounted) return;
-
-    if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error)),
-      );
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Event deleted.'),
-      ),
-    );
-
-    Navigator.pop(context);
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentUser = FirebaseAuth.instance.currentUser;
     final isCreator = currentUser?.uid == event.creatorUid;
-    final canInvite = isCreator || event.guestsCanInvite;
 
     return EventDetailInfoCard(
-      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _PanelTitle(),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: _LargeActionButton(
-                  icon: Icons.chat_bubble_rounded,
-                  title: event.chatEnabled ? 'Chat' : 'No chat',
-                  subtitle: event.chatEnabled ? 'Open event chat' : 'Disabled',
-                  enabled: event.chatEnabled,
-                  onPressed: event.chatEnabled ? () => _openChat(context) : null,
-                ),
-              ),
-              if (canInvite) ...[
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _LargeActionButton(
-                    icon: Icons.person_add_alt_1_rounded,
-                    title: 'Invite',
-                    subtitle: 'Bring friends',
-                    enabled: true,
-                    onPressed: () => _openInviteFriends(context),
-                  ),
-                ),
-              ],
-            ],
+          const Text(
+            'Connect',
+            style: TextStyle(
+              color: PlanrDesign.ink,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.2,
+            ),
           ),
+          const SizedBox(height: 14),
+          if (event.isPublicEvent)
+            _PublicEventActions(event: event)
+          else if (event.isLinkedGroup)
+            _LinkedGroupActions(
+              event: event,
+              canInvite: isCreator || event.guestsCanInvite,
+            )
+          else
+            _PrivateEventActions(
+              event: event,
+              canInvite: isCreator || event.guestsCanInvite,
+            ),
           if (isCreator) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
                   child: _CreatorUtilityButton(
                     icon: Icons.edit_rounded,
-                    label: 'Edit event',
-                    onPressed: () => _openEditEvent(context),
+                    label: 'Edit',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => EditEventScreen(event: event),
+                        ),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -153,8 +72,8 @@ class EventDetailActionPanel extends ConsumerWidget {
                   child: _CreatorUtilityButton(
                     icon: Icons.delete_outline_rounded,
                     label: 'Delete',
-                    isDanger: true,
-                    onPressed: () => _confirmAndDeleteEvent(
+                    isDestructive: true,
+                    onTap: () => _confirmAndDeleteEvent(
                       context: context,
                       ref: ref,
                     ),
@@ -167,39 +86,438 @@ class EventDetailActionPanel extends ConsumerWidget {
       ),
     );
   }
+
+  Future<void> _confirmAndDeleteEvent({
+    required BuildContext context,
+    required WidgetRef ref,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete event?'),
+          content: const Text(
+            'This will remove the event for everyone. This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    final error = await ref.read(eventServiceProvider).deleteEvent(event);
+
+    if (!context.mounted) return;
+
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
+      return;
+    }
+
+    Navigator.pop(context);
+  }
 }
 
-class _PanelTitle extends StatelessWidget {
-  const _PanelTitle();
+class _PublicEventActions extends ConsumerWidget {
+  const _PublicEventActions({
+    required this.event,
+  });
+
+  final Event event;
+
+  Future<void> _createGroupAndInvite({
+    required BuildContext context,
+    required WidgetRef ref,
+  }) async {
+    final service = ref.read(eventServiceProvider);
+
+    final result = await service.createLinkedGroupFromPublicEventAndReturn(
+      publicEvent: event,
+    );
+
+    if (!context.mounted) return;
+
+    if (result.error != null || result.group == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.error ?? 'Could not create group.')),
+      );
+      return;
+    }
+
+    ref.invalidate(linkedGroupForPublicEventProvider(event.id));
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => InviteToEventScreen(
+          event: result.group!,
+          openEventDetailOnFinish: true,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final linkedGroupAsync =
+        ref.watch(linkedGroupForPublicEventProvider(event.id));
+
+    return linkedGroupAsync.when(
+      data: (linkedGroup) {
+        final hasGroup = linkedGroup != null;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _PublicEventNotice(),
+            const SizedBox(height: 14),
+            if (!hasGroup)
+              Row(
+                children: [
+                  Expanded(
+                    child: _LargeActionButton(
+                      icon: Icons.group_add_rounded,
+                      title: 'Make Group',
+                      subtitle: 'Plan with friends',
+                      enabled: true,
+                      onTap: () => _createGroupAndInvite(
+                        context: context,
+                        ref: ref,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _LargeActionButton(
+                      icon: Icons.chat_bubble_outline_rounded,
+                      title: 'No chat',
+                      subtitle: 'Public chat disabled',
+                      enabled: false,
+                      onTap: () {},
+                    ),
+                  ),
+                ],
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: _LargeActionButton(
+                      icon: Icons.open_in_new_rounded,
+                      title: 'Open Group',
+                      subtitle: 'Private plan',
+                      enabled: true,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => EventDetailScreen(
+                              eventId: linkedGroup.id,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _LargeActionButton(
+                      icon: Icons.group_add_rounded,
+                      title: 'Invite',
+                      subtitle: 'Add friends',
+                      enabled: true,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => InviteToEventScreen(
+                              event: linkedGroup,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        );
+      },
+      loading: () => Row(
+        children: [
+          Expanded(
+            child: _LargeActionButton(
+              icon: Icons.group_add_rounded,
+              title: 'Make Group',
+              subtitle: 'Loading...',
+              enabled: false,
+              onTap: () {},
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _LargeActionButton(
+              icon: Icons.chat_bubble_outline_rounded,
+              title: 'No chat',
+              subtitle: 'Public chat disabled',
+              enabled: false,
+              onTap: () {},
+            ),
+          ),
+        ],
+      ),
+      error: (_, _) => Row(
+        children: [
+          Expanded(
+            child: _LargeActionButton(
+              icon: Icons.group_add_rounded,
+              title: 'Make Group',
+              subtitle: 'Try again',
+              enabled: true,
+              onTap: () => _createGroupAndInvite(
+                context: context,
+                ref: ref,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _LargeActionButton(
+              icon: Icons.chat_bubble_outline_rounded,
+              title: 'No chat',
+              subtitle: 'Public chat disabled',
+              enabled: false,
+              onTap: () {},
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PrivateEventActions extends StatelessWidget {
+  const _PrivateEventActions({
+    required this.event,
+    required this.canInvite,
+  });
+
+  final Event event;
+  final bool canInvite;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: PlanrDesign.accentSoft.withOpacity(0.72),
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: const Icon(
-            Icons.bolt_rounded,
-            color: PlanrDesign.accentDark,
-            size: 20,
+        Expanded(
+          child: _LargeActionButton(
+            icon: event.chatEnabled
+                ? Icons.chat_bubble_rounded
+                : Icons.chat_bubble_outline_rounded,
+            title: event.chatEnabled ? 'Chat' : 'No chat',
+            subtitle: event.chatEnabled ? 'Talk with guests' : 'Disabled',
+            enabled: event.chatEnabled,
+            onTap: event.chatEnabled
+                ? () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => EventChatScreen(event: event),
+                      ),
+                    );
+                  }
+                : () {},
           ),
         ),
-        const SizedBox(width: 10),
-        const Text(
-          'Connect',
-          style: TextStyle(
-            color: PlanrDesign.ink,
-            fontSize: 21,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -0.4,
+        if (canInvite) ...[
+          const SizedBox(width: 12),
+          Expanded(
+            child: _LargeActionButton(
+              icon: Icons.group_add_rounded,
+              title: 'Invite',
+              subtitle: 'Bring friends',
+              enabled: true,
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => InviteToEventScreen(event: event),
+                  ),
+                );
+              },
+            ),
           ),
+        ],
+      ],
+    );
+  }
+}
+
+class _LinkedGroupActions extends StatelessWidget {
+  const _LinkedGroupActions({
+    required this.event,
+    required this.canInvite,
+  });
+
+  final Event event;
+  final bool canInvite;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (event.linkedPublicEventTitle != null) ...[
+          _LinkedPublicEventNotice(event: event),
+          const SizedBox(height: 14),
+        ],
+        Row(
+          children: [
+            Expanded(
+              child: _LargeActionButton(
+                icon: Icons.chat_bubble_rounded,
+                title: 'Group Chat',
+                subtitle: 'Plan privately',
+                enabled: event.chatEnabled,
+                onTap: event.chatEnabled
+                    ? () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => EventChatScreen(event: event),
+                          ),
+                        );
+                      }
+                    : () {},
+              ),
+            ),
+            if (canInvite) ...[
+              const SizedBox(width: 12),
+              Expanded(
+                child: _LargeActionButton(
+                  icon: Icons.group_add_rounded,
+                  title: 'Invite',
+                  subtitle: 'Add friends',
+                  enabled: true,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => InviteToEventScreen(event: event),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ],
         ),
       ],
+    );
+  }
+}
+
+class _PublicEventNotice extends StatelessWidget {
+  const _PublicEventNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return _InfoNotice(
+      icon: Icons.public_rounded,
+      title: 'Public event',
+      text:
+          'This event is discoverable. There is no public chat. Use a private group to plan with friends.',
+    );
+  }
+}
+
+class _LinkedPublicEventNotice extends StatelessWidget {
+  const _LinkedPublicEventNotice({
+    required this.event,
+  });
+
+  final Event event;
+
+  @override
+  Widget build(BuildContext context) {
+    return _InfoNotice(
+      icon: Icons.link_rounded,
+      title: 'Linked to public event',
+      text: event.linkedPublicEventTitle ?? 'Public event',
+    );
+  }
+}
+
+class _InfoNotice extends StatelessWidget {
+  const _InfoNotice({
+    required this.icon,
+    required this.title,
+    required this.text,
+  });
+
+  final IconData icon;
+  final String title;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
+      decoration: BoxDecoration(
+        color: PlanrDesign.cardLight.withOpacity(0.76),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.9),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 39,
+            height: 39,
+            decoration: BoxDecoration(
+              color: PlanrDesign.accentSoft.withOpacity(0.72),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(
+              icon,
+              color: PlanrDesign.accentDark,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: PlanrDesign.ink,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  text,
+                  style: const TextStyle(
+                    color: PlanrDesign.muted,
+                    fontSize: 12.2,
+                    fontWeight: FontWeight.w700,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -210,30 +528,38 @@ class _LargeActionButton extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.enabled,
-    required this.onPressed,
+    required this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final bool enabled;
-  final VoidCallback? onPressed;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final background = enabled
+        ? PlanrDesign.accentSoft.withOpacity(0.72)
+        : PlanrDesign.cardLight.withOpacity(0.7);
+
+    final foreground = enabled ? PlanrDesign.accentDark : PlanrDesign.softMuted;
+
     return Material(
-      color: Colors.white.withOpacity(enabled ? 0.52 : 0.30),
+      color: background,
       borderRadius: BorderRadius.circular(24),
       child: InkWell(
-        onTap: enabled ? onPressed : null,
+        onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(24),
         child: Container(
-          height: 94,
-          padding: const EdgeInsets.all(13),
+          constraints: const BoxConstraints(
+            minHeight: 92,
+          ),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: Colors.white.withOpacity(0.95),
+              color: Colors.white.withOpacity(0.9),
             ),
           ),
           child: Column(
@@ -241,28 +567,115 @@ class _LargeActionButton extends StatelessWidget {
             children: [
               Icon(
                 icon,
-                color: enabled ? PlanrDesign.accentDark : PlanrDesign.softMuted,
-                size: 23,
+                color: foreground,
+                size: 24,
               ),
-              const Spacer(),
+              const SizedBox(height: 18),
               Text(
                 title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: enabled ? PlanrDesign.ink : PlanrDesign.softMuted,
-                  fontSize: 15,
+                  fontSize: 15.5,
                   fontWeight: FontWeight.w900,
+                  letterSpacing: -0.1,
                 ),
               ),
-              const SizedBox(height: 1),
+              const SizedBox(height: 2),
               Text(
                 subtitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: PlanrDesign.muted,
-                  fontSize: 12,
+                  fontSize: 12.2,
                   fontWeight: FontWeight.w700,
                 ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WideActionButton extends StatelessWidget {
+  const _WideActionButton({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: PlanrDesign.cardLight.withOpacity(0.74),
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.9),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: PlanrDesign.accentSoft.withOpacity(0.72),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(
+                  icon,
+                  color: PlanrDesign.accentDark,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: PlanrDesign.ink,
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PlanrDesign.muted,
+                        fontSize: 12.2,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: PlanrDesign.softMuted,
+                size: 25,
               ),
             ],
           ),
@@ -276,31 +689,59 @@ class _CreatorUtilityButton extends StatelessWidget {
   const _CreatorUtilityButton({
     required this.icon,
     required this.label,
-    required this.onPressed,
-    this.isDanger = false,
+    required this.onTap,
+    this.isDestructive = false,
   });
 
   final IconData icon;
   final String label;
-  final VoidCallback onPressed;
-  final bool isDanger;
+  final VoidCallback onTap;
+  final bool isDestructive;
 
   @override
   Widget build(BuildContext context) {
-    final color = isDanger ? Colors.red.shade600 : PlanrDesign.accentDark;
+    final color = isDestructive ? Colors.redAccent : PlanrDesign.accentDark;
 
-    return TextButton.icon(
-      onPressed: onPressed,
-      icon: Icon(
-        icon,
-        size: 18,
-        color: color,
-      ),
-      label: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.w900,
+    return Material(
+      color: PlanrDesign.cardLight.withOpacity(0.72),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 11,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.9),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                color: color,
+                size: 18,
+              ),
+              const SizedBox(width: 7),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
