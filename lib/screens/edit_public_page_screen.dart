@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../core/theme/planr_design.dart';
 import '../core/widgets/planr_background.dart';
@@ -25,12 +28,17 @@ class EditPublicPageScreen extends ConsumerStatefulWidget {
 }
 
 class _EditPublicPageScreenState extends ConsumerState<EditPublicPageScreen> {
+  final ImagePicker _picker = ImagePicker();
+
   late final TextEditingController _nameController;
   late final TextEditingController _handleController;
   late final TextEditingController _descriptionController;
 
   late String _category;
   late List<String> _selectedTagIds;
+
+  File? _newPhotoFile;
+  File? _newBackgroundFile;
 
   bool _saving = false;
 
@@ -58,6 +66,44 @@ class _EditPublicPageScreenState extends ConsumerState<EditPublicPageScreen> {
     super.dispose();
   }
 
+  Future<void> _pickPhoto() async {
+    final file = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 86,
+    );
+
+    if (file == null) return;
+
+    setState(() {
+      _newPhotoFile = File(file.path);
+    });
+  }
+
+  Future<void> _pickBackground() async {
+    final file = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 86,
+    );
+
+    if (file == null) return;
+
+    setState(() {
+      _newBackgroundFile = File(file.path);
+    });
+  }
+
+  void _removeSelectedPhoto() {
+    setState(() {
+      _newPhotoFile = null;
+    });
+  }
+
+  void _removeSelectedBackground() {
+    setState(() {
+      _newBackgroundFile = null;
+    });
+  }
+
   Future<void> _savePage() async {
     final name = _nameController.text.trim();
     final handle = _handleController.text.trim();
@@ -82,14 +128,33 @@ class _EditPublicPageScreenState extends ConsumerState<EditPublicPageScreen> {
       _saving = true;
     });
 
-    final error = await ref.read(publicPageServiceProvider).updatePublicPage(
-          page: widget.page,
-          name: name,
-          handle: handle,
-          description: description,
-          category: _category,
-          tags: _selectedTagIds,
-        );
+    final service = ref.read(publicPageServiceProvider);
+
+    final pageError = await service.updatePublicPage(
+      page: widget.page,
+      name: name,
+      handle: handle,
+      description: description,
+      category: _category,
+      tags: _selectedTagIds,
+    );
+
+    if (!mounted) return;
+
+    if (pageError != null) {
+      setState(() {
+        _saving = false;
+      });
+
+      _showSnackBar(pageError);
+      return;
+    }
+
+    final imageError = await service.updatePublicPageImages(
+      page: widget.page,
+      newPhotoFile: _newPhotoFile,
+      newBackgroundFile: _newBackgroundFile,
+    );
 
     if (!mounted) return;
 
@@ -97,12 +162,13 @@ class _EditPublicPageScreenState extends ConsumerState<EditPublicPageScreen> {
       _saving = false;
     });
 
-    if (error != null) {
-      _showSnackBar(error);
+    if (imageError != null) {
+      _showSnackBar(imageError);
       return;
     }
 
     ref.invalidate(myManagedPublicPagesProvider);
+    ref.invalidate(publicPagesProvider);
     ref.invalidate(publicPageByIdProvider(widget.page.id));
 
     Navigator.of(context).pop();
@@ -124,6 +190,17 @@ class _EditPublicPageScreenState extends ConsumerState<EditPublicPageScreen> {
         physics: const BouncingScrollPhysics(),
         children: [
           _EditPageIntroCard(page: widget.page),
+          const SizedBox(height: 18),
+          _PageMediaCard(
+            page: widget.page,
+            newPhotoFile: _newPhotoFile,
+            newBackgroundFile: _newBackgroundFile,
+            onPickPhoto: _saving ? null : _pickPhoto,
+            onPickBackground: _saving ? null : _pickBackground,
+            onRemoveSelectedPhoto: _saving ? null : _removeSelectedPhoto,
+            onRemoveSelectedBackground:
+                _saving ? null : _removeSelectedBackground,
+          ),
           const SizedBox(height: 18),
           PlanrCard(
             padding: const EdgeInsets.all(18),
@@ -195,6 +272,481 @@ class _EditPublicPageScreenState extends ConsumerState<EditPublicPageScreen> {
   }
 }
 
+class _PageMediaCard extends StatelessWidget {
+  const _PageMediaCard({
+    required this.page,
+    required this.newPhotoFile,
+    required this.newBackgroundFile,
+    required this.onPickPhoto,
+    required this.onPickBackground,
+    required this.onRemoveSelectedPhoto,
+    required this.onRemoveSelectedBackground,
+  });
+
+  final PublicPage page;
+  final File? newPhotoFile;
+  final File? newBackgroundFile;
+  final VoidCallback? onPickPhoto;
+  final VoidCallback? onPickBackground;
+  final VoidCallback? onRemoveSelectedPhoto;
+  final VoidCallback? onRemoveSelectedBackground;
+
+  @override
+  Widget build(BuildContext context) {
+    return PlanrCard(
+      padding: const EdgeInsets.all(18),
+      radius: 30,
+      color: PlanrDesign.cardLight.withOpacity(0.88),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _SmallIconBox(icon: Icons.photo_library_rounded),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Text(
+                  'Page media',
+                  style: PlanrDesign.cardTitleStyle.copyWith(
+                    fontSize: 21,
+                    letterSpacing: -0.45,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _BannerPickerPreview(
+            page: page,
+            newBackgroundFile: newBackgroundFile,
+            onPick: onPickBackground,
+            onRemoveSelected: onRemoveSelectedBackground,
+          ),
+          const SizedBox(height: 14),
+          _LogoPickerPreview(
+            page: page,
+            newPhotoFile: newPhotoFile,
+            onPick: onPickPhoto,
+            onRemoveSelected: onRemoveSelectedPhoto,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BannerPickerPreview extends StatelessWidget {
+  const _BannerPickerPreview({
+    required this.page,
+    required this.newBackgroundFile,
+    required this.onPick,
+    required this.onRemoveSelected,
+  });
+
+  final PublicPage page;
+  final File? newBackgroundFile;
+  final VoidCallback? onPick;
+  final VoidCallback? onRemoveSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final existingUrl = page.backgroundImageUrl?.trim();
+    final hasExisting = existingUrl != null && existingUrl.isNotEmpty;
+    final hasNew = newBackgroundFile != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _MediaLabel(
+          title: 'Banner image',
+          subtitle: 'Shown at the top of your public page.',
+        ),
+        const SizedBox(height: 10),
+        GestureDetector(
+          onTap: onPick,
+          child: AspectRatio(
+            aspectRatio: 2.2,
+            child: Container(
+              decoration: BoxDecoration(
+                color: PlanrDesign.accentSoft.withOpacity(0.52),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.92),
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (hasNew)
+                    Image.file(
+                      newBackgroundFile!,
+                      fit: BoxFit.cover,
+                    )
+                  else if (hasExisting)
+                    Image.network(
+                      existingUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => const _BannerFallback(),
+                    )
+                  else
+                    const _BannerFallback(),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.black.withOpacity(0.06),
+                          Colors.black.withOpacity(0.38),
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 14,
+                    right: 14,
+                    bottom: 14,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            hasNew
+                                ? 'New banner selected'
+                                : hasExisting
+                                    ? 'Change banner'
+                                    : 'Add banner',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        _OverlayIconButton(
+                          icon: Icons.photo_library_rounded,
+                          onTap: onPick,
+                        ),
+                        if (hasNew) ...[
+                          const SizedBox(width: 8),
+                          _OverlayIconButton(
+                            icon: Icons.close_rounded,
+                            onTap: onRemoveSelected,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LogoPickerPreview extends StatelessWidget {
+  const _LogoPickerPreview({
+    required this.page,
+    required this.newPhotoFile,
+    required this.onPick,
+    required this.onRemoveSelected,
+  });
+
+  final PublicPage page;
+  final File? newPhotoFile;
+  final VoidCallback? onPick;
+  final VoidCallback? onRemoveSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final existingUrl = page.photoUrl?.trim();
+    final hasExisting = existingUrl != null && existingUrl.isNotEmpty;
+    final hasNew = newPhotoFile != null;
+
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: PlanrDesign.card.withOpacity(0.62),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.92),
+        ),
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: onPick,
+            child: Container(
+              width: 74,
+              height: 74,
+              decoration: BoxDecoration(
+                color: PlanrDesign.accentSoft.withOpacity(0.72),
+                borderRadius: BorderRadius.circular(27),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.94),
+                  width: 2,
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: hasNew
+                  ? Image.file(
+                      newPhotoFile!,
+                      fit: BoxFit.cover,
+                    )
+                  : hasExisting
+                      ? Image.network(
+                          existingUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) =>
+                              _LogoFallback(name: page.name),
+                        )
+                      : _LogoFallback(name: page.name),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _MediaLabel(
+                  title: 'Page logo',
+                  subtitle: 'Used in Discover, stories and event pages.',
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _SmallMediaButton(
+                        label: hasNew || hasExisting ? 'Change' : 'Add logo',
+                        icon: Icons.add_photo_alternate_rounded,
+                        onTap: onPick,
+                      ),
+                    ),
+                    if (hasNew) ...[
+                      const SizedBox(width: 8),
+                      _SmallMediaButton(
+                        label: 'Reset',
+                        icon: Icons.close_rounded,
+                        muted: true,
+                        onTap: onRemoveSelected,
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BannerFallback extends StatelessWidget {
+  const _BannerFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: PlanrDesign.brandGradient,
+      ),
+      child: const Center(
+        child: Icon(
+          Icons.storefront_rounded,
+          color: Colors.white,
+          size: 38,
+        ),
+      ),
+    );
+  }
+}
+
+class _LogoFallback extends StatelessWidget {
+  const _LogoFallback({
+    required this.name,
+  });
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final initial =
+        name.trim().isEmpty ? '?' : name.trim().characters.first.toUpperCase();
+
+    return Center(
+      child: Text(
+        initial,
+        style: const TextStyle(
+          color: PlanrDesign.accentDark,
+          fontSize: 28,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _OverlayIconButton extends StatelessWidget {
+  const _OverlayIconButton({
+    required this.icon,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withOpacity(0.20),
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: SizedBox(
+          width: 38,
+          height: 38,
+          child: Icon(
+            icon,
+            color: Colors.white,
+            size: 20,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SmallMediaButton extends StatelessWidget {
+  const _SmallMediaButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    this.muted = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback? onTap;
+  final bool muted;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: muted
+          ? PlanrDesign.cardLight.withOpacity(0.65)
+          : PlanrDesign.accentSoft.withOpacity(0.72),
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          height: 38,
+          padding: const EdgeInsets.symmetric(horizontal: 11),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.9),
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                color: muted ? PlanrDesign.muted : PlanrDesign.accentDark,
+                size: 15,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: muted ? PlanrDesign.muted : PlanrDesign.accentDark,
+                  fontSize: 12.2,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MediaLabel extends StatelessWidget {
+  const _MediaLabel({
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: PlanrDesign.ink,
+            fontSize: 15,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            color: PlanrDesign.muted,
+            fontSize: 12.4,
+            fontWeight: FontWeight.w700,
+            height: 1.25,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SmallIconBox extends StatelessWidget {
+  const _SmallIconBox({
+    required this.icon,
+  });
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        color: PlanrDesign.accentSoft.withOpacity(0.72),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.88),
+        ),
+      ),
+      child: Icon(
+        icon,
+        color: PlanrDesign.accentDark,
+        size: 21,
+      ),
+    );
+  }
+}
+
 class _EditPageIntroCard extends StatelessWidget {
   const _EditPageIntroCard({
     required this.page,
@@ -204,7 +756,8 @@ class _EditPageIntroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final handle = page.displayHandle.isEmpty ? 'Public page' : page.displayHandle;
+    final handle =
+        page.displayHandle.isEmpty ? 'Public page' : page.displayHandle;
 
     return PlanrCard(
       padding: const EdgeInsets.all(20),

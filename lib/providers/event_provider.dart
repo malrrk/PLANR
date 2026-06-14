@@ -246,6 +246,60 @@ class LinkedGroupCreationResult {
   bool get success => group != null && error == null;
 }
 
+final eventUpdatesProvider =
+    StreamProvider.family<List<EventUpdate>, String>((ref, eventId) {
+  return FirebaseFirestore.instance
+      .collection('events')
+      .doc(eventId)
+      .collection('updates')
+      .orderBy('createdAt', descending: true)
+      .limit(20)
+      .snapshots()
+      .map((snapshot) {
+    return snapshot.docs
+        .map((doc) => EventUpdate.fromMap(doc.data(), doc.id))
+        .toList();
+  });
+});
+
+class EventUpdate {
+  const EventUpdate({
+    required this.id,
+    required this.authorUid,
+    required this.authorName,
+    required this.authorPhotoUrl,
+    required this.text,
+    required this.createdAt,
+    required this.isPinned,
+  });
+
+  final String id;
+  final String authorUid;
+  final String authorName;
+  final String? authorPhotoUrl;
+  final String text;
+  final DateTime createdAt;
+  final bool isPinned;
+
+  factory EventUpdate.fromMap(Map<String, dynamic> map, String documentId) {
+    return EventUpdate(
+      id: documentId,
+      authorUid: map['authorUid'] as String? ?? '',
+      authorName: map['authorName'] as String? ?? 'Organizer',
+      authorPhotoUrl: map['authorPhotoUrl'] as String?,
+      text: map['text'] as String? ?? '',
+      createdAt: _dateFromTimestamp(map['createdAt']) ?? DateTime.now(),
+      isPinned: map['isPinned'] as bool? ?? false,
+    );
+  }
+
+  static DateTime? _dateFromTimestamp(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    return null;
+  }
+}
+
 class EventService {
   EventService(this._firestore, this._storage, this._auth);
 
@@ -1211,6 +1265,112 @@ class EventService {
     } catch (_) {
       return 'Failed to send message.';
     }
+  }
+
+  Future<String?> createEventUpdate({
+    required Event event,
+    required String text,
+    bool isPinned = false,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return 'No user logged in.';
+
+      final trimmedText = text.trim();
+      if (trimmedText.isEmpty) return 'Update cannot be empty.';
+
+      if (trimmedText.length > 600) {
+        return 'Update is too long.';
+      }
+
+      if (!event.isPublicEvent) {
+        return 'Updates are only available for public events.';
+      }
+
+      final canPost = await _canManageEventUpdates(event);
+      if (!canPost) {
+        return 'You cannot post updates for this event.';
+      }
+
+      final updateRef = _firestore
+          .collection('events')
+          .doc(event.id)
+          .collection('updates')
+          .doc();
+
+      await updateRef.set({
+        'authorUid': user.uid,
+        'authorName': user.displayName ?? 'Organizer',
+        'authorPhotoUrl': user.photoURL,
+        'text': trimmedText,
+        'isPinned': isPinned,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      return null;
+    } catch (_) {
+      return 'Failed to post update.';
+    }
+  }
+
+  Future<String?> deleteEventUpdate({
+    required Event event,
+    required String updateId,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return 'No user logged in.';
+
+      if (!event.isPublicEvent) {
+        return 'Updates are only available for public events.';
+      }
+
+      final canDelete = await _canManageEventUpdates(event);
+      if (!canDelete) {
+        return 'You cannot delete updates for this event.';
+      }
+
+      await _firestore
+          .collection('events')
+          .doc(event.id)
+          .collection('updates')
+          .doc(updateId)
+          .delete();
+
+      return null;
+    } catch (_) {
+      return 'Failed to delete update.';
+    }
+  }
+
+  Future<bool> canManageEventUpdates(Event event) {
+    return _canManageEventUpdates(event);
+  }
+
+  Future<bool> _canManageEventUpdates(Event event) async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+
+    if (event.creatorUid == user.uid) return true;
+
+    if (!event.isOrganizedByPage) return false;
+
+    final pageDoc = await _firestore
+        .collection('public_pages')
+        .doc(event.organizerId)
+        .get();
+
+    if (!pageDoc.exists || pageDoc.data() == null) return false;
+
+    final data = pageDoc.data()!;
+    final ownerUid = data['ownerUid'] as String?;
+    final adminUidsRaw = data['adminUids'];
+
+    final adminUids = adminUidsRaw is List
+        ? adminUidsRaw.whereType<String>().toList()
+        : <String>[];
+
+    return ownerUid == user.uid || adminUids.contains(user.uid);
   }
 
   Future<String?> markEventChatReadAt({

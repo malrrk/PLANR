@@ -13,10 +13,10 @@ import '../widgets/event_tag_chips.dart';
 import 'event_detail_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'managed_public_pages_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'create_event_screen.dart';
 import 'edit_public_page_screen.dart';
 import 'manage_page_admins_screen.dart';
+import 'create_story_screen.dart';
 
 class PublicPageScreen extends ConsumerStatefulWidget {
   const PublicPageScreen({
@@ -56,6 +56,15 @@ class _PublicPageScreenState extends ConsumerState<PublicPageScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => CreateEventScreen(initialOrganizerPage: page),
+      ),
+    );
+  }
+
+  void _openCreateStoryAsPage(PublicPage page) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CreateStoryScreen(page: page),
       ),
     );
   }
@@ -172,6 +181,7 @@ class _PublicPageScreenState extends ConsumerState<PublicPageScreen> {
                             isOwner: isOwner,
                             onEditPage: () => _openEditPage(page),
                             onCreateEvent: () => _openCreateEventAsPage(page),
+                            onCreateStory: () => _openCreateStoryAsPage(page),
                             onManageAdmins: () => _openManageAdmins(page),
                           ),
                         ],
@@ -586,6 +596,7 @@ class _PageManagerActionsCard extends StatelessWidget {
     required this.isOwner,
     required this.onEditPage,
     required this.onCreateEvent,
+    required this.onCreateStory,
     required this.onManageAdmins,
   });
 
@@ -593,6 +604,7 @@ class _PageManagerActionsCard extends StatelessWidget {
   final bool isOwner;
   final VoidCallback onEditPage;
   final VoidCallback onCreateEvent;
+  final VoidCallback onCreateStory;
   final VoidCallback onManageAdmins;
 
   @override
@@ -638,8 +650,17 @@ class _PageManagerActionsCard extends StatelessWidget {
                 child: _ManagerActionTile(
                   icon: Icons.add_circle_rounded,
                   title: 'Event',
-                  subtitle: 'Create as page',
+                  subtitle: 'Create event',
                   onTap: onCreateEvent,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _ManagerActionTile(
+                  icon: Icons.auto_stories_rounded,
+                  title: 'Story',
+                  subtitle: 'Post as page',
+                  onTap: onCreateStory,
                 ),
               ),
             ],

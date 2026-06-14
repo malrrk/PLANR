@@ -8,6 +8,7 @@ import '../models/story.dart';
 import '../providers/story_provider.dart';
 import '../providers/user_profile_provider.dart';
 import 'profile_screen.dart';
+import 'public_page_screen.dart';
 
 class StoryViewerScreen extends ConsumerStatefulWidget {
   const StoryViewerScreen({
@@ -109,11 +110,21 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
     );
   }
 
-  void _openProfile(String userId) {
+  void _openStoryOwner(Story story) {
+    if (story.isPageStory && story.pageId != null && story.pageId!.isNotEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PublicPageScreen(pageId: story.pageId!),
+        ),
+      );
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ProfileScreen(userId: userId),
+        builder: (_) => ProfileScreen(userId: story.ownerUid),
       ),
     );
   }
@@ -285,8 +296,10 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
         }
 
         final currentStory = currentGroup.stories[storyIndex];
-        final isOwnStory = currentStory.ownerUid == currentUserUid;
-        final isPinned = pinnedUrls.contains(currentStory.imageUrl);
+        final isOwnStory =
+            currentStory.isUserStory && currentStory.ownerUid == currentUserUid;
+        final isPinned =
+            currentStory.isUserStory && pinnedUrls.contains(currentStory.imageUrl);
 
         return Scaffold(
           backgroundColor: Colors.black,
@@ -308,7 +321,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
                 storyIndex: storyIndex,
                 isOwnStory: isOwnStory,
                 isPinned: isPinned,
-                onProfilePressed: () => _openProfile(currentStory.ownerUid),
+                onProfilePressed: () => _openStoryOwner(currentStory),
                 onMenuPressed: () => _showStoryMenu(
                   story: currentStory,
                   pinnedUrls: pinnedUrls,

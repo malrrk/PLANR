@@ -6,10 +6,13 @@ import 'package:uuid/uuid.dart';
 import '../models/event.dart';
 import '../models/event_tag.dart';
 import '../models/public_page.dart';
+import 'dart:io';
+import 'package:firebase_storage/firebase_storage.dart';
 
 final publicPageServiceProvider = Provider<PublicPageService>((ref) {
   return PublicPageService(
     FirebaseFirestore.instance,
+    FirebaseStorage.instance,
     FirebaseAuth.instance,
   );
 });
@@ -158,9 +161,10 @@ class PublicPageCreationResult {
 }
 
 class PublicPageService {
-  PublicPageService(this._firestore, this._auth);
+  PublicPageService(this._firestore, this._storage, this._auth);
 
   final FirebaseFirestore _firestore;
+  final FirebaseStorage _storage;
   final FirebaseAuth _auth;
   final Uuid _uuid = const Uuid();
 
@@ -376,6 +380,59 @@ class PublicPageService {
       return null;
     } catch (_) {
       return 'Failed to update public page.';
+    }
+  }
+
+  Future<String?> updatePublicPageImages({
+    required PublicPage page,
+    File? newPhotoFile,
+    File? newBackgroundFile,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return 'No user logged in.';
+
+      if (page.ownerUid != user.uid && !page.adminUids.contains(user.uid)) {
+        return 'You cannot edit this page.';
+      }
+
+      if (newPhotoFile == null && newBackgroundFile == null) {
+        return null;
+      }
+
+      String? photoUrl = page.photoUrl;
+      String? backgroundImageUrl = page.backgroundImageUrl;
+
+      if (newPhotoFile != null) {
+        final ref = _storage
+            .ref()
+            .child('public_pages/${page.id}/photo.jpg');
+
+        await ref.putFile(newPhotoFile);
+        photoUrl = await ref.getDownloadURL();
+      }
+
+      if (newBackgroundFile != null) {
+        final ref = _storage
+            .ref()
+            .child('public_pages/${page.id}/background.jpg');
+
+        await ref.putFile(newBackgroundFile);
+        backgroundImageUrl = await ref.getDownloadURL();
+      }
+
+      await _firestore.collection('public_pages').doc(page.id).set(
+        {
+          'photoUrl': photoUrl,
+          'backgroundImageUrl': backgroundImageUrl,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+
+      return null;
+    } catch (_) {
+      return 'Failed to update page images.';
     }
   }
 

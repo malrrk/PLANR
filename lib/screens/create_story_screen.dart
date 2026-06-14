@@ -10,9 +10,17 @@ import '../core/widgets/planr_button.dart';
 import '../core/widgets/planr_card.dart';
 import '../core/widgets/planr_scaffold.dart';
 import '../providers/story_provider.dart';
+import '../models/public_page.dart';
 
 class CreateStoryScreen extends ConsumerStatefulWidget {
-  const CreateStoryScreen({super.key});
+  const CreateStoryScreen({
+    super.key,
+    this.page,
+  });
+
+  final PublicPage? page;
+
+  bool get isPageStory => page != null;
 
   @override
   ConsumerState<CreateStoryScreen> createState() => _CreateStoryScreenState();
@@ -152,9 +160,17 @@ class _CreateStoryScreenState extends ConsumerState<CreateStoryScreen> {
       _saving = true;
     });
 
-    final error = await ref.read(storyServiceProvider).addStory(
-          file: File(_imagePath!),
-        );
+    final service = ref.read(storyServiceProvider);
+
+    final error = widget.page == null
+        ? await service.addStory(
+            file: File(_imagePath!),
+          )
+        : await service.addPageStory(
+            page: widget.page!,
+            file: File(_imagePath!),
+            isPublicPreview: true,
+          );
 
     if (!mounted) return;
 
@@ -185,16 +201,18 @@ class _CreateStoryScreenState extends ConsumerState<CreateStoryScreen> {
   @override
   Widget build(BuildContext context) {
     final hasImage = _imagePath != null;
+    final isPageStory = widget.isPageStory;
+    final page = widget.page;
 
     return PlanrScaffold(
-      title: 'Create Story',
+      title: isPageStory ? 'Page Story' : 'Create Story',
       variant: PlanrBackgroundVariant.create,
       resizeToAvoidBottomInset: true,
       child: ListView(
         children: [
-          const Text(
-            'Share a moment',
-            style: TextStyle(
+          Text(
+            isPageStory ? 'Post as ${page!.name}' : 'Share a moment',
+            style: const TextStyle(
               color: PlanrDesign.ink,
               fontSize: 30,
               fontWeight: FontWeight.w900,
@@ -202,9 +220,11 @@ class _CreateStoryScreenState extends ConsumerState<CreateStoryScreen> {
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Stories are temporary and help friends see what is happening right now.',
-            style: TextStyle(
+          Text(
+            isPageStory
+                ? 'This story will appear as a public preview on the page and in followers’ stories.'
+                : 'Stories are temporary and help friends see what is happening right now.',
+            style: const TextStyle(
               color: PlanrDesign.muted,
               fontSize: 14,
               fontWeight: FontWeight.w700,
@@ -245,7 +265,11 @@ class _CreateStoryScreenState extends ConsumerState<CreateStoryScreen> {
           const SizedBox(height: 14),
 
           PlanrButton(
-            label: _saving ? 'Posting...' : 'Post Story',
+            label: _saving
+                ? 'Posting...'
+                : isPageStory
+                    ? 'Post Page Story'
+                    : 'Post Story',
             icon: Icons.auto_stories_rounded,
             isLoading: _saving,
             onPressed: _saving ? null : _postStory,

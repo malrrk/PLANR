@@ -90,7 +90,7 @@ class StoriesScreen extends ConsumerWidget {
                                 icon: Icons.auto_stories_rounded,
                                 title: 'No stories yet',
                                 subtitle:
-                                    'When you or your friends post stories, they will show up here.',
+                                  'When friends or followed pages post stories, they will show up here.',
                                 actionLabel: 'Add Story',
                                 onActionPressed: () =>
                                     _openCreateStory(context),
@@ -128,7 +128,7 @@ class StoriesScreen extends ConsumerWidget {
                             sliver: SliverToBoxAdapter(
                               child: _SectionHeader(
                                 title: 'More stories',
-                                subtitle: 'Catch up with your circle',
+                                subtitle: 'Catch up with friends and pages',
                               ),
                             ),
                           ),
@@ -231,8 +231,8 @@ class _StoriesHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final subtitle = storyCount == 0
-        ? 'Moments from your circle'
-        : '$storyCount active ${storyCount == 1 ? 'moment' : 'moments'} from your circle';
+      ? 'Moments from friends and followed pages'
+      : '$storyCount active ${storyCount == 1 ? 'moment' : 'moments'} from friends and pages';
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,

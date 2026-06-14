@@ -228,7 +228,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                       if (showExploreSections) ...[
                         if (topPages.isNotEmpty) ...[
                           const _SectionHeader(
-                            title: 'Public Pages',
+                            title: 'Top Pages',
                             subtitle:
                                 'Follow clubs, groups and venues around you.',
                           ),
@@ -602,12 +602,12 @@ class _PublicPagesStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 158,
+      height: 232,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
         itemCount: pages.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 12),
+        separatorBuilder: (_, _) => const SizedBox(width: 14),
         itemBuilder: (context, index) {
           final page = pages[index];
 
@@ -633,97 +633,197 @@ class _PublicPageStripCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final category = _categoryLabel(page.category);
+    final primaryTag = primaryEventTag(page.tags);
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 226,
-        padding: const EdgeInsets.all(14),
+        width: 286,
         decoration: BoxDecoration(
-          color: PlanrDesign.cardLight.withOpacity(0.88),
+          color: PlanrDesign.ink,
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.9),
-          ),
-          boxShadow: [PlanrDesign.softShadow],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.16),
+              blurRadius: 22,
+              offset: const Offset(0, 10),
+            ),
+          ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            Row(
-              children: [
-                _PublicPageLogo(page: page, size: 48),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            _PublicPageCoverImage(page: page),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: PlanrDesign.eventOverlayGradient(),
+              ),
+            ),
+
+            Positioned(
+              top: 14,
+              left: 14,
+              child: _ImagePill(
+                icon: primaryTag?.icon ?? Icons.storefront_rounded,
+                label: primaryTag?.label.toUpperCase() ?? category.toUpperCase(),
+              ),
+            ),
+
+            if (page.isVerified)
+              Positioned(
+                top: 14,
+                right: 14,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.18),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.24),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.verified_rounded,
+                    color: Colors.white,
+                    size: 19,
+                  ),
+                ),
+              ),
+
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              page.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: PlanrDesign.ink,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.3,
-                              ),
-                            ),
-                          ),
-                          if (page.isVerified) ...[
-                            const SizedBox(width: 4),
-                            const Icon(
-                              Icons.verified_rounded,
-                              color: PlanrDesign.accentDark,
-                              size: 16,
-                            ),
-                          ],
-                        ],
+                      _PublicPageLogo(
+                        page: page,
+                        size: 54,
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        page.displayHandle.isEmpty
-                            ? category
-                            : page.displayHandle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: PlanrDesign.muted,
-                          fontSize: 12.4,
-                          fontWeight: FontWeight.w800,
+                      const SizedBox(width: 11),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 3),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                page.name,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 23,
+                                  height: 1.02,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.7,
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                page.displayHandle.isEmpty
+                                    ? category
+                                    : '${page.displayHandle} · $category',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.78),
+                                  fontSize: 12.7,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-            const Spacer(),
-            EventTagChips(
-              tagIds: page.tags,
-              maxVisible: 2,
-              compact: true,
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                _MiniPageMeta(
-                  icon: Icons.group_rounded,
-                  text: _followersLabel(page.followerCount),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _MiniPageMeta(
-                    icon: Icons.category_rounded,
-                    text: category,
+
+                  if (page.tags.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    EventTagChips(
+                      tagIds: page.tags,
+                      maxVisible: 2,
+                      dark: true,
+                      compact: true,
+                    ),
+                  ],
+
+                  const SizedBox(height: 12),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _DarkMetaLine(
+                          icon: Icons.group_rounded,
+                          text: _followersLabel(page.followerCount),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _DarkMetaLine(
+                        icon: Icons.event_rounded,
+                        text: '${page.eventCount}',
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PublicPageCoverImage extends StatelessWidget {
+  const _PublicPageCoverImage({
+    required this.page,
+  });
+
+  final PublicPage page;
+
+  @override
+  Widget build(BuildContext context) {
+    final backgroundUrl = page.backgroundImageUrl?.trim();
+    final photoUrl = page.photoUrl?.trim();
+
+    final imageUrl = backgroundUrl != null && backgroundUrl.isNotEmpty
+        ? backgroundUrl
+        : photoUrl;
+
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      return Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => const _PublicPageCoverFallback(),
+      );
+    }
+
+    return const _PublicPageCoverFallback();
+  }
+}
+
+class _PublicPageCoverFallback extends StatelessWidget {
+  const _PublicPageCoverFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: PlanrDesign.brandGradient,
+      ),
+      child: const Center(
+        child: Icon(
+          Icons.storefront_rounded,
+          color: Colors.white,
+          size: 44,
         ),
       ),
     );
