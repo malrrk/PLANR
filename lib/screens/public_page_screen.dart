@@ -6,13 +6,11 @@ import '../core/widgets/planr_background.dart';
 import '../core/widgets/planr_button.dart';
 import '../core/widgets/planr_card.dart';
 import '../models/event.dart';
-import '../models/event_tag.dart';
 import '../models/public_page.dart';
 import '../providers/public_page_provider.dart';
 import '../widgets/event_tag_chips.dart';
 import 'event_detail_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'managed_public_pages_screen.dart';
 import 'create_event_screen.dart';
 import 'edit_public_page_screen.dart';
 import 'manage_page_admins_screen.dart';
@@ -74,15 +72,6 @@ class _PublicPageScreenState extends ConsumerState<PublicPageScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => ManagePageAdminsScreen(pageId: page.id),
-      ),
-    );
-  }
-
-  void _openManagePages() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const ManagedPublicPagesScreen(),
       ),
     );
   }

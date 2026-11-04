@@ -6,17 +6,12 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/user_profile.dart';
+import 'firebase_providers.dart';
 
-final firestoreProvider = Provider<FirebaseFirestore>((ref) {
-  return FirebaseFirestore.instance;
-});
-
-final storageProvider = Provider<FirebaseStorage>((ref) {
-  return FirebaseStorage.instance;
-});
+export 'firebase_providers.dart';
 
 final currentFirebaseUserProvider = StreamProvider<User?>((ref) {
-  return FirebaseAuth.instance.authStateChanges();
+  return ref.watch(firebaseAuthProvider).authStateChanges();
 });
 
 final currentUserProfileProvider = StreamProvider<UserProfile?>((ref) {
@@ -148,7 +143,7 @@ class UserProfileService {
         ),
       );
 
-      return ref.getDownloadURL();
+      return await ref.getDownloadURL();
     } on FirebaseException catch (e) {
       if (e.code == 'unauthorized') {
         throw Exception(
@@ -178,7 +173,7 @@ class UserProfileService {
         ),
       );
 
-      return ref.getDownloadURL();
+      return await ref.getDownloadURL();
     } on FirebaseException catch (e) {
       if (e.code == 'unauthorized') {
         throw Exception(

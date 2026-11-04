@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'firestore_dates.dart';
+
 class Event {
   final String id;
 
@@ -207,7 +209,7 @@ class Event {
       title: map['title'] as String? ?? '',
       description: map['description'] as String? ?? '',
       address: map['address'] as String? ?? map['location'] as String? ?? '',
-      date: _dateFromTimestamp(map['date']) ?? DateTime.now(),
+      date: dateFromFirestore(map['date']) ?? DateTime.now(),
       imageUrl: map['imageUrl'] as String?,
       visibility: visibility,
       chatEnabled: map['chatEnabled'] as bool? ?? eventKind != 'public',
@@ -218,11 +220,11 @@ class Event {
       linkedPublicEventId: map['linkedPublicEventId'] as String?,
       linkedPublicEventTitle: map['linkedPublicEventTitle'] as String?,
       linkedPublicEventImageUrl: map['linkedPublicEventImageUrl'] as String?,
-      linkedPublicEventDate: _dateFromTimestamp(map['linkedPublicEventDate']),
+      linkedPublicEventDate: dateFromFirestore(map['linkedPublicEventDate']),
       linkedPublicEventAddress: map['linkedPublicEventAddress'] as String?,
-      createdAt: _dateFromTimestamp(map['createdAt']) ?? DateTime.now(),
-      lastMessageAt: _dateFromTimestamp(map['lastMessageAt']),
-      lastReadMessageAt: _dateFromTimestamp(map['lastReadMessageAt']),
+      createdAt: dateFromFirestore(map['createdAt']) ?? DateTime.now(),
+      lastMessageAt: dateFromFirestore(map['lastMessageAt']),
+      lastReadMessageAt: dateFromFirestore(map['lastReadMessageAt']),
       lastMessageText: map['lastMessageText'] as String?,
       lastMessageSenderUid: map['lastMessageSenderUid'] as String?,
       lastMessageSenderName: map['lastMessageSenderName'] as String?,
@@ -232,11 +234,5 @@ class Event {
   static String _fallbackEventKindFromVisibility(String visibility) {
     if (visibility == 'public') return 'public';
     return 'private';
-  }
-
-  static DateTime? _dateFromTimestamp(dynamic value) {
-    if (value is Timestamp) return value.toDate();
-    if (value is DateTime) return value;
-    return null;
   }
 }

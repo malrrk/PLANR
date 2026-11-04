@@ -1,19 +1,21 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/event.dart';
 import '../models/event_tag.dart';
 import '../models/public_page.dart';
-import 'dart:io';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'firebase_providers.dart';
 
 final publicPageServiceProvider = Provider<PublicPageService>((ref) {
   return PublicPageService(
-    FirebaseFirestore.instance,
-    FirebaseStorage.instance,
-    FirebaseAuth.instance,
+    ref.watch(firestoreProvider),
+    ref.watch(storageProvider),
+    ref.watch(firebaseAuthProvider),
   );
 });
 
@@ -96,12 +98,16 @@ final followedPagesProvider = StreamProvider<List<PublicPage>>((ref) {
     if (pageIds.isEmpty) return <PublicPage>[];
 
     final firestore = FirebaseFirestore.instance;
+
+    final pageDocs = await Future.wait(
+      pageIds.map(
+        (pageId) => firestore.collection('public_pages').doc(pageId).get(),
+      ),
+    );
+
     final pages = <PublicPage>[];
 
-    for (final pageId in pageIds) {
-      final pageDoc =
-          await firestore.collection('public_pages').doc(pageId).get();
-
+    for (final pageDoc in pageDocs) {
       if (!pageDoc.exists || pageDoc.data() == null) continue;
 
       final page = PublicPage.fromMap(pageDoc.data()!, pageDoc.id);
@@ -175,63 +181,15 @@ class PublicPageService {
     required String category,
     required List<String> tags,
   }) async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) return 'No user logged in.';
+    final result = await createPublicPageAndReturnId(
+      name: name,
+      handle: handle,
+      description: description,
+      category: category,
+      tags: tags,
+    );
 
-      final trimmedName = name.trim();
-      final normalizedHandle = _normalizeHandle(handle);
-      final trimmedDescription = description.trim();
-      final trimmedCategory = category.trim().isEmpty
-          ? 'page'
-          : category.trim().toLowerCase();
-
-      if (trimmedName.isEmpty) {
-        return 'Please enter a page name.';
-      }
-
-      if (normalizedHandle.isEmpty) {
-        return 'Please enter a page handle.';
-      }
-
-      final existingHandle = await _firestore
-          .collection('public_pages')
-          .where('handle', isEqualTo: normalizedHandle)
-          .limit(1)
-          .get();
-
-      if (existingHandle.docs.isNotEmpty) {
-        return 'This page handle is already taken.';
-      }
-
-      final pageId = _uuid.v4();
-      final pageRef = _firestore.collection('public_pages').doc(pageId);
-
-      final sanitizedTags = sanitizeEventTagIds(tags);
-
-      await pageRef.set({
-        'id': pageId,
-        'name': trimmedName,
-        'handle': normalizedHandle,
-        'description': trimmedDescription,
-        'photoUrl': null,
-        'backgroundImageUrl': null,
-        'category': trimmedCategory,
-        'tags': sanitizedTags,
-        'followerCount': 0,
-        'eventCount': 0,
-        'isVerified': false,
-        'isActive': true,
-        'ownerUid': user.uid,
-        'adminUids': <String>[user.uid],
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      return null;
-    } catch (_) {
-      return 'Failed to create public page.';
-    }
+    return result.error;
   }
 
   Future<PublicPageCreationResult> createPublicPageAndReturnId({
@@ -330,7 +288,7 @@ class PublicPageService {
       final user = _auth.currentUser;
       if (user == null) return 'No user logged in.';
 
-      if (page.ownerUid != user.uid && !page.adminUids.contains(user.uid)) {
+      if (!page.canBeManagedBy(user.uid)) {
         return 'You cannot edit this page.';
       }
 
@@ -392,7 +350,7 @@ class PublicPageService {
       final user = _auth.currentUser;
       if (user == null) return 'No user logged in.';
 
-      if (page.ownerUid != user.uid && !page.adminUids.contains(user.uid)) {
+      if (!page.canBeManagedBy(user.uid)) {
         return 'You cannot edit this page.';
       }
 

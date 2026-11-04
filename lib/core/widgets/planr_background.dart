@@ -132,11 +132,6 @@ class _PlanrBackgroundConfig {
     this.leftGradient,
     this.rightGradient,
     this.bottomGradient,
-    this.leftWidth = 280,
-    this.leftHeight = 300,
-    this.rightWidth = 290,
-    this.rightHeight = 460,
-    this.bottomHeight = 360,
   });
 
   final Color baseColor;
@@ -146,9 +141,9 @@ class _PlanrBackgroundConfig {
   final Gradient? rightGradient;
   final Gradient? bottomGradient;
 
-  final double leftWidth;
-  final double leftHeight;
-  final double rightWidth;
-  final double rightHeight;
-  final double bottomHeight;
+  final double leftWidth = 280;
+  final double leftHeight = 300;
+  final double rightWidth = 290;
+  final double rightHeight = 460;
+  final double bottomHeight = 360;
 }

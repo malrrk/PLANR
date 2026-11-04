@@ -12,7 +12,6 @@ import '../widgets/event_detail/event_detail_header_image.dart';
 import '../widgets/event_detail/event_detail_info_card.dart';
 import 'profile_screen.dart';
 import 'public_page_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class EventDetailScreen extends ConsumerWidget {
   const EventDetailScreen({
@@ -909,51 +908,6 @@ class _LinkedEventPlaceholder extends StatelessWidget {
           color: Colors.white,
           size: 42,
         ),
-      ),
-    );
-  }
-}
-
-class _DarkPill extends StatelessWidget {
-  const _DarkPill({
-    required this.icon,
-    required this.label,
-  });
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 32,
-      padding: const EdgeInsets.symmetric(horizontal: 11),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.34),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.22),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            color: Colors.white,
-            size: 14,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
       ),
     );
   }

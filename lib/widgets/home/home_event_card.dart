@@ -6,7 +6,6 @@ import '../../providers/event_provider.dart';
 import '../../screens/event_detail_screen.dart';
 import '../../screens/profile_screen.dart';
 import '../../core/theme/planr_design.dart';
-import '../../models/event_tag.dart';
 import '../event_tag_chips.dart';
 
 class HomeEventCard extends ConsumerWidget {
@@ -219,48 +218,6 @@ class _EventImageOverlay extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: PlanrDesign.eventOverlayGradient(),
-      ),
-    );
-  }
-}
-
-class _CategoryPill extends StatelessWidget {
-  const _CategoryPill({
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.94),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            color: Colors.white,
-            size: 15,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.7,
-            ),
-          ),
-        ],
       ),
     );
   }

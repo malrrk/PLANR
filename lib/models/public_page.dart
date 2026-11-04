@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'firestore_dates.dart';
+
 class PublicPage {
   const PublicPage({
     required this.id,
@@ -48,6 +50,10 @@ class PublicPage {
     return '@${handle.trim()}';
   }
 
+  bool canBeManagedBy(String uid) {
+    return ownerUid == uid || adminUids.contains(uid);
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -70,7 +76,7 @@ class PublicPage {
   }
 
   factory PublicPage.fromMap(Map<String, dynamic> map, String documentId) {
-    final createdAt = _dateFromTimestamp(map['createdAt']) ?? DateTime.now();
+    final createdAt = dateFromFirestore(map['createdAt']) ?? DateTime.now();
 
     return PublicPage(
       id: map['id'] as String? ?? documentId,
@@ -88,13 +94,7 @@ class PublicPage {
       ownerUid: map['ownerUid'] as String?,
       adminUids: List<String>.from(map['adminUids'] as List? ?? const []),
       createdAt: createdAt,
-      updatedAt: _dateFromTimestamp(map['updatedAt']),
+      updatedAt: dateFromFirestore(map['updatedAt']),
     );
-  }
-
-  static DateTime? _dateFromTimestamp(dynamic value) {
-    if (value is Timestamp) return value.toDate();
-    if (value is DateTime) return value;
-    return null;
   }
 }

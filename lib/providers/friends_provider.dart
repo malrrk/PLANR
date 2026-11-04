@@ -4,11 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/user_profile.dart';
+import 'firebase_providers.dart';
 
 final friendsServiceProvider = Provider<FriendsService>((ref) {
   return FriendsService(
-    FirebaseFirestore.instance,
-    FirebaseAuth.instance,
+    ref.watch(firestoreProvider),
+    ref.watch(firebaseAuthProvider),
   );
 });
 

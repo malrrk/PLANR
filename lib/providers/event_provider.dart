@@ -8,7 +8,11 @@ import 'package:uuid/uuid.dart';
 
 import '../models/event.dart';
 import '../models/event_tag.dart';
+import '../models/event_update.dart';
 import '../models/public_page.dart';
+import 'firebase_providers.dart';
+
+export '../models/event_update.dart';
 
 final eventsProvider = StreamProvider<List<Event>>((ref) {
   return FirebaseFirestore.instance
@@ -38,9 +42,9 @@ final eventByIdProvider =
 
 final eventServiceProvider = Provider<EventService>((ref) {
   return EventService(
-    FirebaseFirestore.instance,
-    FirebaseStorage.instance,
-    FirebaseAuth.instance,
+    ref.watch(firestoreProvider),
+    ref.watch(storageProvider),
+    ref.watch(firebaseAuthProvider),
   );
 });
 
@@ -262,44 +266,6 @@ final eventUpdatesProvider =
   });
 });
 
-class EventUpdate {
-  const EventUpdate({
-    required this.id,
-    required this.authorUid,
-    required this.authorName,
-    required this.authorPhotoUrl,
-    required this.text,
-    required this.createdAt,
-    required this.isPinned,
-  });
-
-  final String id;
-  final String authorUid;
-  final String authorName;
-  final String? authorPhotoUrl;
-  final String text;
-  final DateTime createdAt;
-  final bool isPinned;
-
-  factory EventUpdate.fromMap(Map<String, dynamic> map, String documentId) {
-    return EventUpdate(
-      id: documentId,
-      authorUid: map['authorUid'] as String? ?? '',
-      authorName: map['authorName'] as String? ?? 'Organizer',
-      authorPhotoUrl: map['authorPhotoUrl'] as String?,
-      text: map['text'] as String? ?? '',
-      createdAt: _dateFromTimestamp(map['createdAt']) ?? DateTime.now(),
-      isPinned: map['isPinned'] as bool? ?? false,
-    );
-  }
-
-  static DateTime? _dateFromTimestamp(dynamic value) {
-    if (value is Timestamp) return value.toDate();
-    if (value is DateTime) return value;
-    return null;
-  }
-}
-
 class EventService {
   EventService(this._firestore, this._storage, this._auth);
 
@@ -307,6 +273,27 @@ class EventService {
   final FirebaseStorage _storage;
   final FirebaseAuth _auth;
   final Uuid _uuid = const Uuid();
+
+  DocumentReference<Map<String, dynamic>> _myEventRef(
+    String uid,
+    String eventId,
+  ) {
+    return _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('my_events')
+        .doc(eventId);
+  }
+
+  Map<String, dynamic> _attendeeData(User user, String role) {
+    return {
+      'uid': user.uid,
+      'displayName': user.displayName ?? 'User',
+      'photoUrl': user.photoURL,
+      'role': role,
+      'joinedAt': FieldValue.serverTimestamp(),
+    };
+  }
 
   Future<String?> createEvent({
     required String title,
@@ -389,11 +376,7 @@ class EventService {
       final eventRef = _firestore.collection('events').doc(eventId);
       final attendeeRef = eventRef.collection('attendees').doc(user.uid);
 
-      final myEventRef = _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('my_events')
-          .doc(eventId);
+      final myEventRef = _myEventRef(user.uid, eventId);
 
       final batch = _firestore.batch();
 
@@ -434,13 +417,7 @@ class EventService {
       batch.set(eventRef, eventData);
       batch.set(myEventRef, eventData);
 
-      batch.set(attendeeRef, {
-        'uid': user.uid,
-        'displayName': user.displayName ?? 'User',
-        'photoUrl': user.photoURL,
-        'role': 'creator',
-        'joinedAt': FieldValue.serverTimestamp(),
-      });
+      batch.set(attendeeRef, _attendeeData(user, 'creator'));
 
       if (organizerPage != null) {
         final pageRef =
@@ -457,132 +434,6 @@ class EventService {
       return null;
     } catch (_) {
       return 'Failed to create event.';
-    }
-  }
-
-  Future<String?> createLinkedGroupFromPublicEvent({
-    required Event publicEvent,
-  }) async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) return 'No user logged in.';
-
-      if (!publicEvent.isPublicEvent) {
-        return 'Groups can only be created from public events.';
-      }
-
-      final existingGroupQuery = await _firestore
-          .collection('events')
-          .where('creatorUid', isEqualTo: user.uid)
-          .where('eventKind', isEqualTo: 'linkedGroup')
-          .where('linkedPublicEventId', isEqualTo: publicEvent.id)
-          .limit(1)
-          .get();
-
-      if (existingGroupQuery.docs.isNotEmpty) {
-        return null;
-      }
-
-      final groupId = _uuid.v4();
-
-      final groupRef = _firestore.collection('events').doc(groupId);
-      final groupAttendeeRef = groupRef.collection('attendees').doc(user.uid);
-
-      final publicEventRef =
-          _firestore.collection('events').doc(publicEvent.id);
-      final publicAttendeeRef =
-          publicEventRef.collection('attendees').doc(user.uid);
-
-      final userMyGroupRef = _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('my_events')
-          .doc(groupId);
-
-      final userMyPublicEventRef = _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('my_events')
-          .doc(publicEvent.id);
-
-      final publicAttendeeDoc = await publicAttendeeRef.get();
-
-      final groupData = {
-        'creatorUid': user.uid,
-        'creatorDisplayName': user.displayName ?? 'User',
-        'creatorPhotoUrl': user.photoURL,
-        'eventKind': 'linkedGroup',
-        'organizerType': 'profile',
-        'organizerId': user.uid,
-        'organizerDisplayName': user.displayName ?? 'User',
-        'organizerPhotoUrl': user.photoURL,
-        'organizerVerified': false,
-        'title': 'Going to ${publicEvent.title}',
-        'description':
-            'Private group for coordinating with friends around this public event.',
-        'address': publicEvent.address,
-        'date': Timestamp.fromDate(publicEvent.date),
-        'tags': publicEvent.tags,
-        'imageUrl': publicEvent.imageUrl,
-        'visibility': 'private',
-        'chatEnabled': true,
-        'guestsCanInvite': true,
-        'attendeeCount': 1,
-        'interestedCount': 0,
-        'linkedPublicEventId': publicEvent.id,
-        'linkedPublicEventTitle': publicEvent.title,
-        'linkedPublicEventImageUrl': publicEvent.imageUrl,
-        'linkedPublicEventDate': Timestamp.fromDate(publicEvent.date),
-        'linkedPublicEventAddress': publicEvent.address,
-        'createdAt': FieldValue.serverTimestamp(),
-        'lastMessageAt': null,
-        'lastReadMessageAt': null,
-        'lastMessageText': null,
-        'lastMessageSenderUid': null,
-        'lastMessageSenderName': null,
-      };
-
-      final batch = _firestore.batch();
-
-      batch.set(groupRef, groupData);
-      batch.set(userMyGroupRef, groupData);
-
-      batch.set(groupAttendeeRef, {
-        'uid': user.uid,
-        'displayName': user.displayName ?? 'User',
-        'photoUrl': user.photoURL,
-        'role': 'creator',
-        'joinedAt': FieldValue.serverTimestamp(),
-      });
-
-      if (!publicAttendeeDoc.exists) {
-        batch.set(publicAttendeeRef, {
-          'uid': user.uid,
-          'displayName': user.displayName ?? 'User',
-          'photoUrl': user.photoURL,
-          'role': 'member',
-          'joinedAt': FieldValue.serverTimestamp(),
-        });
-
-        batch.update(publicEventRef, {
-          'attendeeCount': FieldValue.increment(1),
-        });
-
-        final publicEventDoc = await publicEventRef.get();
-
-        if (publicEventDoc.exists && publicEventDoc.data() != null) {
-          batch.set(userMyPublicEventRef, {
-            ...publicEventDoc.data()!,
-            'lastReadMessageAt': publicEventDoc.data()!['lastMessageAt'],
-          });
-        }
-      }
-
-      await batch.commit();
-
-      return null;
-    } catch (_) {
-      return 'Failed to create group.';
     }
   }
 
@@ -631,17 +482,8 @@ class EventService {
       final publicAttendeeRef =
           publicEventRef.collection('attendees').doc(user.uid);
 
-      final userMyGroupRef = _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('my_events')
-          .doc(groupId);
-
-      final userMyPublicEventRef = _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('my_events')
-          .doc(publicEvent.id);
+      final userMyGroupRef = _myEventRef(user.uid, groupId);
+      final userMyPublicEventRef = _myEventRef(user.uid, publicEvent.id);
 
       final publicAttendeeDoc = await publicAttendeeRef.get();
 
@@ -685,22 +527,10 @@ class EventService {
       batch.set(groupRef, groupData);
       batch.set(userMyGroupRef, groupData);
 
-      batch.set(groupAttendeeRef, {
-        'uid': user.uid,
-        'displayName': user.displayName ?? 'User',
-        'photoUrl': user.photoURL,
-        'role': 'creator',
-        'joinedAt': FieldValue.serverTimestamp(),
-      });
+      batch.set(groupAttendeeRef, _attendeeData(user, 'creator'));
 
       if (!publicAttendeeDoc.exists) {
-        batch.set(publicAttendeeRef, {
-          'uid': user.uid,
-          'displayName': user.displayName ?? 'User',
-          'photoUrl': user.photoURL,
-          'role': 'member',
-          'joinedAt': FieldValue.serverTimestamp(),
-        });
+        batch.set(publicAttendeeRef, _attendeeData(user, 'member'));
 
         batch.update(publicEventRef, {
           'attendeeCount': FieldValue.increment(1),
@@ -737,11 +567,7 @@ class EventService {
 
       final eventRef = _firestore.collection('events').doc(event.id);
       final attendeeRef = eventRef.collection('attendees').doc(user.uid);
-      final myEventRef = _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('my_events')
-          .doc(event.id);
+      final myEventRef = _myEventRef(user.uid, event.id);
 
       if (!event.isPublicEvent) {
         final inviteDoc =
@@ -769,13 +595,7 @@ class EventService {
 
       final batch = _firestore.batch();
 
-      batch.set(attendeeRef, {
-        'uid': user.uid,
-        'displayName': user.displayName ?? 'User',
-        'photoUrl': user.photoURL,
-        'role': 'member',
-        'joinedAt': FieldValue.serverTimestamp(),
-      });
+      batch.set(attendeeRef, _attendeeData(user, 'member'));
 
       batch.update(eventRef, {
         'attendeeCount': FieldValue.increment(1),
@@ -805,11 +625,7 @@ class EventService {
 
       final eventRef = _firestore.collection('events').doc(event.id);
       final attendeeRef = eventRef.collection('attendees').doc(user.uid);
-      final myEventRef = _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('my_events')
-          .doc(event.id);
+      final myEventRef = _myEventRef(user.uid, event.id);
 
       final attendeeDoc = await attendeeRef.get();
       if (!attendeeDoc.exists) {
@@ -858,11 +674,7 @@ class EventService {
 
       final inviteRef = eventRef.collection('invites').doc(user.uid);
       final attendeeRef = eventRef.collection('attendees').doc(user.uid);
-      final myEventRef = _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('my_events')
-          .doc(eventId);
+      final myEventRef = _myEventRef(user.uid, eventId);
 
       final attendeeDoc = await attendeeRef.get();
       if (attendeeDoc.exists) {
@@ -883,13 +695,7 @@ class EventService {
 
       final batch = _firestore.batch();
 
-      batch.set(attendeeRef, {
-        'uid': user.uid,
-        'displayName': user.displayName ?? 'User',
-        'photoUrl': user.photoURL,
-        'role': 'member',
-        'joinedAt': FieldValue.serverTimestamp(),
-      });
+      batch.set(attendeeRef, _attendeeData(user, 'member'));
 
       batch.update(inviteRef, {
         'status': 'accepted',
@@ -1091,11 +897,7 @@ class EventService {
       batch.update(eventRef, updateData);
 
       for (final attendee in attendeesSnapshot.docs) {
-        final attendeeMyEventRef = _firestore
-            .collection('users')
-            .doc(attendee.id)
-            .collection('my_events')
-            .doc(event.id);
+        final attendeeMyEventRef = _myEventRef(attendee.id, event.id);
 
         batch.set(
           attendeeMyEventRef,
@@ -1134,11 +936,7 @@ class EventService {
 
         batch.delete(attendeeDoc.reference);
 
-        final attendeeMyEventRef = _firestore
-            .collection('users')
-            .doc(attendeeUid)
-            .collection('my_events')
-            .doc(event.id);
+        final attendeeMyEventRef = _myEventRef(attendeeUid, event.id);
 
         batch.delete(attendeeMyEventRef);
       }
@@ -1161,11 +959,7 @@ class EventService {
         batch.delete(messageDoc.reference);
       }
 
-      final creatorMyEventRef = _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('my_events')
-          .doc(event.id);
+      final creatorMyEventRef = _myEventRef(user.uid, event.id);
 
       batch.delete(creatorMyEventRef);
       batch.delete(eventRef);
@@ -1243,11 +1037,7 @@ class EventService {
       for (final attendee in attendeesSnapshot.docs) {
         final attendeeUid = attendee.id;
 
-        final myEventRef = _firestore
-            .collection('users')
-            .doc(attendeeUid)
-            .collection('my_events')
-            .doc(event.id);
+        final myEventRef = _myEventRef(attendeeUid, event.id);
 
         if (attendeeUid == user.uid) {
           batch.update(myEventRef, {
@@ -1381,12 +1171,7 @@ class EventService {
       final user = _auth.currentUser;
       if (user == null) return 'No user logged in.';
 
-      await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('my_events')
-          .doc(eventId)
-          .set(
+      await _myEventRef(user.uid, eventId).set(
         {
           'lastReadMessageAt': Timestamp.fromDate(lastMessageAt),
         },

@@ -10,6 +10,7 @@ import '../models/public_page.dart';
 import '../models/story.dart';
 import 'friends_provider.dart';
 import 'dart:async';
+import 'firebase_providers.dart';
 import 'public_page_provider.dart';
 
 class StoryGroup {
@@ -62,9 +63,9 @@ class StoryGroup {
 
 final storyServiceProvider = Provider<StoryService>((ref) {
   return StoryService(
-    FirebaseFirestore.instance,
-    FirebaseStorage.instance,
-    FirebaseAuth.instance,
+    ref.watch(firestoreProvider),
+    ref.watch(storageProvider),
+    ref.watch(firebaseAuthProvider),
   );
 });
 
@@ -253,6 +254,13 @@ class StoryService {
 
   static const int storyVisibleDays = 7; // changeable
 
+  List<String> _pinnedUrls(Map<String, dynamic>? userData) {
+    return (userData?['pinnedStoryImageUrls'] as List<dynamic>?)
+            ?.whereType<String>()
+            .toList() ??
+        <String>[];
+  }
+
   Future<String?> addStory({
     required File file,
   }) async {
@@ -402,18 +410,6 @@ class StoryService {
     return null;
   }
 
-  StoryGroup? firstStoryGroupForPage(List<Story> stories, String pageId) {
-    final groups = groupStoriesByOwnerAndDay(stories);
-
-    for (final group in groups) {
-      if (group.isPageStoryGroup && group.pageId == pageId) {
-        return group;
-      }
-    }
-
-    return null;
-  }
-
   Future<String?> deleteStory(Story story) async {
     try {
       final user = _auth.currentUser;
@@ -469,11 +465,7 @@ class StoryService {
         final userSnapshot = await transaction.get(userRef);
         final userData = userSnapshot.data();
 
-        final pinnedUrls =
-            (userData?['pinnedStoryImageUrls'] as List<dynamic>?)
-                    ?.whereType<String>()
-                    .toList() ??
-                <String>[];
+        final pinnedUrls = _pinnedUrls(userData);
 
         pinnedUrls.remove(story.imageUrl);
 
@@ -519,11 +511,7 @@ class StoryService {
         final snapshot = await transaction.get(userRef);
         final data = snapshot.data();
 
-        final pinnedUrls =
-            (data?['pinnedStoryImageUrls'] as List<dynamic>?)
-                    ?.whereType<String>()
-                    .toList() ??
-                <String>[];
+        final pinnedUrls = _pinnedUrls(data);
 
         if (pinnedUrls.contains(story.imageUrl)) return;
 
@@ -580,11 +568,7 @@ class StoryService {
         final snapshot = await transaction.get(userRef);
         final data = snapshot.data();
 
-        final pinnedUrls =
-            (data?['pinnedStoryImageUrls'] as List<dynamic>?)
-                    ?.whereType<String>()
-                    .toList() ??
-                <String>[];
+        final pinnedUrls = _pinnedUrls(data);
 
         if (pinnedUrls.contains(story.imageUrl)) return;
 
@@ -629,11 +613,7 @@ class StoryService {
         final snapshot = await transaction.get(userRef);
         final data = snapshot.data();
 
-        final pinnedUrls =
-            (data?['pinnedStoryImageUrls'] as List<dynamic>?)
-                    ?.whereType<String>()
-                    .toList() ??
-                <String>[];
+        final pinnedUrls = _pinnedUrls(data);
 
         pinnedUrls.remove(story.imageUrl);
 
@@ -651,48 +631,5 @@ class StoryService {
     } catch (_) {
       return 'Failed to unpin story.';
     }
-  }
-
-  bool isPinned({
-    required Story story,
-    required List<String> pinnedStoryImageUrls,
-  }) {
-    return pinnedStoryImageUrls.contains(story.imageUrl);
-  }
-
-  // Kept for compatibility with older screens.
-  List<String> getUniqueUsers(List<Story> stories) {
-    final seen = <String>{};
-    final users = <String>[];
-
-    for (final story in stories) {
-      if (!story.isUserStory) continue;
-
-      if (!seen.contains(story.ownerUid)) {
-        seen.add(story.ownerUid);
-        users.add(story.ownerUid);
-      }
-    }
-
-    return users;
-  }
-
-  // Kept for compatibility with older screens.
-  List<Story> storiesForUser(List<Story> stories, String ownerUid) {
-    final result = stories
-        .where((story) => story.isUserStory && story.ownerUid == ownerUid)
-        .toList()
-      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-
-    return result;
-  }
-
-  List<Story> storiesForPage(List<Story> stories, String pageId) {
-    final result = stories
-        .where((story) => story.isPageStory && story.pageId == pageId)
-        .toList()
-      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-
-    return result;
   }
 }

@@ -1084,64 +1084,6 @@ class _NextLinkedGroupCard extends StatelessWidget {
   }
 }
 
-class _SectionTopRow extends StatelessWidget {
-  const _SectionTopRow({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.actionLabel,
-    required this.onActionTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String actionLabel;
-  final VoidCallback onActionTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _IconBubble(icon: icon),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: PlanrDesign.cardTitleStyle.copyWith(
-                  fontSize: 21,
-                  letterSpacing: -0.45,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                subtitle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: PlanrDesign.muted,
-                  fontSize: 13,
-                  height: 1.25,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 10),
-        _CompactPillButton(
-          label: actionLabel,
-          icon: Icons.arrow_forward_rounded,
-          onTap: onActionTap,
-        ),
-      ],
-    );
-  }
-}
-
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({
     required this.title,
@@ -1413,51 +1355,6 @@ class _IconBubble extends StatelessWidget {
         icon,
         color: PlanrDesign.accentDark,
         size: 22,
-      ),
-    );
-  }
-}
-
-class _CompactPillButton extends StatelessWidget {
-  const _CompactPillButton({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: PlanrDesign.accent,
-      borderRadius: BorderRadius.circular(999),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                color: Colors.white,
-                size: 16,
-              ),
-              const SizedBox(width: 5),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
