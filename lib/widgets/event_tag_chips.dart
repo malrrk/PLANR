@@ -57,12 +57,12 @@ class _EventTagChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final backgroundColor = dark
-        ? Colors.white.withOpacity(0.16)
-        : Colors.deepOrange.withOpacity(0.10);
+        ? Colors.white.withValues(alpha: 0.16)
+        : Colors.deepOrange.withValues(alpha: 0.10);
 
     final borderColor = dark
-        ? Colors.white.withOpacity(0.18)
-        : Colors.deepOrange.withOpacity(0.18);
+        ? Colors.white.withValues(alpha: 0.18)
+        : Colors.deepOrange.withValues(alpha: 0.18);
 
     final foregroundColor = dark ? Colors.white : Colors.deepOrange.shade700;
 

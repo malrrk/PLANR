@@ -113,6 +113,7 @@ class _CreatePublicPageScreenState
               children: [
                 PlanrTextField(
                   controller: _nameController,
+                  maxLength: 80,
                   label: 'Page name',
                   hintText: 'e.g. Campus Events Nürnberg',
                   prefixIcon: Icons.storefront_rounded,
@@ -121,6 +122,7 @@ class _CreatePublicPageScreenState
                 const SizedBox(height: 16),
                 PlanrTextField(
                   controller: _handleController,
+                  maxLength: 40,
                   label: 'Handle',
                   hintText: 'campusevents',
                   prefixIcon: Icons.alternate_email_rounded,
@@ -129,6 +131,7 @@ class _CreatePublicPageScreenState
                 const SizedBox(height: 16),
                 PlanrTextField(
                   controller: _descriptionController,
+                  maxLength: 1000,
                   label: 'Description',
                   hintText: 'What kind of events does this page host?',
                   prefixIcon: Icons.notes_rounded,
@@ -185,17 +188,17 @@ class _CreatePageIntroCard extends StatelessWidget {
     return PlanrCard(
       padding: const EdgeInsets.all(20),
       radius: 30,
-      color: PlanrDesign.cardLight.withOpacity(0.88),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.88),
       child: Row(
         children: [
           Container(
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: PlanrDesign.accentSoft.withOpacity(0.78),
+              color: PlanrDesign.accentSoft.withValues(alpha: 0.78),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: Colors.white.withOpacity(0.92),
+                color: Colors.white.withValues(alpha: 0.92),
               ),
             ),
             child: const Icon(
@@ -342,8 +345,8 @@ class _CategoryChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final background = selected
-        ? PlanrDesign.accentSoft.withOpacity(0.95)
-        : PlanrDesign.cardLight.withOpacity(0.72);
+        ? PlanrDesign.accentSoft.withValues(alpha: 0.95)
+        : PlanrDesign.cardLight.withValues(alpha: 0.72);
 
     final foreground = selected ? PlanrDesign.accentDark : PlanrDesign.muted;
 
@@ -360,8 +363,8 @@ class _CategoryChip extends StatelessWidget {
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
               color: selected
-                  ? PlanrDesign.accent.withOpacity(0.38)
-                  : Colors.white.withOpacity(0.9),
+                  ? PlanrDesign.accent.withValues(alpha: 0.38)
+                  : Colors.white.withValues(alpha: 0.9),
             ),
           ),
           child: Row(

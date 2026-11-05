@@ -56,11 +56,24 @@ final userProfileServiceProvider = Provider<UserProfileService>((ref) {
   );
 });
 
+/// A failure whose message is safe to show to the user.
+class ProfileException implements Exception {
+  const ProfileException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 class UserProfileService {
   UserProfileService(this._firestore, this._storage);
 
   final FirebaseFirestore _firestore;
   final FirebaseStorage _storage;
+
+  static const int maxDisplayNameLength = 60;
+  static const int maxBioLength = 300;
 
   Future<void> createUserProfile({
     required String uid,
@@ -101,7 +114,19 @@ class UserProfileService {
     final trimmedBio = bio?.trim();
 
     if (trimmedDisplayName.isEmpty) {
-      throw Exception('Display name cannot be empty.');
+      throw const ProfileException('Display name is required.');
+    }
+
+    if (trimmedDisplayName.length > maxDisplayNameLength) {
+      throw const ProfileException(
+        'Display name can be at most $maxDisplayNameLength characters.',
+      );
+    }
+
+    if (trimmedBio != null && trimmedBio.length > maxBioLength) {
+      throw const ProfileException(
+        'Bio can be at most $maxBioLength characters.',
+      );
     }
 
     final data = <String, dynamic>{
@@ -146,12 +171,10 @@ class UserProfileService {
       return await ref.getDownloadURL();
     } on FirebaseException catch (e) {
       if (e.code == 'unauthorized') {
-        throw Exception(
-          'Profile photo upload is not allowed. Check Firebase Storage rules for users/$uid/profile.jpg.',
-        );
+        throw const ProfileException('Profile photo upload is not allowed.');
       }
 
-      throw Exception('Profile photo upload failed: ${e.message ?? e.code}');
+      throw const ProfileException('Profile photo upload failed.');
     }
   }
 
@@ -176,12 +199,10 @@ class UserProfileService {
       return await ref.getDownloadURL();
     } on FirebaseException catch (e) {
       if (e.code == 'unauthorized') {
-        throw Exception(
-          'Background upload is not allowed. Check Firebase Storage rules for users/$uid/background.jpg.',
-        );
+        throw const ProfileException('Background upload is not allowed.');
       }
 
-      throw Exception('Background upload failed: ${e.message ?? e.code}');
+      throw const ProfileException('Background upload failed.');
     }
   }
 
@@ -190,7 +211,7 @@ class UserProfileService {
     required List<String> imageUrls,
   }) async {
     if (imageUrls.length > 3) {
-      throw Exception('You can only pin up to 3 stories.');
+      throw const ProfileException('You can only pin up to 3 stories.');
     }
 
     await _firestore.collection('users').doc(uid).set(
@@ -201,6 +222,113 @@ class UserProfileService {
       },
       SetOptions(merge: true),
     );
+  }
+
+  /// Refreshes the copies of this profile other people see (friend lists, attendee lists,
+  /// event hosts, stories). Best effort: a failed copy never fails the profile save.
+  Future<void> propagateProfileChange({
+    required String uid,
+    required String displayName,
+    String? bio,
+    String? photoUrl,
+    String? backgroundImageUrl,
+  }) async {
+    final friendCopy = <String, dynamic>{
+      'displayName': displayName,
+      'bio': bio,
+      'photoUrl': ?photoUrl,
+      'backgroundImageUrl': ?backgroundImageUrl,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    final attendeeCopy = <String, dynamic>{
+      'displayName': displayName,
+      'photoUrl': ?photoUrl,
+    };
+    final hostCopy = <String, dynamic>{
+      'creatorDisplayName': displayName,
+      'creatorPhotoUrl': ?photoUrl,
+    };
+    final profileHostCopy = <String, dynamic>{
+      ...hostCopy,
+      'organizerDisplayName': displayName,
+      'organizerPhotoUrl': ?photoUrl,
+    };
+    final storyCopy = <String, dynamic>{
+      'ownerDisplayName': displayName,
+      'ownerPhotoUrl': ?photoUrl,
+    };
+
+    final tasks = <Future<void> Function()>[];
+
+    Future<void> Function() update(
+      DocumentReference<Map<String, dynamic>> ref,
+      Map<String, dynamic> data,
+    ) {
+      return () async {
+        try {
+          await ref.update(data);
+        } catch (_) {}
+      };
+    }
+
+    try {
+      final friends =
+          await _firestore.collection('users').doc(uid).collection('friends').get();
+      for (final friend in friends.docs) {
+        tasks.add(update(
+          _firestore
+              .collection('users')
+              .doc(friend.id)
+              .collection('friends')
+              .doc(uid),
+          friendCopy,
+        ));
+      }
+
+      final myEvents =
+          await _firestore.collection('users').doc(uid).collection('my_events').get();
+      for (final doc in myEvents.docs) {
+        final eventRef = _firestore.collection('events').doc(doc.id);
+
+        tasks.add(update(eventRef.collection('attendees').doc(uid), attendeeCopy));
+
+        if (doc.data()['creatorUid'] != uid) continue;
+
+        final hostFields =
+            doc.data()['organizerType'] == 'profile' ? profileHostCopy : hostCopy;
+
+        tasks.add(update(eventRef, hostFields));
+
+        final attendees = await eventRef.collection('attendees').get();
+        for (final attendee in attendees.docs) {
+          tasks.add(update(
+            _firestore
+                .collection('users')
+                .doc(attendee.id)
+                .collection('my_events')
+                .doc(doc.id),
+            hostFields,
+          ));
+        }
+      }
+
+      final stories = await _firestore
+          .collection('stories')
+          .where('ownerUid', isEqualTo: uid)
+          .where('ownerType', isEqualTo: 'user')
+          .get();
+      for (final story in stories.docs) {
+        tasks.add(update(story.reference, storyCopy));
+      }
+    } catch (_) {
+      // Fall through: copies that were collected are still refreshed.
+    }
+
+    const parallel = 15;
+    for (var i = 0; i < tasks.length; i += parallel) {
+      final end = i + parallel > tasks.length ? tasks.length : i + parallel;
+      await Future.wait(tasks.sublist(i, end).map((task) => task()));
+    }
   }
 
   Future<List<UserProfile>> searchUsers(String query) async {

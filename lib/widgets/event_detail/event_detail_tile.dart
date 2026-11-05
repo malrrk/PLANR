@@ -19,10 +19,10 @@ class EventDetailTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: PlanrDesign.cardLight.withOpacity(0.78),
+        color: PlanrDesign.cardLight.withValues(alpha: 0.78),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Colors.white.withOpacity(0.85),
+          color: Colors.white.withValues(alpha: 0.85),
         ),
       ),
       child: Row(
@@ -32,7 +32,7 @@ class EventDetailTile extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: PlanrDesign.accentSoft.withOpacity(0.72),
+              color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
               borderRadius: BorderRadius.circular(15),
             ),
             child: Icon(

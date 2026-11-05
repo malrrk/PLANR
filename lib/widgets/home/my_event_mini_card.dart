@@ -1,10 +1,12 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/planr_design.dart';
 import '../../models/event.dart';
+import '../../providers/event_provider.dart';
 
-class MyEventMiniCard extends StatelessWidget {
+class MyEventMiniCard extends ConsumerWidget {
   const MyEventMiniCard({
     super.key,
     required this.event,
@@ -59,7 +61,7 @@ class MyEventMiniCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (event.isLinkedGroup) {
       return _LinkedGroupNormalMiniCard(
         event: event,
@@ -76,6 +78,11 @@ class MyEventMiniCard extends StatelessWidget {
 
     final isPrivate = event.visibility == 'private';
 
+    // The stored copy of this event only has the count from when it was joined.
+    final attendeeCount =
+        ref.watch(eventByIdProvider(event.id)).value?.attendeeCount ??
+            event.attendeeCount;
+
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(21),
@@ -86,10 +93,10 @@ class MyEventMiniCard extends StatelessWidget {
           height: 98,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.43),
+            color: Colors.white.withValues(alpha: 0.43),
             borderRadius: BorderRadius.circular(21),
             border: Border.all(
-              color: Colors.black.withOpacity(0.07),
+              color: Colors.black.withValues(alpha: 0.07),
               width: 1.1,
             ),
           ),
@@ -107,7 +114,7 @@ class MyEventMiniCard extends StatelessWidget {
                   location: location,
                   dayTime: _formatDayTime(event.date),
                   isPrivate: isPrivate,
-                  attendeeCount: event.attendeeCount,
+                  attendeeCount: attendeeCount,
                 ),
               ),
               const SizedBox(width: 8),
@@ -169,10 +176,10 @@ class _LinkedGroupNormalMiniCard extends StatelessWidget {
           height: 116,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.43),
+            color: Colors.white.withValues(alpha: 0.43),
             borderRadius: BorderRadius.circular(21),
             border: Border.all(
-              color: PlanrDesign.accent.withOpacity(0.13),
+              color: PlanrDesign.accent.withValues(alpha: 0.13),
               width: 1.15,
             ),
           ),
@@ -196,7 +203,7 @@ class _LinkedGroupNormalMiniCard extends StatelessWidget {
                           height: 22,
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           decoration: BoxDecoration(
-                            color: PlanrDesign.accentSoft.withOpacity(0.7),
+                            color: PlanrDesign.accentSoft.withValues(alpha: 0.7),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: const Row(
@@ -227,7 +234,7 @@ class _LinkedGroupNormalMiniCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: PlanrDesign.softMuted.withOpacity(0.95),
+                              color: PlanrDesign.softMuted.withValues(alpha: 0.95),
                               fontSize: 11.5,
                               height: 1,
                               fontWeight: FontWeight.w800,
@@ -255,7 +262,7 @@ class _LinkedGroupNormalMiniCard extends StatelessWidget {
                         Icon(
                           Icons.location_on_outlined,
                           size: 14.5,
-                          color: PlanrDesign.muted.withOpacity(0.82),
+                          color: PlanrDesign.muted.withValues(alpha: 0.82),
                         ),
                         const SizedBox(width: 4),
                         Flexible(
@@ -265,7 +272,7 @@ class _LinkedGroupNormalMiniCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: PlanrDesign.muted.withOpacity(0.92),
+                              color: PlanrDesign.muted.withValues(alpha: 0.92),
                               fontSize: 12.6,
                               height: 1,
                               fontWeight: FontWeight.w800,
@@ -328,17 +335,17 @@ class _EventImage extends StatelessWidget {
       width: 74,
       height: 82,
       decoration: BoxDecoration(
-        color: PlanrDesign.accentSoft.withOpacity(0.75),
+        color: PlanrDesign.accentSoft.withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(19),
         border: Border.all(
           color: linked
-              ? PlanrDesign.accent.withOpacity(0.35)
-              : Colors.black.withOpacity(0.16),
+              ? PlanrDesign.accent.withValues(alpha: 0.35)
+              : Colors.black.withValues(alpha: 0.16),
           width: 1.35,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.045),
+            color: Colors.black.withValues(alpha: 0.045),
             blurRadius: 9,
             offset: const Offset(0, 5),
           ),
@@ -362,8 +369,8 @@ class _EventImage extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.black.withOpacity(0.18),
-                  Colors.black.withOpacity(0.42),
+                  Colors.black.withValues(alpha: 0.18),
+                  Colors.black.withValues(alpha: 0.42),
                 ],
               ),
             ),
@@ -427,7 +434,7 @@ class _EventImage extends StatelessWidget {
                 width: 22,
                 height: 22,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -504,7 +511,7 @@ class _EventContent extends StatelessWidget {
               Icon(
                 Icons.location_on_outlined,
                 size: 14.5,
-                color: PlanrDesign.muted.withOpacity(0.82),
+                color: PlanrDesign.muted.withValues(alpha: 0.82),
               ),
               const SizedBox(width: 4),
               Flexible(
@@ -514,7 +521,7 @@ class _EventContent extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: PlanrDesign.muted.withOpacity(0.92),
+                    color: PlanrDesign.muted.withValues(alpha: 0.92),
                     fontSize: 13,
                     height: 1,
                     fontWeight: FontWeight.w800,
@@ -546,13 +553,13 @@ class _EventContent extends StatelessWidget {
               Icon(
                 isPrivate ? Icons.lock_rounded : Icons.public_rounded,
                 size: 13.5,
-                color: PlanrDesign.softMuted.withOpacity(0.78),
+                color: PlanrDesign.softMuted.withValues(alpha: 0.78),
               ),
               const SizedBox(width: 4),
               Text(
                 isPrivate ? 'Private' : 'Public',
                 style: TextStyle(
-                  color: PlanrDesign.softMuted.withOpacity(0.9),
+                  color: PlanrDesign.softMuted.withValues(alpha: 0.9),
                   fontSize: 12.5,
                   height: 1,
                   fontWeight: FontWeight.w900,
@@ -562,7 +569,7 @@ class _EventContent extends StatelessWidget {
               Icon(
                 Icons.group_rounded,
                 size: 14.5,
-                color: PlanrDesign.softMuted.withOpacity(0.78),
+                color: PlanrDesign.softMuted.withValues(alpha: 0.78),
               ),
               const SizedBox(width: 5),
               Flexible(
@@ -571,7 +578,7 @@ class _EventContent extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: PlanrDesign.softMuted.withOpacity(0.9),
+                    color: PlanrDesign.softMuted.withValues(alpha: 0.9),
                     fontSize: 12.7,
                     height: 1,
                     fontWeight: FontWeight.w900,
@@ -607,8 +614,8 @@ class _ChatButton extends StatelessWidget {
       children: [
         Material(
           color: disabled
-              ? Colors.black.withOpacity(0.045)
-              : PlanrDesign.accent.withOpacity(0.115),
+              ? Colors.black.withValues(alpha: 0.045)
+              : PlanrDesign.accent.withValues(alpha: 0.115),
           borderRadius: BorderRadius.circular(15),
           child: InkWell(
             borderRadius: BorderRadius.circular(15),
@@ -620,8 +627,8 @@ class _ChatButton extends StatelessWidget {
                 borderRadius: BorderRadius.circular(15),
                 border: Border.all(
                   color: disabled
-                      ? Colors.black.withOpacity(0.04)
-                      : PlanrDesign.accent.withOpacity(0.14),
+                      ? Colors.black.withValues(alpha: 0.04)
+                      : PlanrDesign.accent.withValues(alpha: 0.14),
                   width: 1.05,
                 ),
               ),
@@ -630,7 +637,7 @@ class _ChatButton extends StatelessWidget {
                     ? Icons.speaker_notes_off_rounded
                     : Icons.chat_bubble_rounded,
                 color: disabled
-                    ? PlanrDesign.softMuted.withOpacity(0.58)
+                    ? PlanrDesign.softMuted.withValues(alpha: 0.58)
                     : PlanrDesign.accent,
                 size: 20,
               ),

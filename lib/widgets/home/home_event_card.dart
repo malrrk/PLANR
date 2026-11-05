@@ -54,7 +54,7 @@ class HomeEventCard extends ConsumerWidget {
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.18),
+              color: Colors.black.withValues(alpha: 0.18),
               blurRadius: 22,
               offset: const Offset(0, 10),
             ),
@@ -109,7 +109,7 @@ class HomeEventCard extends ConsumerWidget {
                               maxLines: event.tags.isEmpty ? 2 : 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.82),
+                                color: Colors.white.withValues(alpha: 0.82),
                                 fontSize: 13.5,
                                 height: 1.32,
                                 fontWeight: FontWeight.w600,
@@ -251,11 +251,11 @@ class _HostAvatarButton extends StatelessWidget {
           height: 48,
           padding: const EdgeInsets.all(3),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.94),
+            color: Colors.white.withValues(alpha: 0.94),
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.14),
+                color: Colors.black.withValues(alpha: 0.14),
                 blurRadius: 14,
                 offset: const Offset(0, 6),
               ),
@@ -321,7 +321,7 @@ class _GoingRow extends ConsumerWidget {
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.18),
+                  color: Colors.white.withValues(alpha: 0.18),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -385,10 +385,10 @@ class _SmallAttendeeAvatar extends StatelessWidget {
 
     return CircleAvatar(
       radius: 17,
-      backgroundColor: Colors.white.withOpacity(0.9),
+      backgroundColor: Colors.white.withValues(alpha: 0.9),
       child: CircleAvatar(
         radius: 14.5,
-        backgroundColor: Colors.white.withOpacity(0.22),
+        backgroundColor: Colors.white.withValues(alpha: 0.22),
         backgroundImage: hasPhoto ? NetworkImage(photoUrl) : null,
         child: !hasPhoto
             ? Text(

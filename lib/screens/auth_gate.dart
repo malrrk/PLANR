@@ -22,9 +22,15 @@ class AuthGate extends ConsumerWidget {
       loading: () => const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       ),
-      error: (error, stack) => Scaffold(
+      error: (error, stack) => const Scaffold(
         body: Center(
-          child: Text('Auth error: $error'),
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'We could not check your sign-in status. Please restart the app.',
+              textAlign: TextAlign.center,
+            ),
+          ),
         ),
       ),
     );

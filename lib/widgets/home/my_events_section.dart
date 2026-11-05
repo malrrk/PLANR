@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/event.dart';
+import '../../models/event_schedule.dart';
 import '../../providers/event_provider.dart';
 import '../../screens/event_chat_screen.dart';
 import '../../screens/event_detail_screen.dart';
@@ -51,23 +52,8 @@ class MyEventsSection extends ConsumerWidget {
     );
   }
 
-  List<Event> _nextTwoUpcomingEvents(List<Event> events) {
-    final now = DateTime.now();
-
-    final upcomingEvents = events.where((event) {
-      return event.date.isAfter(now);
-    }).toList()
-      ..sort((a, b) => a.date.compareTo(b.date));
-
-    return upcomingEvents.take(2).toList();
-  }
-
   int _upcomingEventCount(List<Event> events) {
-    final now = DateTime.now();
-
-    return events.where((event) {
-      return event.date.isAfter(now);
-    }).length;
+    return upcomingEvents(events, now: DateTime.now()).length;
   }
 
   @override
@@ -79,15 +65,15 @@ class MyEventsSection extends ConsumerWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
-        color: PlanrDesign.card.withOpacity(0.68),
+        color: PlanrDesign.card.withValues(alpha: 0.68),
         borderRadius: BorderRadius.circular(26),
         border: Border.all(
-          color: Colors.black.withOpacity(0.095),
+          color: Colors.black.withValues(alpha: 0.095),
           width: 1.6,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -110,7 +96,7 @@ class MyEventsSection extends ConsumerWidget {
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: PlanrDesign.accentSoft.withOpacity(0.84),
+                        color: PlanrDesign.accentSoft.withValues(alpha: 0.84),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: const Icon(
@@ -161,7 +147,11 @@ class MyEventsSection extends ConsumerWidget {
           const SizedBox(height: 13),
           myEventsAsync.when(
             data: (events) {
-              final visibleEvents = _nextTwoUpcomingEvents(events);
+              final visibleEvents = upcomingEvents(
+                events,
+                now: DateTime.now(),
+                limit: 3,
+              );
 
               if (visibleEvents.isEmpty) {
                 return const HomeEmptyStateCard(
@@ -290,7 +280,7 @@ class _InviteIconButton extends StatelessWidget {
                   Icons.mail_rounded,
                   color: hasInvites
                       ? PlanrDesign.accent
-                      : PlanrDesign.softMuted.withOpacity(0.75),
+                      : PlanrDesign.softMuted.withValues(alpha: 0.75),
                   size: 25,
                 ),
               ),

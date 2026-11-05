@@ -33,7 +33,6 @@ class UserProfile {
       'displayName': displayName,
       'username': username,
       'usernameLower': usernameLower,
-      'email': email,
       'photoUrl': photoUrl,
       'bio': bio,
       'backgroundImageUrl': backgroundImageUrl,

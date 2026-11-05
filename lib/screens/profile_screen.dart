@@ -9,13 +9,18 @@ import '../core/widgets/planr_card.dart';
 import '../models/user_profile.dart';
 import '../providers/auth_provider.dart';
 import '../providers/friends_provider.dart';
+import '../providers/moderation_provider.dart';
 import '../providers/user_profile_provider.dart';
+import '../widgets/account/delete_account_dialog.dart';
+import '../widgets/moderation/moderation_actions.dart';
 import '../widgets/profile/profile_action_section.dart';
 import '../widgets/profile/profile_empty_state.dart';
 import '../widgets/profile/profile_header.dart';
 import '../widgets/profile/profile_pinned_moments.dart';
 import '../widgets/profile/profile_stats_row.dart';
 import 'edit_profile_screen.dart';
+import 'blocked_users_screen.dart';
+import 'legal_screen.dart';
 import 'friend_requests_screen.dart';
 import 'friends_screen.dart';
 import 'user_search_screen.dart';
@@ -35,7 +40,7 @@ class ProfileScreen extends ConsumerWidget {
     final user = authState.value;
     if (user == null) return;
 
-    final fallbackUsername = 'user_${user.uid.substring(0, 8)}';
+    final fallbackUsername = 'user_${user.uid.substring(0, 8).toLowerCase()}';
 
     await ref.read(userProfileServiceProvider).createUserProfile(
           uid: user.uid,
@@ -51,6 +56,44 @@ class ProfileScreen extends ConsumerWidget {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => screen),
+    );
+  }
+
+  Widget _moreMenu(BuildContext context, WidgetRef ref, UserProfile profile) {
+    final blocked = ref.watch(blockedUidsProvider).value ?? const <String>{};
+    final isBlocked = blocked.contains(profile.uid);
+
+    return PopupMenuButton<String>(
+      tooltip: 'More',
+      icon: const Icon(Icons.more_horiz_rounded, color: PlanrDesign.accentDark),
+      onSelected: (value) async {
+        switch (value) {
+          case 'report':
+            await showReportDialog(
+              context,
+              ref,
+              target: ReportTarget.user,
+              targetId: profile.uid,
+              title: 'Report ${profile.displayName}',
+            );
+          case 'block':
+            await confirmAndBlockUser(
+              context,
+              ref,
+              uid: profile.uid,
+              name: profile.displayName,
+            );
+          case 'unblock':
+            await ref.read(moderationServiceProvider).unblockUser(profile.uid);
+        }
+      },
+      itemBuilder: (_) => [
+        const PopupMenuItem(value: 'report', child: Text('Report')),
+        PopupMenuItem(
+          value: isBlocked ? 'unblock' : 'block',
+          child: Text(isBlocked ? 'Unblock' : 'Block'),
+        ),
+      ],
     );
   }
 
@@ -119,6 +162,8 @@ class ProfileScreen extends ConsumerWidget {
                         onEditPressed: isOwnProfile
                             ? () => _open(context, const EditProfileScreen())
                             : null,
+                        trailing:
+                            isOwnProfile ? null : _moreMenu(context, ref, profile),
                       ),
                     ),
                   ),
@@ -132,6 +177,10 @@ class ProfileScreen extends ConsumerWidget {
                     sliver: SliverList(
                       delegate: SliverChildListDelegate(
                         [
+                          if (isOwnProfile) ...[
+                            const _EmailVerificationBanner(),
+                            const SizedBox(height: 16),
+                          ],
                           ProfileHeader(
                             profile: profile,
                             isOwnProfile: isOwnProfile,
@@ -173,6 +222,11 @@ class ProfileScreen extends ConsumerWidget {
                                 context,
                                 const FriendRequestsScreen(),
                               ),
+                              onBlockedUsers: () =>
+                                  _open(context, const BlockedUsersScreen()),
+                              onLegal: () => _open(context, const LegalScreen()),
+                              onDeleteAccount: () =>
+                                  showDeleteAccountDialog(context, ref),
                               onLogout: () async {
                                 await ref.read(authProvider).logout();
                               },
@@ -199,11 +253,13 @@ class _ProfileTopBar extends StatelessWidget {
     required this.profile,
     required this.isOwnProfile,
     required this.onEditPressed,
+    this.trailing,
   });
 
   final UserProfile profile;
   final bool isOwnProfile;
   final VoidCallback? onEditPressed;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -226,7 +282,7 @@ class _ProfileTopBar extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: Colors.black.withOpacity(0.12),
+                    color: Colors.black.withValues(alpha: 0.12),
                     width: 1.1,
                   ),
                 ),
@@ -286,7 +342,7 @@ class _ProfileTopBar extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: Colors.black.withOpacity(0.12),
+                    color: Colors.black.withValues(alpha: 0.12),
                     width: 1.1,
                   ),
                 ),
@@ -298,7 +354,98 @@ class _ProfileTopBar extends StatelessWidget {
               ),
             ),
           ),
+        ?trailing,
       ],
+    );
+  }
+}
+
+class _EmailVerificationBanner extends StatefulWidget {
+  const _EmailVerificationBanner();
+
+  @override
+  State<_EmailVerificationBanner> createState() =>
+      _EmailVerificationBannerState();
+}
+
+class _EmailVerificationBannerState extends State<_EmailVerificationBanner> {
+  bool _busy = false;
+
+  Future<void> _run(Future<String> Function(User user) action) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || _busy) return;
+
+    setState(() => _busy = true);
+
+    String message;
+    try {
+      message = await action(user);
+    } on FirebaseAuthException catch (e) {
+      message = e.code == 'too-many-requests'
+          ? 'Please wait a moment before trying again.'
+          : 'Something went wrong. Please try again.';
+    } catch (_) {
+      message = 'Something went wrong. Please try again.';
+    }
+
+    if (!mounted) return;
+    setState(() => _busy = false);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || user.emailVerified) return const SizedBox.shrink();
+
+    return PlanrCard(
+      padding: const EdgeInsets.all(16),
+      radius: 24,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Verify your email',
+            style: TextStyle(
+              color: PlanrDesign.ink,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'We sent a link to your email address. Open it to confirm this account.',
+            style: TextStyle(color: PlanrDesign.muted, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              TextButton(
+                onPressed: _busy
+                    ? null
+                    : () => _run((user) async {
+                          await user.sendEmailVerification();
+                          return 'Verification email sent.';
+                        }),
+                child: const Text('Resend email'),
+              ),
+              TextButton(
+                onPressed: _busy
+                    ? null
+                    : () => _run((user) async {
+                          await user.reload();
+                          return FirebaseAuth.instance.currentUser?.emailVerified ==
+                                  true
+                              ? 'Email verified. Thank you!'
+                              : 'Not verified yet.';
+                        }),
+                child: const Text('I verified it'),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -456,10 +603,10 @@ class _FriendProfileActionCardState
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: PlanrDesign.accentSoft.withOpacity(0.72),
+                  color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                   ),
                 ),
                 child: Icon(
@@ -566,7 +713,7 @@ class _ProfileFriendCompactButton extends StatelessWidget {
     final backgroundColor = switch (variant) {
       PlanrButtonVariant.filled => PlanrDesign.accent,
       PlanrButtonVariant.soft => PlanrDesign.accentSoft,
-      PlanrButtonVariant.outlined => Colors.white.withOpacity(0.42),
+      PlanrButtonVariant.outlined => Colors.white.withValues(alpha: 0.42),
       PlanrButtonVariant.ghost => Colors.transparent,
     };
 
@@ -580,7 +727,7 @@ class _ProfileFriendCompactButton extends StatelessWidget {
     final borderColor = switch (variant) {
       PlanrButtonVariant.filled => PlanrDesign.accent,
       PlanrButtonVariant.soft => PlanrDesign.accentSoft,
-      PlanrButtonVariant.outlined => Colors.white.withOpacity(0.95),
+      PlanrButtonVariant.outlined => Colors.white.withValues(alpha: 0.95),
       PlanrButtonVariant.ghost => Colors.transparent,
     };
 
@@ -591,7 +738,7 @@ class _ProfileFriendCompactButton extends StatelessWidget {
       ),
       child: Material(
         color: disabled
-            ? PlanrDesign.softMuted.withOpacity(0.25)
+            ? PlanrDesign.softMuted.withValues(alpha: 0.25)
             : backgroundColor,
         borderRadius: BorderRadius.circular(999),
         child: InkWell(
@@ -604,7 +751,7 @@ class _ProfileFriendCompactButton extends StatelessWidget {
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
                 color: disabled
-                    ? Colors.black.withOpacity(0.05)
+                    ? Colors.black.withValues(alpha: 0.05)
                     : borderColor,
                 width: 1.2,
               ),
@@ -651,17 +798,17 @@ class _PublicPagesEntryCard extends StatelessWidget {
       onTap: onTap,
       padding: const EdgeInsets.all(16),
       radius: 28,
-      color: PlanrDesign.cardLight.withOpacity(0.88),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.88),
       child: Row(
         children: [
           Container(
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: PlanrDesign.accentSoft.withOpacity(0.74),
+              color: PlanrDesign.accentSoft.withValues(alpha: 0.74),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: Colors.white.withOpacity(0.92),
+                color: Colors.white.withValues(alpha: 0.92),
               ),
             ),
             child: const Icon(
@@ -796,7 +943,7 @@ class _ProfileNotFoundState extends StatelessWidget {
                       width: 64,
                       height: 64,
                       decoration: BoxDecoration(
-                        color: PlanrDesign.accentSoft.withOpacity(0.75),
+                        color: PlanrDesign.accentSoft.withValues(alpha: 0.75),
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: const Icon(

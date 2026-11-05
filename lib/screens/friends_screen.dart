@@ -187,10 +187,10 @@ class _FriendsSearchField extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: PlanrDesign.cardLight.withOpacity(0.86),
+        color: PlanrDesign.cardLight.withValues(alpha: 0.86),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: Colors.white.withOpacity(0.95),
+          color: Colors.white.withValues(alpha: 0.95),
         ),
         boxShadow: [PlanrDesign.softShadow],
       ),
@@ -253,7 +253,7 @@ class _FriendCard extends StatelessWidget {
       padding: EdgeInsets.zero,
       radius: 26,
       shadow: false,
-      color: PlanrDesign.cardLight.withOpacity(0.74),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.74),
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -326,7 +326,7 @@ class _RemoveFriendButton extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: Colors.white.withOpacity(0.92),
+              color: Colors.white.withValues(alpha: 0.92),
             ),
           ),
           child: Icon(

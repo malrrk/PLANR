@@ -83,7 +83,7 @@ class _BellButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final invitesAsync = ref.watch(myEventInvitesProvider);
+    final invitesAsync = ref.watch(pendingEventInvitesProvider);
     final friendRequestsAsync = ref.watch(incomingFriendRequestsProvider);
 
     final inviteCount = invitesAsync.maybeWhen(
@@ -113,7 +113,7 @@ class _BellButton extends ConsumerWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: Colors.black.withOpacity(0.12),
+                  color: Colors.black.withValues(alpha: 0.12),
                   width: 1.2,
                 ),
               ),

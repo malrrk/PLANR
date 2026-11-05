@@ -85,7 +85,7 @@ class StoriesSection extends ConsumerWidget {
                 color: PlanrDesign.backgroundButton,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: Colors.black.withOpacity(0.12), // changeable
+                  color: Colors.black.withValues(alpha: 0.12), // changeable
                   width: 2.3, // changeable
                 ),
               ),

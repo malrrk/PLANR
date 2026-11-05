@@ -9,6 +9,8 @@ import '../core/widgets/planr_button.dart';
 import '../core/widgets/planr_card.dart';
 import '../core/widgets/planr_text_field.dart';
 import '../providers/auth_provider.dart';
+import 'legal_screen.dart';
+import 'reset_password_screen.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -29,6 +31,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _loading = false;
   bool _checkingUsername = false;
   bool _passwordVisible = false;
+  bool _acceptedTerms = false;
   bool? _usernameAvailable;
 
   String? _errorText;
@@ -93,6 +96,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
     if (_loading) return;
 
+    if (!_isLogin && !_acceptedTerms) {
+      setState(() {
+        _errorText = 'Please accept the Terms & Privacy to create an account.';
+      });
+      return;
+    }
     setState(() {
       _loading = true;
       _errorText = null;
@@ -257,7 +266,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
                           PlanrTextField(
                             controller: _emailController,
-                            label: _isLogin ? 'Username' : 'Email',
+                            label: _isLogin ? 'Username or email' : 'Email',
                             hintText: _isLogin ? 'your_username' : 'you@example.com',
                             keyboardType:
                                 _isLogin ? TextInputType.text : TextInputType.emailAddress,
@@ -290,9 +299,43 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                             ),
                           ),
 
+                          if (_isLogin)
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton.icon(
+                                onPressed: _loading
+                                    ? null
+                                    : () => Navigator.of(context).push(
+                                          MaterialPageRoute<void>(
+                                            builder: (_) =>
+                                                const ResetPasswordScreen(),
+                                          ),
+                                        ),
+                                icon: const Icon(Icons.lock_reset_rounded),
+                                label: const Text('Forgot password?'),
+                              ),
+                            ),
+
                           if (_errorText != null) ...[
                             const SizedBox(height: 14),
                             _AuthErrorBox(message: _errorText!),
+                          ],
+
+                          if (!_isLogin) ...[
+                            const SizedBox(height: 14),
+                            _TermsRow(
+                              accepted: _acceptedTerms,
+                              onChanged: _loading
+                                  ? null
+                                  : (value) => setState(
+                                        () => _acceptedTerms = value,
+                                      ),
+                              onOpenTerms: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const LegalScreen(),
+                                ),
+                              ),
+                            ),
                           ],
 
                           const SizedBox(height: 22),
@@ -320,6 +363,57 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _TermsRow extends StatelessWidget {
+  const _TermsRow({
+    required this.accepted,
+    required this.onChanged,
+    required this.onOpenTerms,
+  });
+
+  final bool accepted;
+  final ValueChanged<bool>? onChanged;
+  final VoidCallback onOpenTerms;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Checkbox(
+          value: accepted,
+          onChanged: onChanged == null ? null : (value) => onChanged!(value ?? false),
+        ),
+        Expanded(
+          child: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Text(
+                'I agree to the ',
+                style: TextStyle(
+                  color: PlanrDesign.muted,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              GestureDetector(
+                onTap: onOpenTerms,
+                child: const Text(
+                  'Terms & Privacy',
+                  style: TextStyle(
+                    color: PlanrDesign.accentDark,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -424,13 +518,13 @@ class _UsernameField extends StatelessWidget {
                         size: 21,
                       ),
             filled: true,
-            fillColor: PlanrDesign.cardLight.withOpacity(0.82),
+            fillColor: PlanrDesign.cardLight.withValues(alpha: 0.82),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 14,
             ),
-            border: _border(Colors.white.withOpacity(0.95)),
-            enabledBorder: _border(Colors.white.withOpacity(0.95)),
+            border: _border(Colors.white.withValues(alpha: 0.95)),
+            enabledBorder: _border(Colors.white.withValues(alpha: 0.95)),
             focusedBorder: _border(PlanrDesign.accent, width: 1.4),
           ),
         ),
@@ -482,7 +576,7 @@ class _AuthErrorBox extends StatelessWidget {
         color: const Color(0xFFFFEBEE),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: const Color(0xFFD32F2F).withOpacity(0.18),
+          color: const Color(0xFFD32F2F).withValues(alpha: 0.18),
         ),
       ),
       child: Row(

@@ -31,10 +31,10 @@ class PlanrEmptyState extends StatelessWidget {
             width: 58,
             height: 58,
             decoration: BoxDecoration(
-              color: PlanrDesign.accentSoft.withOpacity(0.75),
+              color: PlanrDesign.accentSoft.withValues(alpha: 0.75),
               borderRadius: BorderRadius.circular(22),
               border: Border.all(
-                color: Colors.white.withOpacity(0.88),
+                color: Colors.white.withValues(alpha: 0.88),
               ),
             ),
             child: Icon(

@@ -18,15 +18,15 @@ class EventDetailInfoCard extends StatelessWidget {
       width: double.infinity,
       padding: padding,
       decoration: BoxDecoration(
-        color: PlanrDesign.cardLight.withOpacity(0.86),
+        color: PlanrDesign.cardLight.withValues(alpha: 0.86),
         borderRadius: BorderRadius.circular(30),
         border: Border.all(
-          color: Colors.white.withOpacity(0.95),
+          color: Colors.white.withValues(alpha: 0.95),
           width: 1.1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.055),
+            color: Colors.black.withValues(alpha: 0.055),
             blurRadius: 26,
             offset: const Offset(0, 12),
           ),

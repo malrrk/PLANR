@@ -11,6 +11,8 @@ import '../core/widgets/planr_empty_state.dart';
 import '../core/widgets/planr_scaffold.dart';
 import '../models/event.dart';
 import '../providers/event_provider.dart';
+import '../providers/moderation_provider.dart';
+import '../widgets/moderation/moderation_actions.dart';
 import 'profile_screen.dart';
 
 class EventChatScreen extends ConsumerStatefulWidget {
@@ -98,6 +100,53 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
       MaterialPageRoute(
         builder: (_) => ProfileScreen(userId: userId),
       ),
+    );
+  }
+
+  Future<void> _showMessageMenu({
+    required String messageId,
+    required String senderUid,
+    required String senderName,
+  }) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.flag_outlined),
+              title: const Text('Report message'),
+              onTap: () => Navigator.pop(sheetContext, 'report'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.block_rounded),
+              title: Text('Block $senderName'),
+              onTap: () => Navigator.pop(sheetContext, 'block'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (action == null || !mounted) return;
+
+    if (action == 'report') {
+      await showReportDialog(
+        context,
+        ref,
+        target: ReportTarget.message,
+        targetId: '${widget.event.id}/$messageId',
+        title: 'Report this message',
+      );
+      return;
+    }
+
+    await confirmAndBlockUser(
+      context,
+      ref,
+      uid: senderUid,
+      name: senderName,
     );
   }
 
@@ -190,6 +239,13 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
                       onProfileTap: senderUid == null
                           ? null
                           : () => _openProfile(senderUid),
+                      onLongPress: isMe || senderUid == null
+                          ? null
+                          : () => _showMessageMenu(
+                                messageId: message['id'] as String? ?? '',
+                                senderUid: senderUid,
+                                senderName: senderName,
+                              ),
                     );
                   },
                 );
@@ -237,10 +293,10 @@ class _ChatHeaderCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: PlanrDesign.accentSoft.withOpacity(0.74),
+              color: PlanrDesign.accentSoft.withValues(alpha: 0.74),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha: 0.9),
               ),
             ),
             child: const Icon(
@@ -295,10 +351,10 @@ class _ChatDisabledBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: PlanrDesign.accentSoft.withOpacity(0.76),
+        color: PlanrDesign.accentSoft.withValues(alpha: 0.76),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: Colors.white.withOpacity(0.92),
+          color: Colors.white.withValues(alpha: 0.92),
         ),
       ),
       child: const Row(
@@ -333,6 +389,7 @@ class _MessageBubble extends StatelessWidget {
     required this.text,
     required this.isMe,
     required this.onProfileTap,
+    this.onLongPress,
   });
 
   final String? senderUid;
@@ -341,15 +398,16 @@ class _MessageBubble extends StatelessWidget {
   final String text;
   final bool isMe;
   final VoidCallback? onProfileTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
     final bubbleColor = isMe
         ? PlanrDesign.accent
-        : PlanrDesign.cardLight.withOpacity(0.92);
+        : PlanrDesign.cardLight.withValues(alpha: 0.92);
 
     final textColor = isMe ? Colors.white : PlanrDesign.ink;
-    final metaColor = isMe ? Colors.white.withOpacity(0.82) : PlanrDesign.muted;
+    final metaColor = isMe ? Colors.white.withValues(alpha: 0.82) : PlanrDesign.muted;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -377,6 +435,7 @@ class _MessageBubble extends StatelessWidget {
               ),
               child: InkWell(
                 onTap: onProfileTap,
+                onLongPress: onLongPress,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(20),
                   topRight: const Radius.circular(20),
@@ -396,12 +455,12 @@ class _MessageBubble extends StatelessWidget {
                     ),
                     border: Border.all(
                       color: isMe
-                          ? PlanrDesign.accentDark.withOpacity(0.18)
-                          : Colors.white.withOpacity(0.95),
+                          ? PlanrDesign.accentDark.withValues(alpha: 0.18)
+                          : Colors.white.withValues(alpha: 0.95),
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(isMe ? 0.075 : 0.045),
+                        color: Colors.black.withValues(alpha: isMe ? 0.075 : 0.045),
                         blurRadius: 16,
                         offset: const Offset(0, 7),
                       ),
@@ -506,10 +565,10 @@ class _MessageComposer extends StatelessWidget {
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: PlanrDesign.cardLight.withOpacity(0.88),
+                  color: PlanrDesign.cardLight.withValues(alpha: 0.88),
                   borderRadius: BorderRadius.circular(26),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.95),
+                    color: Colors.white.withValues(alpha: 0.95),
                   ),
                   boxShadow: [PlanrDesign.softShadow],
                 ),
@@ -573,7 +632,7 @@ class _SendButton extends StatelessWidget {
 
     return Material(
       color: disabled
-          ? PlanrDesign.softMuted.withOpacity(0.22)
+          ? PlanrDesign.softMuted.withValues(alpha: 0.22)
           : PlanrDesign.accent,
       shape: const CircleBorder(),
       child: InkWell(

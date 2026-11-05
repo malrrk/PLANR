@@ -85,17 +85,17 @@ class _PlanrBottomNav extends StatelessWidget {
       height: 86,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.94),
+        color: Colors.white.withValues(alpha: 0.94),
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.10),
+            color: Colors.black.withValues(alpha: 0.10),
             blurRadius: 24,
             offset: const Offset(0, 10),
           ),
         ],
         border: Border.all(
-          color: Colors.white.withOpacity(0.92),
+          color: Colors.white.withValues(alpha: 0.92),
         ),
       ),
       child: Row(
@@ -215,7 +215,7 @@ class _BottomCreateItem extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: PlanrDesign.accent.withOpacity(0.25),
+                  color: PlanrDesign.accent.withValues(alpha: 0.25),
                   blurRadius: 16,
                   offset: const Offset(0, 7),
                 ),

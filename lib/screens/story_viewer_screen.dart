@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/planr_design.dart';
 import '../core/widgets/planr_avatar.dart';
 import '../models/story.dart';
+import '../providers/moderation_provider.dart';
 import '../providers/story_provider.dart';
 import '../providers/user_profile_provider.dart';
+import '../widgets/moderation/moderation_actions.dart';
 import 'profile_screen.dart';
 import 'public_page_screen.dart';
 
@@ -207,7 +209,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
     final action = await showModalBottomSheet<_StoryAction>(
       context: context,
       backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withOpacity(0.35),
+      barrierColor: Colors.black.withValues(alpha: 0.35),
       builder: (sheetContext) {
         return _StoryActionSheet(
           isPinned: isPinned,
@@ -230,6 +232,52 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
         await _deleteStory(story);
         break;
     }
+  }
+
+  Future<void> _showReportMenu(Story story) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.flag_outlined),
+              title: const Text('Report story'),
+              onTap: () => Navigator.pop(sheetContext, 'report'),
+            ),
+            if (story.isUserStory)
+              ListTile(
+                leading: const Icon(Icons.block_rounded),
+                title: Text('Block ${story.ownerDisplayName}'),
+                onTap: () => Navigator.pop(sheetContext, 'block'),
+              ),
+          ],
+        ),
+      ),
+    );
+
+    if (action == null || !mounted) return;
+
+    if (action == 'report') {
+      await showReportDialog(
+        context,
+        ref,
+        target: ReportTarget.story,
+        targetId: story.id,
+        title: 'Report this story',
+      );
+      return;
+    }
+
+    final blocked = await confirmAndBlockUser(
+      context,
+      ref,
+      uid: story.ownerUid,
+      name: story.ownerDisplayName,
+    );
+
+    if (blocked && mounted) Navigator.pop(context);
   }
 
   StoryGroup? _resolveCurrentGroup({
@@ -326,6 +374,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
                   story: currentStory,
                   pinnedUrls: pinnedUrls,
                 ),
+                onReportPressed: () => _showReportMenu(currentStory),
                 onClosePressed: () => Navigator.pop(context),
               ),
 
@@ -340,7 +389,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
                       gradient: LinearGradient(
                         colors: [
                           Colors.transparent,
-                          Colors.black.withOpacity(0.55),
+                          Colors.black.withValues(alpha: 0.55),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -414,9 +463,9 @@ class _StoryImageLayer extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.black.withOpacity(0.40),
-                    Colors.black.withOpacity(0.08),
-                    Colors.black.withOpacity(0.38),
+                    Colors.black.withValues(alpha: 0.40),
+                    Colors.black.withValues(alpha: 0.08),
+                    Colors.black.withValues(alpha: 0.38),
                   ],
                   stops: const [0, 0.42, 1],
                   begin: Alignment.topCenter,
@@ -497,6 +546,7 @@ class _StoryTopOverlay extends StatelessWidget {
     required this.isPinned,
     required this.onProfilePressed,
     required this.onMenuPressed,
+    required this.onReportPressed,
     required this.onClosePressed,
   });
 
@@ -506,6 +556,7 @@ class _StoryTopOverlay extends StatelessWidget {
   final bool isOwnStory;
   final bool isPinned;
   final VoidCallback onMenuPressed;
+  final VoidCallback onReportPressed;
   final VoidCallback onClosePressed;
   final VoidCallback onProfilePressed;
 
@@ -563,7 +614,7 @@ class _StoryTopOverlay extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.78),
+                        color: Colors.white.withValues(alpha: 0.78),
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                       ),
@@ -583,10 +634,10 @@ class _StoryTopOverlay extends StatelessWidget {
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.18),
+                      color: Colors.white.withValues(alpha: 0.18),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.20),
+                        color: Colors.white.withValues(alpha: 0.20),
                       ),
                     ),
                     child: const Icon(
@@ -599,6 +650,11 @@ class _StoryTopOverlay extends StatelessWidget {
                   _StoryTopButton(
                     icon: Icons.more_horiz_rounded,
                     onPressed: onMenuPressed,
+                  )
+                else
+                  _StoryTopButton(
+                    icon: Icons.flag_outlined,
+                    onPressed: onReportPressed,
                   ),
                 const SizedBox(width: 6),
                 _StoryTopButton(
@@ -639,12 +695,12 @@ class _StoryProgressBars extends StatelessWidget {
             decoration: BoxDecoration(
               color: index <= activeIndex
                   ? Colors.white
-                  : Colors.white.withOpacity(0.28),
+                  : Colors.white.withValues(alpha: 0.28),
               borderRadius: BorderRadius.circular(999),
               boxShadow: index <= activeIndex
                   ? [
                       BoxShadow(
-                        color: Colors.white.withOpacity(0.20),
+                        color: Colors.white.withValues(alpha: 0.20),
                         blurRadius: 8,
                       ),
                     ]
@@ -669,7 +725,7 @@ class _StoryTopButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withOpacity(0.16),
+      color: Colors.white.withValues(alpha: 0.16),
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
@@ -698,14 +754,14 @@ class _OwnStoryHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withOpacity(0.14),
+      color: Colors.white.withValues(alpha: 0.14),
       borderRadius: BorderRadius.circular(24),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: Colors.white.withOpacity(0.18),
+            color: Colors.white.withValues(alpha: 0.18),
           ),
         ),
         child: Row(
@@ -722,7 +778,7 @@ class _OwnStoryHint extends StatelessWidget {
                     ? 'Pinned to your profile'
                     : 'Open the menu to pin this moment',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.88),
+                  color: Colors.white.withValues(alpha: 0.88),
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
                 ),
@@ -766,10 +822,10 @@ class _StoryActionSheet extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           decoration: BoxDecoration(
-            color: PlanrDesign.cardLight.withOpacity(0.98),
+            color: PlanrDesign.cardLight.withValues(alpha: 0.98),
             borderRadius: BorderRadius.circular(30),
             border: Border.all(
-              color: Colors.white.withOpacity(0.95),
+              color: Colors.white.withValues(alpha: 0.95),
             ),
             boxShadow: [PlanrDesign.cardShadow],
           ),
@@ -780,7 +836,7 @@ class _StoryActionSheet extends StatelessWidget {
                 width: 42,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: PlanrDesign.softMuted.withOpacity(0.35),
+                  color: PlanrDesign.softMuted.withValues(alpha: 0.35),
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -856,7 +912,7 @@ class _StorySheetOption extends StatelessWidget {
             : PlanrDesign.accentDark;
 
     return Material(
-      color: PlanrDesign.card.withOpacity(0.62),
+      color: PlanrDesign.card.withValues(alpha: 0.62),
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         onTap: onTap,
@@ -866,7 +922,7 @@ class _StorySheetOption extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: Colors.white.withOpacity(0.92),
+              color: Colors.white.withValues(alpha: 0.92),
             ),
           ),
           child: Row(
@@ -877,10 +933,10 @@ class _StorySheetOption extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: destructive
                       ? const Color(0xFFFFEBEE)
-                      : PlanrDesign.accentSoft.withOpacity(muted ? 0.30 : 0.75),
+                      : PlanrDesign.accentSoft.withValues(alpha: muted ? 0.30 : 0.75),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.88),
+                    color: Colors.white.withValues(alpha: 0.88),
                   ),
                 ),
                 child: Icon(
@@ -921,7 +977,7 @@ class _StorySheetOption extends StatelessWidget {
               ),
               Icon(
                 Icons.chevron_right_rounded,
-                color: PlanrDesign.softMuted.withOpacity(0.85),
+                color: PlanrDesign.softMuted.withValues(alpha: 0.85),
                 size: 25,
               ),
             ],
@@ -948,10 +1004,10 @@ class _DeleteStoryDialog extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: PlanrDesign.cardLight.withOpacity(0.98),
+          color: PlanrDesign.cardLight.withValues(alpha: 0.98),
           borderRadius: BorderRadius.circular(28),
           border: Border.all(
-            color: Colors.white.withOpacity(0.95),
+            color: Colors.white.withValues(alpha: 0.95),
           ),
           boxShadow: [PlanrDesign.cardShadow],
         ),
@@ -1037,10 +1093,10 @@ class _ReplacePinnedDialog extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: PlanrDesign.cardLight.withOpacity(0.98),
+          color: PlanrDesign.cardLight.withValues(alpha: 0.98),
           borderRadius: BorderRadius.circular(28),
           border: Border.all(
-            color: Colors.white.withOpacity(0.95),
+            color: Colors.white.withValues(alpha: 0.95),
           ),
           boxShadow: [PlanrDesign.cardShadow],
         ),
@@ -1084,7 +1140,7 @@ class _ReplacePinnedDialog extends StatelessWidget {
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.95),
+                              color: Colors.white.withValues(alpha: 0.95),
                               width: 2,
                             ),
                             boxShadow: [PlanrDesign.softShadow],
@@ -1197,7 +1253,7 @@ class _StoryFallbackScaffold extends StatelessWidget {
                   subtitle,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.70),
+                    color: Colors.white.withValues(alpha: 0.70),
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     height: 1.35,
@@ -1205,7 +1261,7 @@ class _StoryFallbackScaffold extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 Material(
-                  color: Colors.white.withOpacity(0.16),
+                  color: Colors.white.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(999),
                   child: InkWell(
                     onTap: () => Navigator.pop(context),

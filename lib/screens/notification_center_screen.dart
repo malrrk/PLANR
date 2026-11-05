@@ -52,7 +52,7 @@ class NotificationCenterScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final invitesAsync = ref.watch(myEventInvitesProvider);
+    final invitesAsync = ref.watch(pendingEventInvitesProvider);
     final friendRequestsAsync = ref.watch(incomingFriendRequestsProvider);
 
     return PlanrBackground(
@@ -203,7 +203,7 @@ class _NotificationBlock extends StatelessWidget {
     return PlanrCard(
       onTap: onTap,
       padding: const EdgeInsets.all(16),
-      color: PlanrDesign.cardLight.withOpacity(0.84),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.84),
       child: Column(
         children: [
           Row(
@@ -212,7 +212,7 @@ class _NotificationBlock extends StatelessWidget {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: PlanrDesign.accentSoft.withOpacity(0.82),
+                  color: PlanrDesign.accentSoft.withValues(alpha: 0.82),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(
@@ -278,10 +278,10 @@ class _NotificationLine extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.48),
+        color: Colors.white.withValues(alpha: 0.48),
         borderRadius: BorderRadius.circular(17),
         border: Border.all(
-          color: Colors.black.withOpacity(0.055),
+          color: Colors.black.withValues(alpha: 0.055),
         ),
       ),
       child: Row(
@@ -342,7 +342,7 @@ class _EmptyNotificationLine extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.38),
+        color: Colors.white.withValues(alpha: 0.38),
         borderRadius: BorderRadius.circular(17),
       ),
       child: Text(
@@ -368,7 +368,7 @@ class _LoadingBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     return PlanrCard(
       padding: const EdgeInsets.all(18),
-      color: PlanrDesign.cardLight.withOpacity(0.84),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.84),
       child: Row(
         children: [
           const SizedBox(
@@ -404,7 +404,7 @@ class _ErrorBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     return PlanrCard(
       padding: const EdgeInsets.all(18),
-      color: PlanrDesign.cardLight.withOpacity(0.84),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.84),
       child: Row(
         children: [
           Icon(

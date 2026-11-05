@@ -10,6 +10,7 @@ import '../models/event.dart';
 import '../models/event_tag.dart';
 import '../models/public_page.dart';
 import 'firebase_providers.dart';
+import 'managed_public_pages.dart';
 
 final publicPageServiceProvider = Provider<PublicPageService>((ref) {
   return PublicPageService(
@@ -24,6 +25,7 @@ final publicPagesProvider = StreamProvider<List<PublicPage>>((ref) {
       .collection('public_pages')
       .where('isActive', isEqualTo: true)
       .orderBy('followerCount', descending: true)
+      .limit(300)
       .snapshots()
       .map((snapshot) {
     return snapshot.docs
@@ -60,26 +62,18 @@ final myManagedPublicPagesProvider = StreamProvider<List<PublicPage>>((ref) {
       .where('adminUids', arrayContains: user.uid)
       .snapshots();
 
-  return ownedStream.asyncMap((ownedSnapshot) async {
-    final adminSnapshot = await adminStream.first;
-
-    final pagesById = <String, PublicPage>{};
-
-    for (final doc in ownedSnapshot.docs) {
-      final page = PublicPage.fromMap(doc.data(), doc.id);
-      if (page.isActive) pagesById[page.id] = page;
-    }
-
-    for (final doc in adminSnapshot.docs) {
-      final page = PublicPage.fromMap(doc.data(), doc.id);
-      if (page.isActive) pagesById[page.id] = page;
-    }
-
-    final pages = pagesById.values.toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
-    return pages;
-  });
+  return watchManagedPublicPages(
+    ownedPages: ownedStream.map(
+      (snapshot) => snapshot.docs
+          .map((doc) => PublicPage.fromMap(doc.data(), doc.id))
+          .toList(),
+    ),
+    administeredPages: adminStream.map(
+      (snapshot) => snapshot.docs
+          .map((doc) => PublicPage.fromMap(doc.data(), doc.id))
+          .toList(),
+    ),
+  );
 });
 
 final followedPagesProvider = StreamProvider<List<PublicPage>>((ref) {
@@ -137,6 +131,8 @@ final publicPageEventsProvider =
   return FirebaseFirestore.instance
       .collection('events')
       .where('visibility', isEqualTo: 'public')
+      .where('organizerId', isEqualTo: pageId)
+      .where('date', isGreaterThanOrEqualTo: Timestamp.now())
       .orderBy('date')
       .snapshots()
       .map((snapshot) {
@@ -168,6 +164,9 @@ class PublicPageCreationResult {
 
 class PublicPageService {
   PublicPageService(this._firestore, this._storage, this._auth);
+
+  static final SettableMetadata _imageMetadata =
+      SettableMetadata(contentType: 'image/jpeg');
 
   final FirebaseFirestore _firestore;
   final FirebaseStorage _storage;
@@ -366,7 +365,7 @@ class PublicPageService {
             .ref()
             .child('public_pages/${page.id}/photo.jpg');
 
-        await ref.putFile(newPhotoFile);
+        await ref.putFile(newPhotoFile, _imageMetadata);
         photoUrl = await ref.getDownloadURL();
       }
 
@@ -375,7 +374,7 @@ class PublicPageService {
             .ref()
             .child('public_pages/${page.id}/background.jpg');
 
-        await ref.putFile(newBackgroundFile);
+        await ref.putFile(newBackgroundFile, _imageMetadata);
         backgroundImageUrl = await ref.getDownloadURL();
       }
 

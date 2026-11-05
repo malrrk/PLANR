@@ -400,7 +400,7 @@ class _DiscoverSearchBar extends StatelessWidget {
     return PlanrCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       radius: 24,
-      color: PlanrDesign.cardLight.withOpacity(0.86),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.86),
       child: TextField(
         controller: controller,
         onChanged: onChanged,
@@ -488,11 +488,11 @@ class _FilterChipButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final backgroundColor = selected
         ? PlanrDesign.accent
-        : PlanrDesign.cardLight.withOpacity(0.86);
+        : PlanrDesign.cardLight.withValues(alpha: 0.86);
 
     final borderColor = selected
-        ? PlanrDesign.accentDark.withOpacity(0.28)
-        : Colors.white.withOpacity(0.94);
+        ? PlanrDesign.accentDark.withValues(alpha: 0.28)
+        : Colors.white.withValues(alpha: 0.94);
 
     final foregroundColor = selected ? Colors.white : PlanrDesign.ink;
     final iconColor = selected ? Colors.white : PlanrDesign.accentDark;
@@ -517,7 +517,7 @@ class _FilterChipButton extends StatelessWidget {
             boxShadow: selected
                 ? [
                     BoxShadow(
-                      color: PlanrDesign.accent.withOpacity(0.22),
+                      color: PlanrDesign.accent.withValues(alpha: 0.22),
                       blurRadius: 13,
                       offset: const Offset(0, 6),
                     ),
@@ -644,7 +644,7 @@ class _PublicPageStripCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.16),
+              color: Colors.black.withValues(alpha: 0.16),
               blurRadius: 22,
               offset: const Offset(0, 10),
             ),
@@ -678,10 +678,10 @@ class _PublicPageStripCard extends StatelessWidget {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.18),
+                    color: Colors.white.withValues(alpha: 0.18),
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.24),
+                      color: Colors.white.withValues(alpha: 0.24),
                     ),
                   ),
                   child: const Icon(
@@ -733,7 +733,7 @@ class _PublicPageStripCard extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.78),
+                                  color: Colors.white.withValues(alpha: 0.78),
                                   fontSize: 12.7,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -847,7 +847,7 @@ class _PublicPageResultCard extends StatelessWidget {
       onTap: onTap,
       padding: const EdgeInsets.all(14),
       radius: 28,
-      color: PlanrDesign.cardLight.withOpacity(0.86),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.86),
       child: Row(
         children: [
           _PublicPageLogo(page: page, size: 58),
@@ -949,10 +949,10 @@ class _PublicPageLogo extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: PlanrDesign.accentSoft.withOpacity(0.76),
+        color: PlanrDesign.accentSoft.withValues(alpha: 0.76),
         borderRadius: BorderRadius.circular(size * 0.36),
         border: Border.all(
-          color: Colors.white.withOpacity(0.92),
+          color: Colors.white.withValues(alpha: 0.92),
         ),
       ),
       clipBehavior: Clip.antiAlias,
@@ -1088,7 +1088,7 @@ class _HotEventCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.16),
+              color: Colors.black.withValues(alpha: 0.16),
               blurRadius: 22,
               offset: const Offset(0, 10),
             ),
@@ -1187,14 +1187,14 @@ class _DiscoverEventCard extends StatelessWidget {
     return PlanrCard(
       onTap: onTap,
       padding: const EdgeInsets.all(10),
-      color: PlanrDesign.cardLight.withOpacity(0.84),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.84),
       child: Row(
         children: [
           Container(
             width: 92,
             height: 108,
             decoration: BoxDecoration(
-              color: PlanrDesign.accentSoft.withOpacity(0.7),
+              color: PlanrDesign.accentSoft.withValues(alpha: 0.7),
               borderRadius: BorderRadius.circular(22),
             ),
             clipBehavior: Clip.antiAlias,
@@ -1309,7 +1309,7 @@ class _ImagePill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: PlanrDesign.accent.withOpacity(0.94),
+        color: PlanrDesign.accent.withValues(alpha: 0.94),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -1420,7 +1420,7 @@ class _GoingBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: PlanrDesign.accentSoft.withOpacity(0.78),
+        color: PlanrDesign.accentSoft.withValues(alpha: 0.78),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -1523,7 +1523,7 @@ class _SmallEmptyResultCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return PlanrCard(
       padding: const EdgeInsets.all(18),
-      color: PlanrDesign.cardLight.withOpacity(0.86),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.86),
       radius: 28,
       child: Row(
         children: [

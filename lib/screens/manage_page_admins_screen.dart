@@ -140,7 +140,7 @@ class _ManagePageAdminsScreenState
               PlanrCard(
                 padding: const EdgeInsets.all(18),
                 radius: 30,
-                color: PlanrDesign.cardLight.withOpacity(0.88),
+                color: PlanrDesign.cardLight.withValues(alpha: 0.88),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -207,17 +207,17 @@ class _AdminIntroCard extends StatelessWidget {
     return PlanrCard(
       padding: const EdgeInsets.all(20),
       radius: 30,
-      color: PlanrDesign.cardLight.withOpacity(0.88),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.88),
       child: Row(
         children: [
           Container(
             width: 54,
             height: 54,
             decoration: BoxDecoration(
-              color: PlanrDesign.accentSoft.withOpacity(0.78),
+              color: PlanrDesign.accentSoft.withValues(alpha: 0.78),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: Colors.white.withOpacity(0.92),
+                color: Colors.white.withValues(alpha: 0.92),
               ),
             ),
             child: const Icon(
@@ -279,7 +279,7 @@ class _AdminsListCard extends StatelessWidget {
     return PlanrCard(
       padding: const EdgeInsets.all(18),
       radius: 30,
-      color: PlanrDesign.cardLight.withOpacity(0.88),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.88),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -358,7 +358,7 @@ class _AdminUserRow extends StatelessWidget {
       uid: uid,
       badge: 'Admin',
       trailing: Material(
-        color: PlanrDesign.accentSoft.withOpacity(0.72),
+        color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
         shape: const CircleBorder(),
         child: InkWell(
           onTap: isRemoving ? null : onRemove,
@@ -418,10 +418,10 @@ class _UserProfileRow extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: PlanrDesign.cardLight.withOpacity(0.76),
+            color: PlanrDesign.cardLight.withValues(alpha: 0.76),
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
             ),
           ),
           child: Row(
@@ -499,10 +499,10 @@ class _UserAvatar extends StatelessWidget {
       width: 44,
       height: 44,
       decoration: BoxDecoration(
-        color: PlanrDesign.accentSoft.withOpacity(0.75),
+        color: PlanrDesign.accentSoft.withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(17),
         border: Border.all(
-          color: Colors.white.withOpacity(0.9),
+          color: Colors.white.withValues(alpha: 0.9),
         ),
       ),
       clipBehavior: Clip.antiAlias,
@@ -557,10 +557,10 @@ class _StaticUserRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: PlanrDesign.cardLight.withOpacity(0.76),
+        color: PlanrDesign.cardLight.withValues(alpha: 0.76),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: Colors.white.withOpacity(0.9),
+          color: Colors.white.withValues(alpha: 0.9),
         ),
       ),
       child: Row(
@@ -569,7 +569,7 @@ class _StaticUserRow extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: PlanrDesign.accentSoft.withOpacity(0.75),
+              color: PlanrDesign.accentSoft.withValues(alpha: 0.75),
               borderRadius: BorderRadius.circular(17),
             ),
             child: Icon(
@@ -625,7 +625,7 @@ class _SmallRolePill extends StatelessWidget {
       height: 22,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: PlanrDesign.accentSoft.withOpacity(0.78),
+        color: PlanrDesign.accentSoft.withValues(alpha: 0.78),
         borderRadius: BorderRadius.circular(999),
       ),
       alignment: Alignment.center,
@@ -651,10 +651,10 @@ class _NoAdminsNotice extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: PlanrDesign.cardLight.withOpacity(0.76),
+        color: PlanrDesign.cardLight.withValues(alpha: 0.76),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: Colors.white.withOpacity(0.9),
+          color: Colors.white.withValues(alpha: 0.9),
         ),
       ),
       child: const Text(
@@ -690,10 +690,10 @@ class _SectionTitle extends StatelessWidget {
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color: PlanrDesign.accentSoft.withOpacity(0.72),
+            color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: Colors.white.withOpacity(0.88),
+              color: Colors.white.withValues(alpha: 0.88),
             ),
           ),
           child: Icon(
@@ -753,7 +753,7 @@ class _CenteredAdminMessage extends StatelessWidget {
         child: PlanrCard(
           padding: const EdgeInsets.all(24),
           radius: 30,
-          color: PlanrDesign.cardLight.withOpacity(0.88),
+          color: PlanrDesign.cardLight.withValues(alpha: 0.88),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

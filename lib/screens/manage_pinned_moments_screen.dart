@@ -223,7 +223,7 @@ class _PinnedMomentsSaveButton extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
-              color: Colors.black.withOpacity(0.12),
+              color: Colors.black.withValues(alpha: 0.12),
               width: 1.1,
             ),
           ),
@@ -307,7 +307,7 @@ class _SelectedMomentsCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.95),
+                          color: Colors.white.withValues(alpha: 0.95),
                           width: 1.2,
                         ),
                       ),
@@ -324,7 +324,7 @@ class _SelectedMomentsCard extends StatelessWidget {
                                   top: 7,
                                   right: 7,
                                   child: Material(
-                                    color: Colors.black.withOpacity(0.46),
+                                    color: Colors.black.withValues(alpha: 0.46),
                                     shape: const CircleBorder(),
                                     child: InkWell(
                                       customBorder: const CircleBorder(),
@@ -381,12 +381,12 @@ class _StoryCandidateTile extends StatelessWidget {
             border: Border.all(
               color: selected
                   ? PlanrDesign.accent
-                  : Colors.white.withOpacity(0.95),
+                  : Colors.white.withValues(alpha: 0.95),
               width: selected ? 2.4 : 1.2,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.055),
+                color: Colors.black.withValues(alpha: 0.055),
                 blurRadius: 14,
                 offset: const Offset(0, 8),
               ),
@@ -402,7 +402,7 @@ class _StoryCandidateTile extends StatelessWidget {
               ),
               if (selected)
                 Container(
-                  color: Colors.black.withOpacity(0.18),
+                  color: Colors.black.withValues(alpha: 0.18),
                 ),
               if (selected)
                 Positioned(
@@ -436,7 +436,7 @@ class _EmptyPinnedSlot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: PlanrDesign.accentSoft.withOpacity(0.42),
+      color: PlanrDesign.accentSoft.withValues(alpha: 0.42),
       child: const Center(
         child: Icon(
           Icons.add_photo_alternate_rounded,

@@ -236,7 +236,7 @@ class _InviteFinishBar extends StatelessWidget {
         child: PlanrCard(
           padding: const EdgeInsets.all(12),
           radius: 26,
-          color: PlanrDesign.cardLight.withOpacity(0.94),
+          color: PlanrDesign.cardLight.withValues(alpha: 0.94),
           child: Row(
             children: [
               Expanded(
@@ -282,10 +282,10 @@ class _PublicInviteBlockedCard extends StatelessWidget {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: PlanrDesign.accentSoft.withOpacity(0.75),
+                  color: PlanrDesign.accentSoft.withValues(alpha: 0.75),
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                   ),
                 ),
                 child: const Icon(
@@ -376,7 +376,7 @@ class _EventInviteHeader extends StatelessWidget {
         height: 164,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(30),
-          color: PlanrDesign.accentSoft.withOpacity(0.45),
+          color: PlanrDesign.accentSoft.withValues(alpha: 0.45),
         ),
         clipBehavior: Clip.antiAlias,
         child: Stack(
@@ -392,9 +392,9 @@ class _EventInviteHeader extends StatelessWidget {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      PlanrDesign.cardLight.withOpacity(0.95),
-                      PlanrDesign.accentSoft.withOpacity(0.58),
-                      const Color(0xFFFFE3CC).withOpacity(0.78),
+                      PlanrDesign.cardLight.withValues(alpha: 0.95),
+                      PlanrDesign.accentSoft.withValues(alpha: 0.58),
+                      const Color(0xFFFFE3CC).withValues(alpha: 0.78),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -514,7 +514,7 @@ class _FriendInviteTile extends ConsumerWidget {
       padding: const EdgeInsets.all(14),
       radius: 24,
       shadow: false,
-      color: PlanrDesign.card.withOpacity(0.64),
+      color: PlanrDesign.card.withValues(alpha: 0.64),
       child: Row(
         children: [
           PlanrAvatar(

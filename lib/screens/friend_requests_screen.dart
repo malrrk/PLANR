@@ -67,6 +67,27 @@ class _FriendRequestsScreenState extends ConsumerState<FriendRequestsScreen> {
     );
   }
 
+  Future<void> _declineRequest(String requestId) async {
+    if (requestId.isEmpty || _processingRequestIds.contains(requestId)) return;
+    setState(() => _processingRequestIds.add(requestId));
+
+    String? error;
+    try {
+      error = await ref.read(friendsServiceProvider).declineFriendRequest(
+            requestId: requestId,
+          );
+    } catch (_) {
+      error = 'Could not decline request.';
+    }
+
+    if (!mounted) return;
+    setState(() => _processingRequestIds.remove(requestId));
+    if (error == null) ref.invalidate(incomingFriendRequestsProvider);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error ?? 'Friend request declined.')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final requestsAsync = ref.watch(incomingFriendRequestsProvider);
@@ -109,6 +130,7 @@ class _FriendRequestsScreenState extends ConsumerState<FriendRequestsScreen> {
                     ? null
                     : () => _openProfile(fromUid),
                 onAccept: () => _acceptRequest(request),
+                onDecline: () => _declineRequest(requestId),
               );
             },
           );
@@ -136,6 +158,7 @@ class _FriendRequestCard extends StatelessWidget {
     required this.isProcessing,
     required this.onProfileTap,
     required this.onAccept,
+    required this.onDecline,
   });
 
   final String displayName;
@@ -143,6 +166,7 @@ class _FriendRequestCard extends StatelessWidget {
   final bool isProcessing;
   final VoidCallback? onProfileTap;
   final VoidCallback onAccept;
+  final VoidCallback onDecline;
 
   @override
   Widget build(BuildContext context) {
@@ -150,7 +174,7 @@ class _FriendRequestCard extends StatelessWidget {
       padding: EdgeInsets.zero,
       radius: 28,
       shadow: false,
-      color: PlanrDesign.cardLight.withOpacity(0.76),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.76),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Row(
@@ -202,6 +226,11 @@ class _FriendRequestCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
+            IconButton(
+              tooltip: 'Decline request',
+              onPressed: isProcessing ? null : onDecline,
+              icon: const Icon(Icons.close_rounded),
+            ),
             _AcceptRequestButton(
               isLoading: isProcessing,
               onPressed: isProcessing ? null : onAccept,
@@ -265,7 +294,7 @@ class _AcceptRequestButton extends StatelessWidget {
       ),
       child: Material(
         color: disabled
-            ? PlanrDesign.softMuted.withOpacity(0.24)
+            ? PlanrDesign.softMuted.withValues(alpha: 0.24)
             : PlanrDesign.accent,
         borderRadius: BorderRadius.circular(999),
         child: InkWell(
@@ -278,7 +307,7 @@ class _AcceptRequestButton extends StatelessWidget {
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
                 color: disabled
-                    ? Colors.black.withOpacity(0.05)
+                    ? Colors.black.withValues(alpha: 0.05)
                     : PlanrDesign.accent,
                 width: 1.2,
               ),

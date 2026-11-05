@@ -18,14 +18,15 @@ class PinnedMomentCandidate {
 final recentStoryImagesProvider =
     StreamProvider.family<List<PinnedMomentCandidate>, String>((ref, uid) {
   final firestore = ref.watch(firestoreProvider);
+  final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30));
 
   return firestore
       .collection('stories')
       .where('ownerUid', isEqualTo: uid)
+      .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(thirtyDaysAgo))
+      .orderBy('createdAt', descending: true)
       .snapshots()
       .map((snapshot) {
-    final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30));
-
     final stories = snapshot.docs.map((doc) {
       final data = doc.data();
 

@@ -19,10 +19,10 @@ class EventDetailFactCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.46),
+        color: Colors.white.withValues(alpha: 0.46),
         borderRadius: BorderRadius.circular(21),
         border: Border.all(
-          color: Colors.white.withOpacity(0.94),
+          color: Colors.white.withValues(alpha: 0.94),
         ),
       ),
       child: Row(
@@ -31,7 +31,7 @@ class EventDetailFactCard extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: PlanrDesign.accentSoft.withOpacity(0.72),
+              color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
               borderRadius: BorderRadius.circular(15),
             ),
             child: Icon(

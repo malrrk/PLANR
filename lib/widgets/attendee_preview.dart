@@ -28,7 +28,7 @@ class AttendeePreview extends ConsumerWidget {
 
     final textColor = dark ? Colors.white : const Color(0xFF0F172A);
     final mutedColor = dark
-        ? Colors.white.withOpacity(0.78)
+        ? Colors.white.withValues(alpha: 0.78)
         : const Color(0xFF475569);
 
     return attendeesAsync.when(
@@ -175,11 +175,11 @@ class _PreviewAvatar extends StatelessWidget {
 
     return CircleAvatar(
       radius: 17,
-      backgroundColor: dark ? Colors.white.withOpacity(0.92) : Colors.white,
+      backgroundColor: dark ? Colors.white.withValues(alpha: 0.92) : Colors.white,
       child: CircleAvatar(
         radius: 14.5,
         backgroundColor: dark
-            ? Colors.white.withOpacity(0.18)
+            ? Colors.white.withValues(alpha: 0.18)
             : const Color(0xFFF1F2FA),
         backgroundImage: hasPhoto ? NetworkImage(photoUrl) : null,
         child: !hasPhoto

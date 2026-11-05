@@ -17,10 +17,10 @@ class ProfileStatsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: PlanrDesign.cardLight.withOpacity(0.84),
+        color: PlanrDesign.cardLight.withValues(alpha: 0.84),
         borderRadius: BorderRadius.circular(30),
         border: Border.all(
-          color: Colors.white.withOpacity(0.95),
+          color: Colors.white.withValues(alpha: 0.95),
         ),
         boxShadow: [PlanrDesign.softShadow],
       ),
@@ -75,10 +75,10 @@ class _StatTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.48),
+        color: Colors.white.withValues(alpha: 0.48),
         borderRadius: BorderRadius.circular(23),
         border: Border.all(
-          color: Colors.white.withOpacity(0.92),
+          color: Colors.white.withValues(alpha: 0.92),
         ),
       ),
       child: Column(

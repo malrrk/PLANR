@@ -60,14 +60,14 @@ class ManagedPublicPagesScreen extends ConsumerWidget {
                 PlanrCard(
                   padding: const EdgeInsets.all(22),
                   radius: 30,
-                  color: PlanrDesign.cardLight.withOpacity(0.88),
+                  color: PlanrDesign.cardLight.withValues(alpha: 0.88),
                   child: Column(
                     children: [
                       Container(
                         width: 58,
                         height: 58,
                         decoration: BoxDecoration(
-                          color: PlanrDesign.accentSoft.withOpacity(0.75),
+                          color: PlanrDesign.accentSoft.withValues(alpha: 0.75),
                           borderRadius: BorderRadius.circular(22),
                         ),
                         child: const Icon(
@@ -146,7 +146,7 @@ class ManagedPublicPagesScreen extends ConsumerWidget {
             child: PlanrCard(
               padding: const EdgeInsets.all(22),
               radius: 30,
-              color: PlanrDesign.cardLight.withOpacity(0.88),
+              color: PlanrDesign.cardLight.withValues(alpha: 0.88),
               child: const Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -198,17 +198,17 @@ class _ManagedPagesIntroCard extends StatelessWidget {
     return PlanrCard(
       padding: const EdgeInsets.all(20),
       radius: 30,
-      color: PlanrDesign.cardLight.withOpacity(0.88),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.88),
       child: Row(
         children: [
           Container(
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: PlanrDesign.accentSoft.withOpacity(0.78),
+              color: PlanrDesign.accentSoft.withValues(alpha: 0.78),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: Colors.white.withOpacity(0.92),
+                color: Colors.white.withValues(alpha: 0.92),
               ),
             ),
             child: const Icon(
@@ -313,17 +313,17 @@ class _ManagedPageCard extends StatelessWidget {
       onTap: onTap,
       padding: const EdgeInsets.all(14),
       radius: 28,
-      color: PlanrDesign.cardLight.withOpacity(0.88),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.88),
       child: Row(
         children: [
           Container(
             width: 62,
             height: 62,
             decoration: BoxDecoration(
-              color: PlanrDesign.accentSoft.withOpacity(0.76),
+              color: PlanrDesign.accentSoft.withValues(alpha: 0.76),
               borderRadius: BorderRadius.circular(22),
               border: Border.all(
-                color: Colors.white.withOpacity(0.92),
+                color: Colors.white.withValues(alpha: 0.92),
               ),
             ),
             clipBehavior: Clip.antiAlias,
@@ -384,13 +384,13 @@ class _ManagedPageCard extends StatelessWidget {
                       Icon(
                         Icons.group_rounded,
                         size: 14,
-                        color: PlanrDesign.softMuted.withOpacity(0.85),
+                        color: PlanrDesign.softMuted.withValues(alpha: 0.85),
                       ),
                       const SizedBox(width: 4),
                       Text(
                         '${page.followerCount}',
                         style: TextStyle(
-                          color: PlanrDesign.softMuted.withOpacity(0.95),
+                          color: PlanrDesign.softMuted.withValues(alpha: 0.95),
                           fontSize: 12.5,
                           height: 1,
                           fontWeight: FontWeight.w900,
@@ -400,13 +400,13 @@ class _ManagedPageCard extends StatelessWidget {
                       Icon(
                         Icons.event_rounded,
                         size: 14,
-                        color: PlanrDesign.softMuted.withOpacity(0.85),
+                        color: PlanrDesign.softMuted.withValues(alpha: 0.85),
                       ),
                       const SizedBox(width: 4),
                       Text(
                         '${page.eventCount}',
                         style: TextStyle(
-                          color: PlanrDesign.softMuted.withOpacity(0.95),
+                          color: PlanrDesign.softMuted.withValues(alpha: 0.95),
                           fontSize: 12.5,
                           height: 1,
                           fontWeight: FontWeight.w900,
@@ -423,7 +423,7 @@ class _ManagedPageCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Material(
-                color: PlanrDesign.accentSoft.withOpacity(0.72),
+                color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
                 shape: const CircleBorder(),
                 child: InkWell(
                   onTap: onEdit,
@@ -489,7 +489,7 @@ class _RolePill extends StatelessWidget {
       height: 22,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: PlanrDesign.accentSoft.withOpacity(0.78),
+        color: PlanrDesign.accentSoft.withValues(alpha: 0.78),
         borderRadius: BorderRadius.circular(999),
       ),
       alignment: Alignment.center,

@@ -8,9 +8,11 @@ class EventDetailHeaderImage extends StatelessWidget {
   const EventDetailHeaderImage({
     super.key,
     required this.event,
+    this.onReport,
   });
 
   final Event event;
+  final VoidCallback? onReport;
 
   @override
   Widget build(BuildContext context) {
@@ -24,6 +26,21 @@ class EventDetailHeaderImage extends StatelessWidget {
       surfaceTintColor: Colors.transparent,
       automaticallyImplyLeading: false,
       leadingWidth: 66,
+      actions: [
+        if (onReport != null)
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: Tooltip(
+                message: 'Report event',
+                child: _HeaderIconButton(
+                  icon: Icons.flag_outlined,
+                  onTap: onReport!,
+                ),
+              ),
+            ),
+          ),
+      ],
       leading: Padding(
         padding: const EdgeInsets.only(left: 16),
         child: Center(
@@ -153,7 +170,7 @@ class _HeaderIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withOpacity(0.88),
+      color: Colors.white.withValues(alpha: 0.88),
       shape: const CircleBorder(),
       child: InkWell(
         onTap: onTap,
@@ -164,11 +181,11 @@ class _HeaderIconButton extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: Colors.white.withOpacity(0.96),
+              color: Colors.white.withValues(alpha: 0.96),
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.10),
+                color: Colors.black.withValues(alpha: 0.10),
                 blurRadius: 14,
                 offset: const Offset(0, 7),
               ),
@@ -198,14 +215,14 @@ class _GoingCountPill extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 72),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.74),
+        color: Colors.white.withValues(alpha: 0.74),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: Colors.white.withOpacity(0.96),
+          color: Colors.white.withValues(alpha: 0.96),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.055),
+            color: Colors.black.withValues(alpha: 0.055),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -257,8 +274,8 @@ class _VisibilityBadge extends StatelessWidget {
     final isPrivate = visibility == 'private';
 
     final backgroundColor = isPrivate
-        ? Colors.orange.withOpacity(0.15)
-        : PlanrDesign.accentSoft.withOpacity(0.78);
+        ? Colors.orange.withValues(alpha: 0.15)
+        : PlanrDesign.accentSoft.withValues(alpha: 0.78);
 
     final foregroundColor =
         isPrivate ? Colors.orange.shade800 : PlanrDesign.accentDark;
@@ -269,7 +286,7 @@ class _VisibilityBadge extends StatelessWidget {
         color: backgroundColor,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: Colors.white.withOpacity(0.92),
+          color: Colors.white.withValues(alpha: 0.92),
         ),
       ),
       child: Row(

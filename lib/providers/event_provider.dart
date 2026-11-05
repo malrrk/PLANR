@@ -11,19 +11,25 @@ import '../models/event_tag.dart';
 import '../models/event_update.dart';
 import '../models/public_page.dart';
 import 'firebase_providers.dart';
+import 'moderation_provider.dart';
 
 export '../models/event_update.dart';
 
+/// Upcoming public events only; past events stay reachable through My Planr and direct links.
 final eventsProvider = StreamProvider<List<Event>>((ref) {
+  final blocked = ref.watch(blockedUidsProvider).value ?? const <String>{};
+
   return FirebaseFirestore.instance
       .collection('events')
       .where('visibility', isEqualTo: 'public')
+      .where('date', isGreaterThanOrEqualTo: Timestamp.now())
       .orderBy('date')
       .snapshots()
       .map(
         (snapshot) => snapshot.docs
             .map((doc) => Event.fromMap(doc.data(), doc.id))
             .where((event) => event.eventKind == 'public')
+            .where((event) => !blocked.contains(event.creatorUid))
             .toList(),
       );
 });
@@ -175,6 +181,8 @@ final myEventInvitesProvider =
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return Stream.value([]);
 
+  final blocked = ref.watch(blockedUidsProvider).value ?? const <String>{};
+
   return FirebaseFirestore.instance
       .collection('users')
       .doc(user.uid)
@@ -182,11 +190,14 @@ final myEventInvitesProvider =
       .where('status', whereIn: ['pending', 'declined'])
       .snapshots()
       .map((snapshot) {
-    final invites = snapshot.docs.map((doc) {
-      final data = doc.data();
-      data['eventId'] = doc.id;
-      return data;
-    }).toList();
+    final invites = snapshot.docs
+        .map((doc) {
+          final data = doc.data();
+          data['eventId'] = doc.id;
+          return data;
+        })
+        .where((invite) => !blocked.contains(invite['invitedByUid']))
+        .toList();
 
     invites.sort((a, b) {
       final aStatus = a['status'] as String? ?? 'pending';
@@ -209,6 +220,15 @@ final myEventInvitesProvider =
   });
 });
 
+final pendingEventInvitesProvider =
+    Provider<AsyncValue<List<Map<String, dynamic>>>>((ref) {
+  return ref.watch(myEventInvitesProvider).whenData(
+    (invites) => invites
+    .where((invite) => (invite['status'] ?? 'pending') == 'pending')
+    .toList(),
+  );
+});
+
 final isGoingProvider = StreamProvider.family<bool, String>((ref, eventId) {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return Stream.value(false);
@@ -224,6 +244,8 @@ final isGoingProvider = StreamProvider.family<bool, String>((ref, eventId) {
 
 final eventMessagesProvider =
     StreamProvider.family<List<Map<String, dynamic>>, String>((ref, eventId) {
+  final blocked = ref.watch(blockedUidsProvider).value ?? const <String>{};
+
   return FirebaseFirestore.instance
       .collection('events')
       .doc(eventId)
@@ -231,11 +253,14 @@ final eventMessagesProvider =
       .orderBy('createdAt', descending: true)
       .limit(50)
       .snapshots()
-      .map((snapshot) => snapshot.docs.map((doc) {
+      .map((snapshot) => snapshot.docs
+          .map((doc) {
             final data = doc.data();
             data['id'] = doc.id;
             return data;
-          }).toList());
+          })
+          .where((message) => !blocked.contains(message['senderUid']))
+          .toList());
 });
 
 class LinkedGroupCreationResult {
@@ -266,8 +291,31 @@ final eventUpdatesProvider =
   });
 });
 
+/// User-facing failure raised inside a transaction.
+class _ServiceMessage implements Exception {
+  const _ServiceMessage(this.message);
+
+  final String message;
+}
+
+/// Returns a message when event text is missing or longer than the database allows.
+String? _eventTextError(String title, String description, String address) {
+  if (title.isEmpty || description.isEmpty || address.isEmpty) {
+    return 'Please fill in all fields.';
+  }
+  if (title.length > 120) return 'Title can be at most 120 characters.';
+  if (description.length > 2000) {
+    return 'Description can be at most 2000 characters.';
+  }
+  if (address.length > 200) return 'Address can be at most 200 characters.';
+  return null;
+}
+
 class EventService {
   EventService(this._firestore, this._storage, this._auth);
+
+  static final SettableMetadata _imageMetadata =
+      SettableMetadata(contentType: 'image/jpeg');
 
   final FirebaseFirestore _firestore;
   final FirebaseStorage _storage;
@@ -283,6 +331,50 @@ class EventService {
         .doc(uid)
         .collection('my_events')
         .doc(eventId);
+  }
+
+  /// Keeps the event details shown on pending and declined invites current. Best effort.
+  Future<void> _syncInviteCopies(
+    String eventId,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final invites = await _firestore
+          .collection('events')
+          .doc(eventId)
+          .collection('invites')
+          .get();
+
+      await Future.wait([
+        for (final invite in invites.docs) ...[
+          invite.reference.update(data).catchError((_) {}),
+          _firestore
+              .collection('users')
+              .doc(invite.id)
+              .collection('event_invites')
+              .doc(eventId)
+              .update(data)
+              .catchError((_) {}),
+        ],
+      ]);
+    } catch (_) {}
+  }
+
+  /// Runs operations in sequential batches; one Firestore batch is capped at 500 writes.
+  Future<void> _commitInChunks(
+    List<void Function(WriteBatch batch)> operations, {
+    int chunkSize = 400,
+  }) async {
+    for (var i = 0; i < operations.length; i += chunkSize) {
+      final end = i + chunkSize > operations.length
+          ? operations.length
+          : i + chunkSize;
+      final batch = _firestore.batch();
+      for (final operation in operations.sublist(i, end)) {
+        operation(batch);
+      }
+      await batch.commit();
+    }
   }
 
   Map<String, dynamic> _attendeeData(User user, String role) {
@@ -327,11 +419,9 @@ class EventService {
       final trimmedAddress = address.trim();
       final sanitizedTags = sanitizeEventTagIds(tags);
 
-      if (trimmedTitle.isEmpty ||
-          trimmedDescription.isEmpty ||
-          trimmedAddress.isEmpty) {
-        return 'Please fill in all fields.';
-      }
+      final textError =
+          _eventTextError(trimmedTitle, trimmedDescription, trimmedAddress);
+      if (textError != null) return textError;
 
       if (date.isBefore(DateTime.now())) {
         return 'Event date must be in the future.';
@@ -369,7 +459,7 @@ class EventService {
       String? imageUrl;
       if (imageFile != null) {
         final ref = _storage.ref().child('events/${user.uid}/$eventId.jpg');
-        await ref.putFile(imageFile);
+        await ref.putFile(imageFile, _imageMetadata);
         imageUrl = await ref.getDownloadURL();
       }
 
@@ -586,29 +676,33 @@ class EventService {
         return 'You are already going.';
       }
 
-      final eventDoc = await eventRef.get();
-      if (!eventDoc.exists || eventDoc.data() == null) {
-        return 'Event not found.';
-      }
+      await _firestore.runTransaction((transaction) async {
+        final attendeeSnapshot = await transaction.get(attendeeRef);
+        if (attendeeSnapshot.exists) {
+          throw const _ServiceMessage('You are already going.');
+        }
 
-      final eventData = eventDoc.data()!;
+        final eventSnapshot = await transaction.get(eventRef);
+        final eventData = eventSnapshot.data();
+        if (eventData == null) {
+          throw const _ServiceMessage('Event not found.');
+        }
 
-      final batch = _firestore.batch();
-
-      batch.set(attendeeRef, _attendeeData(user, 'member'));
-
-      batch.update(eventRef, {
-        'attendeeCount': FieldValue.increment(1),
+        transaction.set(attendeeRef, _attendeeData(user, 'member'));
+        transaction.update(eventRef, {
+          'attendeeCount': FieldValue.increment(1),
+        });
+        transaction.set(myEventRef, {
+          ...eventData,
+          'attendeeCount':
+              (eventData['attendeeCount'] as num? ?? 0).toInt() + 1,
+          'lastReadMessageAt': eventData['lastMessageAt'],
+        });
       });
-
-      batch.set(myEventRef, {
-        ...eventData,
-        'lastReadMessageAt': eventData['lastMessageAt'],
-      });
-
-      await batch.commit();
 
       return null;
+    } on _ServiceMessage catch (e) {
+      return e.message;
     } catch (_) {
       return 'Failed to join event.';
     }
@@ -627,24 +721,22 @@ class EventService {
       final attendeeRef = eventRef.collection('attendees').doc(user.uid);
       final myEventRef = _myEventRef(user.uid, event.id);
 
-      final attendeeDoc = await attendeeRef.get();
-      if (!attendeeDoc.exists) {
-        return 'You are not going to this event.';
-      }
+      await _firestore.runTransaction((transaction) async {
+        final attendeeSnapshot = await transaction.get(attendeeRef);
+        if (!attendeeSnapshot.exists) {
+          throw const _ServiceMessage('You are not going to this event.');
+        }
 
-      final batch = _firestore.batch();
-
-      batch.delete(attendeeRef);
-
-      batch.update(eventRef, {
-        'attendeeCount': FieldValue.increment(-1),
+        transaction.delete(attendeeRef);
+        transaction.update(eventRef, {
+          'attendeeCount': FieldValue.increment(-1),
+        });
+        transaction.delete(myEventRef);
       });
 
-      batch.delete(myEventRef);
-
-      await batch.commit();
-
       return null;
+    } on _ServiceMessage catch (e) {
+      return e.message;
     } catch (_) {
       return 'Failed to leave event.';
     }
@@ -658,13 +750,6 @@ class EventService {
       if (user == null) return 'No user logged in.';
 
       final eventRef = _firestore.collection('events').doc(eventId);
-      final eventDoc = await eventRef.get();
-
-      if (!eventDoc.exists || eventDoc.data() == null) {
-        return 'Event not found.';
-      }
-
-      final eventData = eventDoc.data()!;
 
       final userInviteRef = _firestore
           .collection('users')
@@ -676,50 +761,51 @@ class EventService {
       final attendeeRef = eventRef.collection('attendees').doc(user.uid);
       final myEventRef = _myEventRef(user.uid, eventId);
 
-      final attendeeDoc = await attendeeRef.get();
-      if (attendeeDoc.exists) {
-        return 'You are already going.';
-      }
+      await _firestore.runTransaction((transaction) async {
+        final attendeeSnapshot = await transaction.get(attendeeRef);
+        if (attendeeSnapshot.exists) {
+          throw const _ServiceMessage('You are already going.');
+        }
 
-      final inviteDoc = await inviteRef.get();
-      if (!inviteDoc.exists) {
-        return 'Invite not found.';
-      }
+        final inviteSnapshot = await transaction.get(inviteRef);
+        if (!inviteSnapshot.exists) {
+          throw const _ServiceMessage('Invite not found.');
+        }
 
-      final inviteData = inviteDoc.data();
-      final inviteStatus = inviteData?['status'] as String?;
+        final inviteStatus = inviteSnapshot.data()?['status'] as String?;
+        if (inviteStatus != 'pending' && inviteStatus != 'declined') {
+          throw const _ServiceMessage('Invite is no longer available.');
+        }
 
-      if (inviteStatus != 'pending' && inviteStatus != 'declined') {
-        return 'Invite is no longer available.';
-      }
+        final eventSnapshot = await transaction.get(eventRef);
+        final eventData = eventSnapshot.data();
+        if (eventData == null) {
+          throw const _ServiceMessage('Event not found.');
+        }
 
-      final batch = _firestore.batch();
-
-      batch.set(attendeeRef, _attendeeData(user, 'member'));
-
-      batch.update(inviteRef, {
-        'status': 'accepted',
-        'acceptedAt': FieldValue.serverTimestamp(),
+        transaction.set(attendeeRef, _attendeeData(user, 'member'));
+        transaction.update(inviteRef, {
+          'status': 'accepted',
+          'acceptedAt': FieldValue.serverTimestamp(),
+        });
+        transaction.update(eventRef, {
+          'attendeeCount': FieldValue.increment(1),
+        });
+        transaction.update(userInviteRef, {
+          'status': 'accepted',
+          'acceptedAt': FieldValue.serverTimestamp(),
+        });
+        transaction.set(myEventRef, {
+          ...eventData,
+          'attendeeCount':
+              (eventData['attendeeCount'] as num? ?? 0).toInt() + 1,
+          'lastReadMessageAt': eventData['lastMessageAt'],
+        });
       });
-
-      batch.update(eventRef, {
-        'attendeeCount': FieldValue.increment(1),
-      });
-
-      batch.update(userInviteRef, {
-        'status': 'accepted',
-        'acceptedAt': FieldValue.serverTimestamp(),
-      });
-
-      batch.set(myEventRef, {
-        ...eventData,
-        'attendeeCount': (eventData['attendeeCount'] as num? ?? 0).toInt() + 1,
-        'lastReadMessageAt': eventData['lastMessageAt'],
-      });
-
-      await batch.commit();
 
       return null;
+    } on _ServiceMessage catch (e) {
+      return e.message;
     } catch (_) {
       return 'Failed to accept invite.';
     }
@@ -858,17 +944,19 @@ class EventService {
       final trimmedAddress = address.trim();
       final sanitizedTags = sanitizeEventTagIds(tags);
 
-      if (trimmedTitle.isEmpty ||
-          trimmedDescription.isEmpty ||
-          trimmedAddress.isEmpty) {
-        return 'Please fill in all fields.';
+      final textError =
+          _eventTextError(trimmedTitle, trimmedDescription, trimmedAddress);
+      if (textError != null) return textError;
+
+      if (!date.isAtSameMomentAs(event.date) && date.isBefore(DateTime.now())) {
+        return 'Event date must be in the future.';
       }
 
       String? imageUrl = event.imageUrl;
 
       if (newImageFile != null) {
         final ref = _storage.ref().child('events/${user.uid}/${event.id}.jpg');
-        await ref.putFile(newImageFile);
+        await ref.putFile(newImageFile, _imageMetadata);
         imageUrl = await ref.getDownloadURL();
       }
 
@@ -892,21 +980,25 @@ class EventService {
       final eventRef = _firestore.collection('events').doc(event.id);
       final attendeesSnapshot = await eventRef.collection('attendees').get();
 
-      final batch = _firestore.batch();
+      await eventRef.update(updateData);
 
-      batch.update(eventRef, updateData);
+      await _commitInChunks([
+        for (final attendee in attendeesSnapshot.docs)
+          (batch) => batch.set(
+                _myEventRef(attendee.id, event.id),
+                updateData,
+                SetOptions(merge: true),
+              ),
+      ]);
 
-      for (final attendee in attendeesSnapshot.docs) {
-        final attendeeMyEventRef = _myEventRef(attendee.id, event.id);
-
-        batch.set(
-          attendeeMyEventRef,
-          updateData,
-          SetOptions(merge: true),
-        );
-      }
-
-      await batch.commit();
+      await _syncInviteCopies(event.id, {
+        'eventTitle': trimmedTitle,
+        'eventDescription': trimmedDescription,
+        'eventImageUrl': imageUrl,
+        'eventAddress': trimmedAddress,
+        'eventTags': sanitizedTags,
+        'eventDate': Timestamp.fromDate(date),
+      });
 
       return null;
     } catch (_) {
@@ -929,52 +1021,49 @@ class EventService {
       final invitesSnapshot = await eventRef.collection('invites').get();
       final messagesSnapshot = await eventRef.collection('messages').get();
 
-      final batch = _firestore.batch();
+      // The event document goes last so creator-only rules keep passing for the children.
+      final operations = <void Function(WriteBatch)>[];
 
       for (final attendeeDoc in attendeesSnapshot.docs) {
-        final attendeeUid = attendeeDoc.id;
-
-        batch.delete(attendeeDoc.reference);
-
-        final attendeeMyEventRef = _myEventRef(attendeeUid, event.id);
-
-        batch.delete(attendeeMyEventRef);
-      }
-
-      for (final inviteDoc in invitesSnapshot.docs) {
-        batch.delete(inviteDoc.reference);
-
-        final invitedUid = inviteDoc.id;
-
-        final userInviteRef = _firestore
-            .collection('users')
-            .doc(invitedUid)
-            .collection('event_invites')
-            .doc(event.id);
-
-        batch.delete(userInviteRef);
-      }
-
-      for (final messageDoc in messagesSnapshot.docs) {
-        batch.delete(messageDoc.reference);
-      }
-
-      final creatorMyEventRef = _myEventRef(user.uid, event.id);
-
-      batch.delete(creatorMyEventRef);
-      batch.delete(eventRef);
-
-      if (event.isOrganizedByPage) {
-        final pageRef =
-            _firestore.collection('public_pages').doc(event.organizerId);
-
-        batch.update(pageRef, {
-          'eventCount': FieldValue.increment(-1),
-          'updatedAt': FieldValue.serverTimestamp(),
+        operations.add((batch) {
+          batch.delete(attendeeDoc.reference);
+          batch.delete(_myEventRef(attendeeDoc.id, event.id));
         });
       }
 
-      await batch.commit();
+      for (final inviteDoc in invitesSnapshot.docs) {
+        operations.add((batch) {
+          batch.delete(inviteDoc.reference);
+          batch.delete(
+            _firestore
+                .collection('users')
+                .doc(inviteDoc.id)
+                .collection('event_invites')
+                .doc(event.id),
+          );
+        });
+      }
+
+      for (final messageDoc in messagesSnapshot.docs) {
+        operations.add((batch) => batch.delete(messageDoc.reference));
+      }
+
+      operations.add((batch) {
+        batch.delete(_myEventRef(user.uid, event.id));
+        batch.delete(eventRef);
+      });
+
+      await _commitInChunks(operations, chunkSize: 200);
+
+      if (event.isOrganizedByPage) {
+        // Only managers may change the counter; a former admin deleting their event must still succeed.
+        try {
+          await _firestore.collection('public_pages').doc(event.organizerId).update({
+            'eventCount': FieldValue.increment(-1),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        } catch (_) {}
+      }
 
       if (event.imageUrl != null) {
         try {
@@ -998,6 +1087,7 @@ class EventService {
 
       final trimmedText = text.trim();
       if (trimmedText.isEmpty) return 'Message cannot be empty.';
+      if (trimmedText.length > 1000) return 'Message is too long.';
 
       if (event.isPublicEvent || !event.chatEnabled) {
         return 'Chat is disabled for this event.';

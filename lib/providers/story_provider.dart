@@ -11,6 +11,7 @@ import '../models/story.dart';
 import 'friends_provider.dart';
 import 'dart:async';
 import 'firebase_providers.dart';
+import 'moderation_provider.dart';
 import 'public_page_provider.dart';
 
 class StoryGroup {
@@ -79,6 +80,7 @@ final friendsStoriesProvider = StreamProvider<List<Story>>((ref) {
   final friendsAsync = ref.watch(myFriendsProvider);
   final followedPagesAsync = ref.watch(followedPagesProvider);
   final managedPagesAsync = ref.watch(myManagedPublicPagesProvider);
+  final blocked = ref.watch(blockedUidsProvider).value ?? const <String>{};
 
   return friendsAsync.when(
     data: (friends) {
@@ -89,7 +91,7 @@ final friendsStoriesProvider = StreamProvider<List<Story>>((ref) {
               final allowedUserIds = <String>{
                 user.uid,
                 ...friends.map((e) => e.uid),
-              }.toList();
+              }.where((uid) => !blocked.contains(uid)).toList();
 
               final allowedPageIds = <String>{
                 ...followedPages.map((page) => page.id),
@@ -254,6 +256,16 @@ class StoryService {
 
   static const int storyVisibleDays = 7; // changeable
 
+  /// Stories stay pinnable for 30 days; a Firestore TTL policy on `purgeAt` then removes them.
+  static const int storyRetentionDays = 30;
+
+  static Timestamp _purgeAt(DateTime createdAt) => Timestamp.fromDate(
+        createdAt.add(const Duration(days: storyRetentionDays)),
+      );
+
+  static final SettableMetadata _imageMetadata =
+      SettableMetadata(contentType: 'image/jpeg');
+
   List<String> _pinnedUrls(Map<String, dynamic>? userData) {
     return (userData?['pinnedStoryImageUrls'] as List<dynamic>?)
             ?.whereType<String>()
@@ -275,7 +287,7 @@ class StoryService {
 
       final ref = _storage.ref().child('stories/${user.uid}/$storyId.jpg');
 
-      await ref.putFile(file);
+      await ref.putFile(file, _imageMetadata);
       final imageUrl = await ref.getDownloadURL();
 
       final story = Story(
@@ -293,7 +305,10 @@ class StoryService {
         isPublicPreview: false,
       );
 
-      await _firestore.collection('stories').doc(storyId).set(story.toMap());
+      await _firestore
+          .collection('stories')
+          .doc(storyId)
+          .set({...story.toMap(), 'purgeAt': _purgeAt(now)});
 
       return null;
     } catch (_) {
@@ -327,7 +342,7 @@ class StoryService {
           .ref()
           .child('stories/public_pages/${page.id}/$storyId.jpg');
 
-      await ref.putFile(file);
+      await ref.putFile(file, _imageMetadata);
       final imageUrl = await ref.getDownloadURL();
 
       final story = Story(
@@ -345,7 +360,10 @@ class StoryService {
         isPublicPreview: isPublicPreview,
       );
 
-      await _firestore.collection('stories').doc(storyId).set(story.toMap());
+      await _firestore
+          .collection('stories')
+          .doc(storyId)
+          .set({...story.toMap(), 'purgeAt': _purgeAt(now)});
 
       return null;
     } catch (_) {

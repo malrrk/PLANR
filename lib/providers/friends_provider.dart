@@ -1,10 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
 
 import '../models/user_profile.dart';
 import 'firebase_providers.dart';
+import 'moderation_provider.dart';
+
+/// One request per ordered pair; Firestore rules rely on this id format.
+String friendRequestId({required String fromUid, required String toUid}) {
+  return '${fromUid}_$toUid';
+}
+
+/// A declined request can be sent again after this long (mirrored in the Firestore rules).
+const Duration friendRequestCooldown = Duration(days: 7);
 
 final friendsServiceProvider = Provider<FriendsService>((ref) {
   return FriendsService(
@@ -34,17 +42,22 @@ final incomingFriendRequestsProvider =
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return Stream.value([]);
 
+  final blocked = ref.watch(blockedUidsProvider).value ?? const <String>{};
+
   return FirebaseFirestore.instance
       .collection('friend_requests')
       .where('toUid', isEqualTo: user.uid)
       .where('status', isEqualTo: 'pending')
       .snapshots()
       .map(
-        (snapshot) => snapshot.docs.map((doc) {
-          final data = doc.data();
-          data['docId'] = doc.id;
-          return data;
-        }).toList(),
+        (snapshot) => snapshot.docs
+            .map((doc) {
+              final data = doc.data();
+              data['docId'] = doc.id;
+              return data;
+            })
+            .where((request) => !blocked.contains(request['fromUid']))
+            .toList(),
       );
 });
 
@@ -152,7 +165,6 @@ class FriendsService {
 
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
-  final Uuid _uuid = const Uuid();
 
   Future<String?> sendFriendRequest({
     required UserProfile toUser,
@@ -161,40 +173,99 @@ class FriendsService {
     if (me == null) return 'No user logged in.';
     if (me.uid == toUser.uid) return 'You cannot add yourself.';
 
-    final existing = await _firestore
-        .collection('friend_requests')
-        .where('fromUid', isEqualTo: me.uid)
-        .where('toUid', isEqualTo: toUser.uid)
-        .where('status', isEqualTo: 'pending')
-        .limit(1)
-        .get();
+    try {
+      final sent = await _firestore
+          .collection('friend_requests')
+          .where('fromUid', isEqualTo: me.uid)
+          .where('toUid', isEqualTo: toUser.uid)
+          .limit(1)
+          .get();
 
-    if (existing.docs.isNotEmpty) {
-      return 'Request already sent.';
+      if (sent.docs.isNotEmpty) {
+        final previous = sent.docs.first.data();
+
+        if (previous['status'] == 'pending') {
+          return 'Request already sent.';
+        }
+
+        final declinedAt = previous['declinedAt'];
+        if (previous['status'] == 'declined' &&
+            (declinedAt is! Timestamp ||
+                DateTime.now().difference(declinedAt.toDate()) <
+                    friendRequestCooldown)) {
+          return 'You cannot send another request right now.';
+        }
+      }
+
+      final received = await _firestore
+          .collection('friend_requests')
+          .where('fromUid', isEqualTo: toUser.uid)
+          .where('toUid', isEqualTo: me.uid)
+          .where('status', isEqualTo: 'pending')
+          .limit(1)
+          .get();
+
+      if (received.docs.isNotEmpty) {
+        return '${toUser.displayName} already sent you a request. '
+            'Accept it in your friend requests.';
+      }
+
+      final alreadyFriends = await _firestore
+          .collection('users')
+          .doc(me.uid)
+          .collection('friends')
+          .doc(toUser.uid)
+          .get();
+
+      if (alreadyFriends.exists) {
+        return 'You are already friends.';
+      }
+
+      await _firestore
+          .collection('friend_requests')
+          .doc(friendRequestId(fromUid: me.uid, toUid: toUser.uid))
+          .set({
+        'fromUid': me.uid,
+        'fromDisplayName': me.displayName ?? 'User',
+        'fromPhotoUrl': me.photoURL,
+        'toUid': toUser.uid,
+        'toDisplayName': toUser.displayName,
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException {
+      return 'Could not send friend request.';
     }
-
-    final alreadyFriends = await _firestore
-        .collection('users')
-        .doc(me.uid)
-        .collection('friends')
-        .doc(toUser.uid)
-        .get();
-
-    if (alreadyFriends.exists) {
-      return 'You are already friends.';
-    }
-
-    await _firestore.collection('friend_requests').doc(_uuid.v4()).set({
-      'fromUid': me.uid,
-      'fromDisplayName': me.displayName ?? 'User',
-      'fromPhotoUrl': me.photoURL,
-      'toUid': toUser.uid,
-      'toDisplayName': toUser.displayName,
-      'status': 'pending',
-      'createdAt': FieldValue.serverTimestamp(),
-    });
 
     return null;
+  }
+
+  Future<String?> declineFriendRequest({required String requestId}) async {
+    final user = _auth.currentUser;
+    if (user == null) return 'No user logged in.';
+    if (requestId.trim().isEmpty) return 'Friend request not found.';
+
+    try {
+      final requestRef = _firestore.collection('friend_requests').doc(requestId);
+      return await _firestore.runTransaction<String?>((transaction) async {
+        final snapshot = await transaction.get(requestRef);
+        final request = snapshot.data();
+        if (request == null) return 'Friend request not found.';
+        if (request['toUid'] != user.uid) {
+          return 'Only the receiving user can decline this request.';
+        }
+        if (request['status'] != 'pending') {
+          return 'Friend request is no longer pending.';
+        }
+        transaction.update(requestRef, {
+          'status': 'declined',
+          'declinedAt': FieldValue.serverTimestamp(),
+        });
+        return null;
+      });
+    } catch (_) {
+      return 'Could not decline request.';
+    }
   }
 
   Future<String?> removeFriend({
@@ -224,8 +295,8 @@ class FriendsService {
 
       await batch.commit();
       return null;
-    } catch (e) {
-      return 'Failed to remove friend: $e';
+    } catch (_) {
+      return 'Failed to remove friend.';
     }
   }
 
@@ -289,8 +360,8 @@ class FriendsService {
 
       await batch.commit();
       return null;
-    } catch (e) {
-      return 'Failed to accept request: $e';
+    } catch (_) {
+      return 'Failed to accept request.';
     }
   }
 }

@@ -29,10 +29,10 @@ class EventDetailAttendeesPreview extends ConsumerWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.42),
+            color: Colors.white.withValues(alpha: 0.42),
             borderRadius: BorderRadius.circular(26),
             border: Border.all(
-              color: Colors.white.withOpacity(0.92),
+              color: Colors.white.withValues(alpha: 0.92),
             ),
           ),
           child: Row(
@@ -58,7 +58,7 @@ class EventDetailAttendeesPreview extends ConsumerWidget {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: PlanrDesign.accentSoft.withOpacity(0.72),
+                    color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -120,7 +120,7 @@ class _AttendeeAvatar extends StatelessWidget {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),

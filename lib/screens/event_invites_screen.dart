@@ -31,7 +31,7 @@ class _EventInvitesScreenState extends ConsumerState<EventInvitesScreen> {
         .read(eventServiceProvider)
         .acceptEventInvite(eventId: eventId);
 
-    if (!mounted) return;
+    if (!mounted || !context.mounted) return;
 
     setState(() {
       _processingInviteIds.remove(eventId);
@@ -55,7 +55,7 @@ class _EventInvitesScreenState extends ConsumerState<EventInvitesScreen> {
         .read(eventServiceProvider)
         .declineEventInvite(eventId: eventId);
 
-    if (!mounted) return;
+    if (!mounted || !context.mounted) return;
 
     setState(() {
       _processingInviteIds.remove(eventId);
@@ -239,10 +239,10 @@ class _InviteCard extends StatelessWidget {
                       width: 38,
                       height: 38,
                       decoration: BoxDecoration(
-                        color: PlanrDesign.accentSoft.withOpacity(0.75),
+                        color: PlanrDesign.accentSoft.withValues(alpha: 0.75),
                         borderRadius: BorderRadius.circular(15),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                         ),
                       ),
                       child: Icon(
@@ -367,7 +367,7 @@ class _InviteImageHeader extends StatelessWidget {
       height: 168,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: PlanrDesign.accentSoft.withOpacity(0.45),
+        color: PlanrDesign.accentSoft.withValues(alpha: 0.45),
         borderRadius: const BorderRadius.vertical(
           top: Radius.circular(30),
         ),
@@ -386,9 +386,9 @@ class _InviteImageHeader extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    PlanrDesign.cardLight.withOpacity(0.95),
-                    PlanrDesign.accentSoft.withOpacity(0.58),
-                    const Color(0xFFFFE3CC).withOpacity(0.78),
+                    PlanrDesign.cardLight.withValues(alpha: 0.95),
+                    PlanrDesign.accentSoft.withValues(alpha: 0.58),
+                    const Color(0xFFFFE3CC).withValues(alpha: 0.78),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,

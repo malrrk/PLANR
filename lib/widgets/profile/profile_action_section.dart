@@ -9,6 +9,9 @@ class ProfileActionSection extends StatelessWidget {
     required this.onFriends,
     required this.onFindFriends,
     required this.onFriendRequests,
+    required this.onBlockedUsers,
+    required this.onLegal,
+    required this.onDeleteAccount,
     required this.onLogout,
   });
 
@@ -16,6 +19,9 @@ class ProfileActionSection extends StatelessWidget {
   final VoidCallback onFriends;
   final VoidCallback onFindFriends;
   final VoidCallback onFriendRequests;
+  final VoidCallback onBlockedUsers;
+  final VoidCallback onLegal;
+  final VoidCallback onDeleteAccount;
   final VoidCallback onLogout;
 
   @override
@@ -58,11 +64,30 @@ class ProfileActionSection extends StatelessWidget {
               onTap: onEditProfile,
             ),
             _ActionRow(
+              icon: Icons.block_rounded,
+              title: 'Blocked users',
+              subtitle: 'Manage who you blocked',
+              onTap: onBlockedUsers,
+            ),
+            _ActionRow(
+              icon: Icons.policy_rounded,
+              title: 'Terms & Privacy',
+              subtitle: 'Community rules and your data',
+              onTap: onLegal,
+            ),
+            _ActionRow(
               icon: Icons.logout_rounded,
               title: 'Log out',
               subtitle: 'Leave this device',
               danger: true,
               onTap: onLogout,
+            ),
+            _ActionRow(
+              icon: Icons.delete_forever_rounded,
+              title: 'Delete account',
+              subtitle: 'Permanently remove your data',
+              danger: true,
+              onTap: onDeleteAccount,
             ),
           ],
         ),
@@ -86,10 +111,10 @@ class _ActionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: PlanrDesign.cardLight.withOpacity(0.86),
+        color: PlanrDesign.cardLight.withValues(alpha: 0.86),
         borderRadius: BorderRadius.circular(30),
         border: Border.all(
-          color: Colors.white.withOpacity(0.95),
+          color: Colors.white.withValues(alpha: 0.95),
         ),
         boxShadow: [PlanrDesign.softShadow],
       ),
@@ -128,7 +153,7 @@ class _ActionCardHeader extends StatelessWidget {
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: PlanrDesign.accentSoft.withOpacity(0.72),
+            color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
             borderRadius: BorderRadius.circular(15),
           ),
           child: Icon(
@@ -191,12 +216,12 @@ class _ActionRow extends StatelessWidget {
     final accent = danger ? Colors.red.shade600 : PlanrDesign.accentDark;
     final background = danger
         ? Colors.red.shade50
-        : PlanrDesign.accentSoft.withOpacity(0.62);
+        : PlanrDesign.accentSoft.withValues(alpha: 0.62);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: Colors.white.withOpacity(0.46),
+        color: Colors.white.withValues(alpha: 0.46),
         borderRadius: BorderRadius.circular(22),
         child: InkWell(
           borderRadius: BorderRadius.circular(22),
@@ -206,7 +231,7 @@ class _ActionRow extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(22),
               border: Border.all(
-                color: Colors.white.withOpacity(0.92),
+                color: Colors.white.withValues(alpha: 0.92),
               ),
             ),
             child: Row(

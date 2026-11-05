@@ -22,10 +22,10 @@ class ProfileHeader extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: PlanrDesign.cardLight.withOpacity(0.88),
+        color: PlanrDesign.cardLight.withValues(alpha: 0.88),
         borderRadius: BorderRadius.circular(34),
         border: Border.all(
-          color: Colors.white.withOpacity(0.95),
+          color: Colors.white.withValues(alpha: 0.95),
           width: 1.1,
         ),
         boxShadow: [PlanrDesign.softShadow],
@@ -125,7 +125,7 @@ class _CoverImage extends StatelessWidget {
               child: Icon(
                 Icons.auto_awesome_rounded,
                 size: 62,
-                color: Colors.white.withOpacity(0.34),
+                color: Colors.white.withValues(alpha: 0.34),
               ),
             ),
           ),
@@ -135,14 +135,14 @@ class _CoverImage extends StatelessWidget {
             child: Icon(
               Icons.favorite_rounded,
               size: 56,
-              color: Colors.white.withOpacity(0.22),
+              color: Colors.white.withValues(alpha: 0.22),
             ),
           ),
           Center(
             child: Icon(
               Icons.waving_hand_rounded,
               size: 58,
-              color: Colors.white.withOpacity(0.74),
+              color: Colors.white.withValues(alpha: 0.74),
             ),
           ),
         ],
@@ -189,7 +189,7 @@ class _ProfileAvatar extends StatelessWidget {
         gradient: PlanrDesign.storyRingGradient,
         boxShadow: [
           BoxShadow(
-            color: PlanrDesign.accent.withOpacity(0.16),
+            color: PlanrDesign.accent.withValues(alpha: 0.16),
             blurRadius: 26,
             offset: const Offset(0, 13),
           ),
@@ -226,10 +226,10 @@ class _UsernamePill extends StatelessWidget {
         vertical: 7,
       ),
       decoration: BoxDecoration(
-        color: PlanrDesign.accentSoft.withOpacity(0.72),
+        color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: Colors.white.withOpacity(0.92),
+          color: Colors.white.withValues(alpha: 0.92),
         ),
       ),
       child: Text(

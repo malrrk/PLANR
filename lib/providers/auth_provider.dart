@@ -1,8 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'firebase_providers.dart';
+
+/// True while sign-up is creating the account and its profile documents.
+final ValueNotifier<bool> signUpInProgress = ValueNotifier<bool>(false);
 
 final authStateProvider = StreamProvider<User?>((ref) {
   return ref.watch(firebaseAuthProvider).authStateChanges();
@@ -20,6 +24,10 @@ final usernameAvailabilityProvider =
   final service = ref.read(authProvider);
   return service.isUsernameAvailable(username);
 });
+
+class _UsernameTakenException implements Exception {
+  const _UsernameTakenException();
+}
 
 class AuthService {
   AuthService(this._auth, this._firestore);
@@ -140,6 +148,11 @@ class AuthService {
       return usernameError;
     }
 
+    if (trimmedName.length > 60) {
+      return 'Name can be at most 60 characters.';
+    }
+
+    signUpInProgress.value = true;
     try {
       final usernameDoc =
           await _firestore.collection('usernames').doc(normalizedUsername).get();
@@ -171,10 +184,7 @@ class AuthService {
           final usernameSnapshot = await transaction.get(usernameRef);
 
           if (usernameSnapshot.exists) {
-            throw FirebaseException(
-              plugin: 'cloud_firestore',
-              message: 'Username is already taken.',
-            );
+            throw const _UsernameTakenException();
           }
 
           transaction.set(usernameRef, {
@@ -190,12 +200,17 @@ class AuthService {
             'displayName': trimmedName,
             'username': normalizedUsername,
             'usernameLower': normalizedUsername,
-            'email': trimmedEmail,
             'photoUrl': user.photoURL,
             'bio': null,
             'createdAt': FieldValue.serverTimestamp(),
           });
         });
+
+        try {
+          await user.sendEmailVerification();
+        } catch (_) {
+          // The profile banner lets users request the email again.
+        }
 
         return null;
       } catch (e) {
@@ -203,16 +218,18 @@ class AuthService {
           await user.delete();
         } catch (_) {}
 
-        if (e is FirebaseException && e.message != null) {
-          return e.message;
+        if (e is _UsernameTakenException) {
+          return 'Username is already taken.';
         }
 
-        return 'Could not reserve username.';
+        return 'Could not finish creating your account. Please try again.';
       }
     } on FirebaseAuthException catch (e) {
       return _authErrorMessage(e);
     } catch (_) {
       return 'Something went wrong.';
+    } finally {
+      signUpInProgress.value = false;
     }
   }
 
@@ -267,6 +284,23 @@ class AuthService {
       return _authErrorMessage(e);
     } catch (_) {
       return 'Something went wrong.';
+    }
+  }
+
+  Future<String?> resetPassword({required String email}) async {
+    final trimmedEmail = email.trim();
+    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(trimmedEmail)) {
+      return 'Please enter a valid email address.';
+    }
+
+    try {
+      await _auth.sendPasswordResetEmail(email: trimmedEmail);
+      return null;
+    } on FirebaseAuthException catch (error) {
+      if (error.code == 'user-not-found') return null;
+      return _authErrorMessage(error);
+    } catch (_) {
+      return 'Something went wrong. Please try again.';
     }
   }
 

@@ -11,6 +11,7 @@ import '../core/widgets/planr_empty_state.dart';
 import '../core/widgets/planr_scaffold.dart';
 import '../models/user_profile.dart';
 import '../providers/friends_provider.dart';
+import '../providers/moderation_provider.dart';
 import '../providers/user_profile_provider.dart';
 import 'profile_screen.dart';
 
@@ -106,9 +107,11 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(currentFirebaseUserProvider);
     final currentUser = authState.value;
+    final blocked = ref.watch(blockedUidsProvider).value ?? const <String>{};
 
     final visibleResults = _results
         .where((user) => user.uid != currentUser?.uid)
+        .where((user) => !blocked.contains(user.uid))
         .toList();
 
     return PlanrScaffold(
@@ -230,10 +233,10 @@ class _SearchHeader extends StatelessWidget {
           const SizedBox(height: 14),
           Container(
             decoration: BoxDecoration(
-              color: PlanrDesign.cardLight.withOpacity(0.88),
+              color: PlanrDesign.cardLight.withValues(alpha: 0.88),
               borderRadius: BorderRadius.circular(22),
               border: Border.all(
-                color: Colors.white.withOpacity(0.95),
+                color: Colors.white.withValues(alpha: 0.95),
               ),
             ),
             child: TextField(
@@ -309,7 +312,7 @@ class _UserSearchResultCard extends ConsumerWidget {
       padding: EdgeInsets.zero,
       radius: 26,
       shadow: false,
-      color: PlanrDesign.cardLight.withOpacity(0.74),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.74),
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -536,7 +539,7 @@ class _CompactFriendButton extends StatelessWidget {
       ),
       child: Material(
         color: disabled
-            ? PlanrDesign.softMuted.withOpacity(0.22)
+            ? PlanrDesign.softMuted.withValues(alpha: 0.22)
             : background,
         borderRadius: BorderRadius.circular(999),
         child: InkWell(
@@ -550,7 +553,7 @@ class _CompactFriendButton extends StatelessWidget {
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
                 color: disabled
-                    ? Colors.black.withOpacity(0.05)
+                    ? Colors.black.withValues(alpha: 0.05)
                     : background,
                 width: 1.1,
               ),

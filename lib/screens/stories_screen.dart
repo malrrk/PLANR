@@ -295,7 +295,7 @@ class _FeaturedStoryCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(32),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.16),
+              color: Colors.black.withValues(alpha: 0.16),
               blurRadius: 26,
               offset: const Offset(0, 12),
             ),
@@ -314,9 +314,9 @@ class _FeaturedStoryCard extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.black.withOpacity(0.02),
-                    Colors.black.withOpacity(0.25),
-                    Colors.black.withOpacity(0.86),
+                    Colors.black.withValues(alpha: 0.02),
+                    Colors.black.withValues(alpha: 0.25),
+                    Colors.black.withValues(alpha: 0.86),
                   ],
                   stops: const [0.0, 0.48, 1.0],
                   begin: Alignment.topCenter,
@@ -367,7 +367,7 @@ class _FeaturedStoryCard extends StatelessWidget {
                         Text(
                           group.dayLabel,
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.78),
+                            color: Colors.white.withValues(alpha: 0.78),
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
                           ),
@@ -380,10 +380,10 @@ class _FeaturedStoryCard extends StatelessWidget {
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.18),
+                      color: Colors.white.withValues(alpha: 0.18),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.26),
+                        color: Colors.white.withValues(alpha: 0.26),
                       ),
                     ),
                     child: const Icon(
@@ -415,7 +415,7 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return PlanrCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      color: PlanrDesign.cardLight.withOpacity(0.74),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.74),
       radius: 24,
       shadow: false,
       child: Row(
@@ -424,10 +424,10 @@ class _SectionHeader extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: PlanrDesign.accentSoft.withOpacity(0.72),
+              color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
               borderRadius: BorderRadius.circular(15),
               border: Border.all(
-                color: Colors.white.withOpacity(0.92),
+                color: Colors.white.withValues(alpha: 0.92),
               ),
             ),
             child: const Icon(
@@ -480,11 +480,11 @@ class _StoryPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
       decoration: BoxDecoration(
-        color: PlanrDesign.accent.withOpacity(0.94),
+        color: PlanrDesign.accent.withValues(alpha: 0.94),
         borderRadius: BorderRadius.circular(999),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.14),
+            color: Colors.black.withValues(alpha: 0.14),
             blurRadius: 12,
             offset: const Offset(0, 5),
           ),
@@ -526,10 +526,10 @@ class _StoryCountBadge extends StatelessWidget {
       height: 34,
       padding: const EdgeInsets.symmetric(horizontal: 11),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.18),
+        color: Colors.white.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: Colors.white.withOpacity(0.22),
+          color: Colors.white.withValues(alpha: 0.22),
         ),
       ),
       child: Row(
@@ -596,7 +596,7 @@ class _AddStoryIconButton extends StatelessWidget {
             color: PlanrDesign.backgroundButton,
             shape: BoxShape.circle,
             border: Border.all(
-              color: Colors.black.withOpacity(0.12),
+              color: Colors.black.withValues(alpha: 0.12),
               width: 2.3,
             ),
           ),
@@ -624,7 +624,7 @@ class _FloatingAddStoryButton extends StatelessWidget {
       color: PlanrDesign.backgroundButton,
       borderRadius: BorderRadius.circular(999),
       elevation: 8,
-      shadowColor: Colors.black.withOpacity(0.12),
+      shadowColor: Colors.black.withValues(alpha: 0.12),
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(999),
@@ -635,7 +635,7 @@ class _FloatingAddStoryButton extends StatelessWidget {
             color: PlanrDesign.backgroundButton,
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
-              color: Colors.black.withOpacity(0.12),
+              color: Colors.black.withValues(alpha: 0.12),
               width: 1.4,
             ),
           ),

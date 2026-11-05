@@ -6,6 +6,9 @@ import '../core/widgets/planr_background.dart';
 import '../core/widgets/planr_card.dart';
 import '../models/event.dart';
 import '../providers/event_provider.dart';
+import '../providers/firebase_providers.dart';
+import '../providers/moderation_provider.dart';
+import '../widgets/moderation/moderation_actions.dart';
 import '../widgets/event_detail/event_detail_action_panel.dart';
 import '../widgets/event_detail/event_detail_fact_card.dart';
 import '../widgets/event_detail/event_detail_header_image.dart';
@@ -82,7 +85,19 @@ class EventDetailScreen extends ConsumerWidget {
             body: CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
-                EventDetailHeaderImage(event: event),
+                EventDetailHeaderImage(
+                  event: event,
+                  onReport: event.creatorUid ==
+                          ref.read(firebaseAuthProvider).currentUser?.uid
+                      ? null
+                      : () => showReportDialog(
+                            context,
+                            ref,
+                            target: ReportTarget.event,
+                            targetId: event.id,
+                            title: 'Report this event',
+                          ),
+                ),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(
@@ -391,10 +406,10 @@ class _UpdateComposer extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: PlanrDesign.cardLight.withOpacity(0.74),
+        color: PlanrDesign.cardLight.withValues(alpha: 0.74),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: Colors.white.withOpacity(0.92),
+          color: Colors.white.withValues(alpha: 0.92),
         ),
       ),
       child: Column(
@@ -453,7 +468,7 @@ class _UpdateComposer extends StatelessWidget {
                   backgroundColor: PlanrDesign.accent,
                   foregroundColor: Colors.white,
                   disabledBackgroundColor:
-                      PlanrDesign.accentSoft.withOpacity(0.8),
+                      PlanrDesign.accentSoft.withValues(alpha: 0.8),
                   disabledForegroundColor: PlanrDesign.accentDark,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(
@@ -517,10 +532,10 @@ class _OrganizerUpdateCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: PlanrDesign.cardLight.withOpacity(0.76),
+        color: PlanrDesign.cardLight.withValues(alpha: 0.76),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: Colors.white.withOpacity(0.92),
+          color: Colors.white.withValues(alpha: 0.92),
         ),
       ),
       child: Row(
@@ -530,10 +545,10 @@ class _OrganizerUpdateCard extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: PlanrDesign.accentSoft.withOpacity(0.74),
+              color: PlanrDesign.accentSoft.withValues(alpha: 0.74),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: Colors.white.withOpacity(0.88),
+                color: Colors.white.withValues(alpha: 0.88),
               ),
             ),
             clipBehavior: Clip.antiAlias,
@@ -593,7 +608,7 @@ class _OrganizerUpdateCard extends StatelessWidget {
           if (canManage) ...[
             const SizedBox(width: 6),
             Material(
-              color: PlanrDesign.accentSoft.withOpacity(0.58),
+              color: PlanrDesign.accentSoft.withValues(alpha: 0.58),
               shape: const CircleBorder(),
               child: InkWell(
                 onTap: isDeleting ? null : onDelete,
@@ -655,10 +670,10 @@ class _NoUpdatesState extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: PlanrDesign.cardLight.withOpacity(0.72),
+        color: PlanrDesign.cardLight.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: Colors.white.withOpacity(0.9),
+          color: Colors.white.withValues(alpha: 0.9),
         ),
       ),
       child: const Text(
@@ -723,10 +738,10 @@ class _UpdatesErrorState extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: PlanrDesign.cardLight.withOpacity(0.72),
+        color: PlanrDesign.cardLight.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: Colors.white.withOpacity(0.9),
+          color: Colors.white.withValues(alpha: 0.9),
         ),
       ),
       child: const Text(
@@ -768,7 +783,7 @@ class _LinkedPublicEventCard extends StatelessWidget {
     return PlanrCard(
       padding: EdgeInsets.zero,
       radius: 26,
-      color: PlanrDesign.cardLight.withOpacity(0.88),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.88),
       onTap: publicEventId == null || publicEventId.isEmpty
           ? null
           : () {
@@ -786,10 +801,10 @@ class _LinkedPublicEventCard extends StatelessWidget {
               width: 78,
               height: 88,
               decoration: BoxDecoration(
-                color: PlanrDesign.accentSoft.withOpacity(0.62),
+                color: PlanrDesign.accentSoft.withValues(alpha: 0.62),
                 borderRadius: BorderRadius.circular(22),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                 ),
               ),
               clipBehavior: Clip.antiAlias,
@@ -809,8 +824,8 @@ class _LinkedPublicEventCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          Colors.black.withOpacity(0.08),
-                          Colors.black.withOpacity(0.35),
+                          Colors.black.withValues(alpha: 0.08),
+                          Colors.black.withValues(alpha: 0.35),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -1046,7 +1061,7 @@ class _SectionTitle extends StatelessWidget {
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: PlanrDesign.accentSoft.withOpacity(0.72),
+            color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
             borderRadius: BorderRadius.circular(15),
           ),
           child: Icon(
@@ -1086,7 +1101,7 @@ class _TappableHostFactCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: PlanrDesign.cardLight.withOpacity(0.78),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.78),
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         onTap: onTap,
@@ -1096,7 +1111,7 @@ class _TappableHostFactCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: Colors.white.withOpacity(0.92),
+              color: Colors.white.withValues(alpha: 0.92),
             ),
           ),
           child: Row(
@@ -1105,10 +1120,10 @@ class _TappableHostFactCard extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: PlanrDesign.accentSoft.withOpacity(0.72),
+                  color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.88),
+                    color: Colors.white.withValues(alpha: 0.88),
                   ),
                 ),
                 child: Icon(

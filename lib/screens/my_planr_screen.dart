@@ -7,6 +7,7 @@ import '../core/widgets/planr_background.dart';
 import '../core/widgets/planr_button.dart';
 import '../core/widgets/planr_card.dart';
 import '../models/event.dart';
+import '../models/event_schedule.dart';
 import '../providers/event_provider.dart';
 import '../providers/story_provider.dart';
 import '../widgets/event_tag_chips.dart';
@@ -26,6 +27,7 @@ class MyPlanrScreen extends ConsumerStatefulWidget {
 
 class _MyPlanrScreenState extends ConsumerState<MyPlanrScreen> {
   final Set<String> _processingInviteIds = {};
+  bool _showPastPlans = false;
 
   void _openStories() {
     Navigator.push(
@@ -120,13 +122,6 @@ class _MyPlanrScreenState extends ConsumerState<MyPlanrScreen> {
     );
   }
 
-  List<Event> _futureEvents(List<Event> events) {
-    final now = DateTime.now();
-
-    return events.where((event) => event.date.isAfter(now)).toList()
-      ..sort((a, b) => a.date.compareTo(b.date));
-  }
-
   @override
   Widget build(BuildContext context) {
     final storiesAsync = ref.watch(friendsStoriesProvider);
@@ -193,12 +188,35 @@ class _MyPlanrScreenState extends ConsumerState<MyPlanrScreen> {
                 ),
               ),
               const SizedBox(height: 26),
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(
+                    value: false,
+                    icon: Icon(Icons.event_available_rounded),
+                    label: Text('Upcoming'),
+                  ),
+                  ButtonSegment(
+                    value: true,
+                    icon: Icon(Icons.history_rounded),
+                    label: Text('Past'),
+                  ),
+                ],
+                selected: {_showPastPlans},
+                onSelectionChanged: (selection) {
+                  setState(() => _showPastPlans = selection.single);
+                },
+              ),
+              const SizedBox(height: 18),
               myEventsAsync.when(
                 data: (events) {
-                  final upcomingEvents = _futureEvents(events);
+                  final now = DateTime.now();
+                  final visibleEvents = _showPastPlans
+                      ? pastEvents(events, now: now)
+                      : upcomingEvents(events, now: now);
 
                   return _PlansSection(
-                    events: upcomingEvents,
+                    events: visibleEvents,
+                    showPast: _showPastPlans,
                     onOpenEvent: _openEvent,
                     onOpenChat: _openEventChat,
                   );
@@ -239,7 +257,7 @@ class _MyPlanrHeader extends StatelessWidget {
         ),
         SizedBox(height: 8),
         Text(
-          'Your stories, invites and upcoming plans.',
+          'Your stories, invitations and plans.',
           style: TextStyle(
             color: PlanrDesign.muted,
             fontSize: 14.5,
@@ -270,7 +288,7 @@ class _StoriesPreviewCard extends StatelessWidget {
     return PlanrCard(
       onTap: onOpenStories,
       padding: const EdgeInsets.all(18),
-      color: PlanrDesign.cardLight.withOpacity(0.88),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.88),
       radius: 30,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -341,10 +359,10 @@ class _StoriesPreviewCard extends StatelessWidget {
                       width: 38,
                       height: 38,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.78),
+                        color: Colors.white.withValues(alpha: 0.78),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.95),
+                          color: Colors.white.withValues(alpha: 0.95),
                         ),
                       ),
                       child: const Icon(
@@ -381,7 +399,7 @@ class _StoryPreviewThumb extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.10),
+            color: Colors.black.withValues(alpha: 0.10),
             blurRadius: 14,
             offset: const Offset(0, 7),
           ),
@@ -413,7 +431,7 @@ class _StoryPreviewThumb extends StatelessWidget {
                 gradient: LinearGradient(
                   colors: [
                     Colors.transparent,
-                    Colors.black.withOpacity(0.55),
+                    Colors.black.withValues(alpha: 0.55),
                   ],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
@@ -587,7 +605,7 @@ class _InvitePreviewCard extends StatelessWidget {
 
     return PlanrCard(
       padding: const EdgeInsets.all(12),
-      color: PlanrDesign.cardLight.withOpacity(
+      color: PlanrDesign.cardLight.withValues(alpha: 
         isDeclined ? 0.74 : 0.88,
       ),
       radius: 28,
@@ -601,7 +619,7 @@ class _InvitePreviewCard extends StatelessWidget {
                     width: 76,
                     height: 88,
                     decoration: BoxDecoration(
-                      color: PlanrDesign.accentSoft.withOpacity(0.72),
+                      color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
                       borderRadius: BorderRadius.circular(22),
                     ),
                     clipBehavior: Clip.antiAlias,
@@ -618,7 +636,7 @@ class _InvitePreviewCard extends StatelessWidget {
                     Positioned.fill(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.38),
+                          color: Colors.white.withValues(alpha: 0.38),
                           borderRadius: BorderRadius.circular(22),
                         ),
                       ),
@@ -655,7 +673,7 @@ class _InvitePreviewCard extends StatelessWidget {
                           fontSize: 17.5,
                           height: 1.08,
                           color: isDeclined
-                              ? PlanrDesign.ink.withOpacity(0.74)
+                              ? PlanrDesign.ink.withValues(alpha: 0.74)
                               : PlanrDesign.ink,
                         ),
                       ),
@@ -734,16 +752,42 @@ class _InvitePreviewCard extends StatelessWidget {
 class _PlansSection extends StatelessWidget {
   const _PlansSection({
     required this.events,
+    required this.showPast,
     required this.onOpenEvent,
     required this.onOpenChat,
   });
 
   final List<Event> events;
+  final bool showPast;
   final ValueChanged<String> onOpenEvent;
   final ValueChanged<Event> onOpenChat;
 
   @override
   Widget build(BuildContext context) {
+    if (showPast) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SectionHeader(
+            title: 'Past plans',
+            subtitle: events.isEmpty
+                ? 'No past plans yet.'
+                : '${events.length} ${events.length == 1 ? 'plan' : 'plans'}',
+          ),
+          const SizedBox(height: 14),
+          for (final event in events)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: MyEventMiniCard(
+                event: event,
+                onTap: () => onOpenEvent(event.id),
+                onChatTap: event.chatEnabled ? () => onOpenChat(event) : null,
+              ),
+            ),
+        ],
+      );
+    }
+
     if (events.isEmpty) {
       return const _NoPlansCard();
     }
@@ -827,7 +871,7 @@ class _NextPlanCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(30),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.16),
+              color: Colors.black.withValues(alpha: 0.16),
               blurRadius: 24,
               offset: const Offset(0, 11),
             ),
@@ -942,7 +986,7 @@ class _NextLinkedGroupCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(32),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.16),
+              color: Colors.black.withValues(alpha: 0.16),
               blurRadius: 24,
               offset: const Offset(0, 11),
             ),
@@ -964,9 +1008,9 @@ class _NextLinkedGroupCard extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.black.withOpacity(0.12),
-                    Colors.black.withOpacity(0.42),
-                    Colors.black.withOpacity(0.86),
+                    Colors.black.withValues(alpha: 0.12),
+                    Colors.black.withValues(alpha: 0.42),
+                    Colors.black.withValues(alpha: 0.86),
                   ],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
@@ -1019,10 +1063,10 @@ class _NextLinkedGroupCard extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: PlanrDesign.cardLight.withOpacity(0.93),
+                  color: PlanrDesign.cardLight.withValues(alpha: 0.93),
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.92),
+                    color: Colors.white.withValues(alpha: 0.92),
                   ),
                 ),
                 child: Row(
@@ -1031,7 +1075,7 @@ class _NextLinkedGroupCard extends StatelessWidget {
                       width: 42,
                       height: 42,
                       decoration: BoxDecoration(
-                        color: PlanrDesign.accentSoft.withOpacity(0.78),
+                        color: PlanrDesign.accentSoft.withValues(alpha: 0.78),
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: const Icon(
@@ -1143,7 +1187,7 @@ class _NoPlansCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return PlanrCard(
       padding: const EdgeInsets.all(22),
-      color: PlanrDesign.cardLight.withOpacity(0.88),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.88),
       radius: 30,
       child: Column(
         children: [
@@ -1234,7 +1278,7 @@ class _ImagePill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
       decoration: BoxDecoration(
-        color: PlanrDesign.accent.withOpacity(0.94),
+        color: PlanrDesign.accent.withValues(alpha: 0.94),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -1345,10 +1389,10 @@ class _IconBubble extends StatelessWidget {
       width: 44,
       height: 44,
       decoration: BoxDecoration(
-        color: PlanrDesign.accentSoft.withOpacity(0.74),
+        color: PlanrDesign.accentSoft.withValues(alpha: 0.74),
         borderRadius: BorderRadius.circular(17),
         border: Border.all(
-          color: Colors.white.withOpacity(0.92),
+          color: Colors.white.withValues(alpha: 0.92),
         ),
       ),
       child: Icon(
@@ -1372,7 +1416,7 @@ class _TextPillButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: PlanrDesign.accentSoft.withOpacity(0.68),
+      color: PlanrDesign.accentSoft.withValues(alpha: 0.68),
       borderRadius: BorderRadius.circular(999),
       child: InkWell(
         onTap: onTap,
@@ -1406,7 +1450,7 @@ class _LoadingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return PlanrCard(
       padding: const EdgeInsets.all(18),
-      color: PlanrDesign.cardLight.withOpacity(0.86),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.86),
       radius: 30,
       child: Row(
         children: [
@@ -1452,7 +1496,7 @@ class _SmallErrorCard extends StatelessWidget {
     return PlanrCard(
       onTap: onTap,
       padding: const EdgeInsets.all(18),
-      color: PlanrDesign.cardLight.withOpacity(0.86),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.86),
       radius: 30,
       child: Row(
         children: [
@@ -1502,7 +1546,7 @@ class _CirclePlusButton extends StatelessWidget {
             color: PlanrDesign.backgroundButton,
             shape: BoxShape.circle,
             border: Border.all(
-              color: Colors.black.withOpacity(0.12),
+              color: Colors.black.withValues(alpha: 0.12),
               width: 2.3,
             ),
           ),

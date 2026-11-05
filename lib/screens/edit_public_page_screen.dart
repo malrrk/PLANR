@@ -208,6 +208,7 @@ class _EditPublicPageScreenState extends ConsumerState<EditPublicPageScreen> {
               children: [
                 PlanrTextField(
                   controller: _nameController,
+                  maxLength: 80,
                   label: 'Page name',
                   hintText: 'e.g. Campus Events Nürnberg',
                   prefixIcon: Icons.storefront_rounded,
@@ -216,6 +217,7 @@ class _EditPublicPageScreenState extends ConsumerState<EditPublicPageScreen> {
                 const SizedBox(height: 16),
                 PlanrTextField(
                   controller: _handleController,
+                  maxLength: 40,
                   label: 'Handle',
                   hintText: 'campusevents',
                   prefixIcon: Icons.alternate_email_rounded,
@@ -224,6 +226,7 @@ class _EditPublicPageScreenState extends ConsumerState<EditPublicPageScreen> {
                 const SizedBox(height: 16),
                 PlanrTextField(
                   controller: _descriptionController,
+                  maxLength: 1000,
                   label: 'Description',
                   hintText: 'What kind of events does this page host?',
                   prefixIcon: Icons.notes_rounded,
@@ -296,7 +299,7 @@ class _PageMediaCard extends StatelessWidget {
     return PlanrCard(
       padding: const EdgeInsets.all(18),
       radius: 30,
-      color: PlanrDesign.cardLight.withOpacity(0.88),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.88),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -368,10 +371,10 @@ class _BannerPickerPreview extends StatelessWidget {
             aspectRatio: 2.2,
             child: Container(
               decoration: BoxDecoration(
-                color: PlanrDesign.accentSoft.withOpacity(0.52),
+                color: PlanrDesign.accentSoft.withValues(alpha: 0.52),
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.92),
+                  color: Colors.white.withValues(alpha: 0.92),
                 ),
               ),
               clipBehavior: Clip.antiAlias,
@@ -395,8 +398,8 @@ class _BannerPickerPreview extends StatelessWidget {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          Colors.black.withOpacity(0.06),
-                          Colors.black.withOpacity(0.38),
+                          Colors.black.withValues(alpha: 0.06),
+                          Colors.black.withValues(alpha: 0.38),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -469,10 +472,10 @@ class _LogoPickerPreview extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
-        color: PlanrDesign.card.withOpacity(0.62),
+        color: PlanrDesign.card.withValues(alpha: 0.62),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: Colors.white.withOpacity(0.92),
+          color: Colors.white.withValues(alpha: 0.92),
         ),
       ),
       child: Row(
@@ -483,10 +486,10 @@ class _LogoPickerPreview extends StatelessWidget {
               width: 74,
               height: 74,
               decoration: BoxDecoration(
-                color: PlanrDesign.accentSoft.withOpacity(0.72),
+                color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
                 borderRadius: BorderRadius.circular(27),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.94),
+                  color: Colors.white.withValues(alpha: 0.94),
                   width: 2,
                 ),
               ),
@@ -602,7 +605,7 @@ class _OverlayIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withOpacity(0.20),
+      color: Colors.white.withValues(alpha: 0.20),
       shape: const CircleBorder(),
       child: InkWell(
         onTap: onTap,
@@ -638,8 +641,8 @@ class _SmallMediaButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: muted
-          ? PlanrDesign.cardLight.withOpacity(0.65)
-          : PlanrDesign.accentSoft.withOpacity(0.72),
+          ? PlanrDesign.cardLight.withValues(alpha: 0.65)
+          : PlanrDesign.accentSoft.withValues(alpha: 0.72),
       borderRadius: BorderRadius.circular(999),
       child: InkWell(
         onTap: onTap,
@@ -650,7 +653,7 @@ class _SmallMediaButton extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
             ),
           ),
           alignment: Alignment.center,
@@ -732,10 +735,10 @@ class _SmallIconBox extends StatelessWidget {
       width: 42,
       height: 42,
       decoration: BoxDecoration(
-        color: PlanrDesign.accentSoft.withOpacity(0.72),
+        color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.white.withOpacity(0.88),
+          color: Colors.white.withValues(alpha: 0.88),
         ),
       ),
       child: Icon(
@@ -762,17 +765,17 @@ class _EditPageIntroCard extends StatelessWidget {
     return PlanrCard(
       padding: const EdgeInsets.all(20),
       radius: 30,
-      color: PlanrDesign.cardLight.withOpacity(0.88),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.88),
       child: Row(
         children: [
           Container(
             width: 54,
             height: 54,
             decoration: BoxDecoration(
-              color: PlanrDesign.accentSoft.withOpacity(0.78),
+              color: PlanrDesign.accentSoft.withValues(alpha: 0.78),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: Colors.white.withOpacity(0.92),
+                color: Colors.white.withValues(alpha: 0.92),
               ),
             ),
             child: const Icon(
@@ -923,8 +926,8 @@ class _CategoryChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final background = selected
-        ? PlanrDesign.accentSoft.withOpacity(0.95)
-        : PlanrDesign.cardLight.withOpacity(0.72);
+        ? PlanrDesign.accentSoft.withValues(alpha: 0.95)
+        : PlanrDesign.cardLight.withValues(alpha: 0.72);
 
     final foreground = selected ? PlanrDesign.accentDark : PlanrDesign.muted;
 
@@ -941,8 +944,8 @@ class _CategoryChip extends StatelessWidget {
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
               color: selected
-                  ? PlanrDesign.accent.withOpacity(0.38)
-                  : Colors.white.withOpacity(0.9),
+                  ? PlanrDesign.accent.withValues(alpha: 0.38)
+                  : Colors.white.withValues(alpha: 0.9),
             ),
           ),
           child: Row(

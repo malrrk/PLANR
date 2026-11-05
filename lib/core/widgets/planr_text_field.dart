@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/planr_design.dart';
 
@@ -9,6 +10,7 @@ class PlanrTextField extends StatelessWidget {
     required this.hintText,
     this.label,
     this.maxLines = 1,
+    this.maxLength,
     this.keyboardType,
     this.textInputAction,
     this.obscureText = false,
@@ -21,6 +23,9 @@ class PlanrTextField extends StatelessWidget {
   final String hintText;
   final String? label;
   final int maxLines;
+
+  /// Hard cap on typed characters; matches the limits enforced by the database rules.
+  final int? maxLength;
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
   final bool obscureText;
@@ -33,6 +38,9 @@ class PlanrTextField extends StatelessWidget {
     final field = TextFormField(
       controller: controller,
       maxLines: obscureText ? 1 : maxLines,
+      inputFormatters: maxLength == null
+          ? null
+          : [LengthLimitingTextInputFormatter(maxLength)],
       keyboardType: keyboardType,
       textInputAction: textInputAction,
       obscureText: obscureText,
@@ -59,13 +67,13 @@ class PlanrTextField extends StatelessWidget {
               ),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: PlanrDesign.cardLight.withOpacity(0.82),
+        fillColor: PlanrDesign.cardLight.withValues(alpha: 0.82),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 14,
         ),
-        border: _border(Colors.white.withOpacity(0.95)),
-        enabledBorder: _border(Colors.white.withOpacity(0.95)),
+        border: _border(Colors.white.withValues(alpha: 0.95)),
+        enabledBorder: _border(Colors.white.withValues(alpha: 0.95)),
         focusedBorder: _border(PlanrDesign.accent, width: 1.4),
         errorBorder: _border(const Color(0xFFD32F2F), width: 1.2),
         focusedErrorBorder: _border(const Color(0xFFD32F2F), width: 1.4),

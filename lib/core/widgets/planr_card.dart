@@ -30,10 +30,10 @@ class PlanrCard extends StatelessWidget {
       margin: margin,
       padding: padding,
       decoration: BoxDecoration(
-        color: color ?? PlanrDesign.card.withOpacity(0.72),
+        color: color ?? PlanrDesign.card.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(radius),
         border: Border.all(
-          color: borderColor ?? Colors.white.withOpacity(0.9),
+          color: borderColor ?? Colors.white.withValues(alpha: 0.9),
           width: 1,
         ),
         boxShadow: shadow ? [PlanrDesign.softShadow] : null,

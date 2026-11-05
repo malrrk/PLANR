@@ -34,7 +34,7 @@ class _EditEventScreenState extends ConsumerState<EditEventScreen> {
   final ImagePicker _picker = ImagePicker();
 
   late DateTime _selectedDate;
-  late String _visibility;
+  late final String _visibility;
   late bool _chatEnabled;
   late bool _guestsCanInvite;
   late List<String> _selectedTagIds;
@@ -44,7 +44,6 @@ class _EditEventScreenState extends ConsumerState<EditEventScreen> {
 
   bool get _isPublicEvent => widget.event.isPublicEvent;
   bool get _isLinkedGroup => widget.event.isLinkedGroup;
-  bool get _isPrivateEvent => widget.event.isPrivateEvent;
 
   @override
   void initState() {
@@ -265,6 +264,7 @@ class _EditEventScreenState extends ConsumerState<EditEventScreen> {
               children: [
                 PlanrTextField(
                   controller: _titleController,
+                  maxLength: 120,
                   label: 'Title',
                   hintText: 'Event title',
                   textInputAction: TextInputAction.next,
@@ -273,6 +273,7 @@ class _EditEventScreenState extends ConsumerState<EditEventScreen> {
                 const SizedBox(height: 16),
                 PlanrTextField(
                   controller: _descriptionController,
+                  maxLength: 2000,
                   label: 'Description',
                   hintText: 'Tell people what changed.',
                   maxLines: 4,
@@ -282,6 +283,7 @@ class _EditEventScreenState extends ConsumerState<EditEventScreen> {
                 const SizedBox(height: 16),
                 PlanrTextField(
                   controller: _addressController,
+                  maxLength: 200,
                   label: 'Address',
                   hintText: 'Where is it happening?',
                   textInputAction: TextInputAction.done,
@@ -318,17 +320,6 @@ class _EditEventScreenState extends ConsumerState<EditEventScreen> {
                   subtitle: _formatDate(_selectedDate),
                   onTap: _pickDateTime,
                 ),
-                if (_isPrivateEvent) ...[
-                  const SizedBox(height: 16),
-                  _VisibilitySelector(
-                    value: _visibility,
-                    onChanged: (value) {
-                      setState(() {
-                        _visibility = value;
-                      });
-                    },
-                  ),
-                ],
               ],
             ),
           ),
@@ -453,10 +444,10 @@ class _PublicEditNotice extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
       decoration: BoxDecoration(
-        color: PlanrDesign.cardLight.withOpacity(0.78),
+        color: PlanrDesign.cardLight.withValues(alpha: 0.78),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: Colors.white.withOpacity(0.92),
+          color: Colors.white.withValues(alpha: 0.92),
         ),
       ),
       child: Row(
@@ -512,10 +503,10 @@ class _EditImageCard extends StatelessWidget {
       child: Container(
         height: 232,
         decoration: BoxDecoration(
-          color: PlanrDesign.card.withOpacity(0.74),
+          color: PlanrDesign.card.withValues(alpha: 0.74),
           borderRadius: BorderRadius.circular(PlanrDesign.cardRadius),
           border: Border.all(
-            color: Colors.white.withOpacity(0.92),
+            color: Colors.white.withValues(alpha: 0.92),
             width: 1.2,
           ),
           boxShadow: [PlanrDesign.cardShadow],
@@ -547,7 +538,7 @@ class _EditImageCard extends StatelessWidget {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.92),
+                      color: Colors.white.withValues(alpha: 0.92),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -587,8 +578,8 @@ class _EmptyImageState extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            PlanrDesign.cardLight.withOpacity(0.95),
-            PlanrDesign.accentSoft.withOpacity(0.55),
+            PlanrDesign.cardLight.withValues(alpha: 0.95),
+            PlanrDesign.accentSoft.withValues(alpha: 0.55),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -621,7 +612,7 @@ class _ActionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: PlanrDesign.cardLight.withOpacity(0.78),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.78),
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         onTap: onTap,
@@ -631,7 +622,7 @@ class _ActionRow extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: Colors.white.withOpacity(0.92),
+              color: Colors.white.withValues(alpha: 0.92),
             ),
           ),
           child: Row(
@@ -675,136 +666,6 @@ class _ActionRow extends StatelessWidget {
   }
 }
 
-class _VisibilitySelector extends StatelessWidget {
-  const _VisibilitySelector({
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String value;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Visibility',
-          style: TextStyle(
-            color: PlanrDesign.muted,
-            fontSize: 12,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0.2,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: _VisibilityOption(
-                icon: Icons.public_rounded,
-                title: 'Public',
-                subtitle: 'Discoverable',
-                selected: value == 'public',
-                onTap: () => onChanged('public'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _VisibilityOption(
-                icon: Icons.lock_outline_rounded,
-                title: 'Private',
-                subtitle: 'Invite only',
-                selected: value == 'private',
-                onTap: () => onChanged('private'),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _VisibilityOption extends StatelessWidget {
-  const _VisibilityOption({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final background = selected
-        ? PlanrDesign.accentSoft.withOpacity(0.95)
-        : PlanrDesign.cardLight.withOpacity(0.74);
-
-    final borderColor = selected
-        ? PlanrDesign.accent.withOpacity(0.55)
-        : Colors.white.withOpacity(0.95);
-
-    final iconColor = selected ? PlanrDesign.accentDark : PlanrDesign.softMuted;
-
-    return Material(
-      color: background,
-      borderRadius: BorderRadius.circular(22),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: borderColor,
-              width: selected ? 1.4 : 1,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                icon,
-                color: iconColor,
-                size: 22,
-              ),
-              const SizedBox(height: 10),
-              Text(
-                title,
-                style: TextStyle(
-                  color: selected ? PlanrDesign.accentDark : PlanrDesign.ink,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  color: PlanrDesign.muted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _SettingsToggle extends StatelessWidget {
   const _SettingsToggle({
     required this.icon,
@@ -825,10 +686,10 @@ class _SettingsToggle extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
       decoration: BoxDecoration(
-        color: PlanrDesign.cardLight.withOpacity(0.78),
+        color: PlanrDesign.cardLight.withValues(alpha: 0.78),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: Colors.white.withOpacity(0.92),
+          color: Colors.white.withValues(alpha: 0.92),
         ),
       ),
       child: Row(
@@ -862,10 +723,10 @@ class _SettingsToggle extends StatelessWidget {
           ),
           Switch(
             value: value,
-            activeColor: Colors.white,
+            activeThumbColor: Colors.white,
             activeTrackColor: PlanrDesign.accent,
             inactiveThumbColor: Colors.white,
-            inactiveTrackColor: PlanrDesign.softMuted.withOpacity(0.35),
+            inactiveTrackColor: PlanrDesign.softMuted.withValues(alpha: 0.35),
             onChanged: onChanged,
           ),
         ],
@@ -887,10 +748,10 @@ class _SettingIcon extends StatelessWidget {
       width: 42,
       height: 42,
       decoration: BoxDecoration(
-        color: PlanrDesign.accentSoft.withOpacity(0.72),
+        color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.white.withOpacity(0.88),
+          color: Colors.white.withValues(alpha: 0.88),
         ),
       ),
       child: Icon(

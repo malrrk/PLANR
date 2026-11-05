@@ -222,6 +222,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
               children: [
                 PlanrTextField(
                   controller: _titleController,
+                  maxLength: 120,
                   label: 'Title',
                   hintText: _isPublicEvent
                       ? 'e.g. Campus techno night'
@@ -232,6 +233,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                 const SizedBox(height: 16),
                 PlanrTextField(
                   controller: _descriptionController,
+                  maxLength: 2000,
                   label: 'Description',
                   hintText: 'Tell people what the vibe is.',
                   maxLines: 4,
@@ -241,6 +243,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                 const SizedBox(height: 16),
                 PlanrTextField(
                   controller: _locationController,
+                  maxLength: 200,
                   label: 'Location',
                   hintText: 'Where is it happening?',
                   textInputAction: TextInputAction.done,
@@ -460,12 +463,12 @@ class _OrganizerOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final background = selected
-        ? PlanrDesign.accentSoft.withOpacity(0.95)
-        : PlanrDesign.cardLight.withOpacity(0.74);
+        ? PlanrDesign.accentSoft.withValues(alpha: 0.95)
+        : PlanrDesign.cardLight.withValues(alpha: 0.74);
 
     final borderColor = selected
-        ? PlanrDesign.accent.withOpacity(0.55)
-        : Colors.white.withOpacity(0.95);
+        ? PlanrDesign.accent.withValues(alpha: 0.55)
+        : Colors.white.withValues(alpha: 0.95);
 
     return Material(
       color: background,
@@ -555,10 +558,10 @@ class _OrganizerIcon extends StatelessWidget {
       width: 44,
       height: 44,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(selected ? 0.88 : 0.7),
+        color: Colors.white.withValues(alpha: selected ? 0.88 : 0.7),
         borderRadius: BorderRadius.circular(17),
         border: Border.all(
-          color: Colors.white.withOpacity(0.92),
+          color: Colors.white.withValues(alpha: 0.92),
         ),
       ),
       clipBehavior: Clip.antiAlias,
@@ -589,10 +592,10 @@ class _NoManagedPagesHint extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: PlanrDesign.cardLight.withOpacity(0.72),
+        color: PlanrDesign.cardLight.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: Colors.white.withOpacity(0.92),
+          color: Colors.white.withValues(alpha: 0.92),
         ),
       ),
       child: const Row(
@@ -682,10 +685,10 @@ class _PublicEventInfoCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
       decoration: BoxDecoration(
-        color: PlanrDesign.cardLight.withOpacity(0.78),
+        color: PlanrDesign.cardLight.withValues(alpha: 0.78),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: Colors.white.withOpacity(0.92),
+          color: Colors.white.withValues(alpha: 0.92),
         ),
       ),
       child: Row(
@@ -741,10 +744,10 @@ class _ImagePickerCard extends StatelessWidget {
       child: Container(
         height: 232,
         decoration: BoxDecoration(
-          color: PlanrDesign.card.withOpacity(0.74),
+          color: PlanrDesign.card.withValues(alpha: 0.74),
           borderRadius: BorderRadius.circular(PlanrDesign.cardRadius),
           border: Border.all(
-            color: Colors.white.withOpacity(0.92),
+            color: Colors.white.withValues(alpha: 0.92),
             width: 1.2,
           ),
           boxShadow: [PlanrDesign.cardShadow],
@@ -777,7 +780,7 @@ class _ImagePickerCard extends StatelessWidget {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.92),
+                        color: Colors.white.withValues(alpha: 0.92),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -831,8 +834,8 @@ class _EmptyImageState extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            PlanrDesign.cardLight.withOpacity(0.95),
-            PlanrDesign.accentSoft.withOpacity(0.55),
+            PlanrDesign.cardLight.withValues(alpha: 0.95),
+            PlanrDesign.accentSoft.withValues(alpha: 0.55),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -848,10 +851,10 @@ class _EmptyImageState extends StatelessWidget {
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.78),
+                  color: Colors.white.withValues(alpha: 0.78),
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.95),
+                    color: Colors.white.withValues(alpha: 0.95),
                   ),
                 ),
                 child: const Icon(
@@ -906,7 +909,7 @@ class _ActionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: PlanrDesign.cardLight.withOpacity(0.78),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.78),
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         onTap: onTap,
@@ -916,7 +919,7 @@ class _ActionRow extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: Colors.white.withOpacity(0.92),
+              color: Colors.white.withValues(alpha: 0.92),
             ),
           ),
           child: Row(
@@ -1030,12 +1033,12 @@ class _VisibilityOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final background = selected
-        ? PlanrDesign.accentSoft.withOpacity(0.95)
-        : PlanrDesign.cardLight.withOpacity(0.74);
+        ? PlanrDesign.accentSoft.withValues(alpha: 0.95)
+        : PlanrDesign.cardLight.withValues(alpha: 0.74);
 
     final borderColor = selected
-        ? PlanrDesign.accent.withOpacity(0.55)
-        : Colors.white.withOpacity(0.95);
+        ? PlanrDesign.accent.withValues(alpha: 0.55)
+        : Colors.white.withValues(alpha: 0.95);
 
     final iconColor = selected ? PlanrDesign.accentDark : PlanrDesign.softMuted;
 
@@ -1110,10 +1113,10 @@ class _SettingsToggle extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
       decoration: BoxDecoration(
-        color: PlanrDesign.cardLight.withOpacity(0.78),
+        color: PlanrDesign.cardLight.withValues(alpha: 0.78),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: Colors.white.withOpacity(0.92),
+          color: Colors.white.withValues(alpha: 0.92),
         ),
       ),
       child: Row(
@@ -1147,10 +1150,10 @@ class _SettingsToggle extends StatelessWidget {
           ),
           Switch(
             value: value,
-            activeColor: Colors.white,
+            activeThumbColor: Colors.white,
             activeTrackColor: PlanrDesign.accent,
             inactiveThumbColor: Colors.white,
-            inactiveTrackColor: PlanrDesign.softMuted.withOpacity(0.35),
+            inactiveTrackColor: PlanrDesign.softMuted.withValues(alpha: 0.35),
             onChanged: onChanged,
           ),
         ],
@@ -1172,10 +1175,10 @@ class _SettingIcon extends StatelessWidget {
       width: 42,
       height: 42,
       decoration: BoxDecoration(
-        color: PlanrDesign.accentSoft.withOpacity(0.72),
+        color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.white.withOpacity(0.88),
+          color: Colors.white.withValues(alpha: 0.88),
         ),
       ),
       child: Icon(

@@ -22,7 +22,7 @@ class ProfilePinnedMoments extends StatelessWidget {
   ) {
     showDialog(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.88),
+      barrierColor: Colors.black.withValues(alpha: 0.88),
       builder: (_) {
         return _PinnedMomentViewer(
           imageUrls: imageUrls,
@@ -46,10 +46,10 @@ class ProfilePinnedMoments extends StatelessWidget {
         child: Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            color: PlanrDesign.cardLight.withOpacity(0.86),
+            color: PlanrDesign.cardLight.withValues(alpha: 0.86),
             borderRadius: BorderRadius.circular(30),
             border: Border.all(
-              color: Colors.white.withOpacity(0.95),
+              color: Colors.white.withValues(alpha: 0.95),
             ),
             boxShadow: [PlanrDesign.softShadow],
           ),
@@ -103,12 +103,12 @@ class ProfilePinnedMoments extends StatelessWidget {
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(24),
                                     border: Border.all(
-                                      color: Colors.white.withOpacity(0.95),
+                                      color: Colors.white.withValues(alpha: 0.95),
                                       width: 1.2,
                                     ),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.055),
+                                        color: Colors.black.withValues(alpha: 0.055),
                                         blurRadius: 14,
                                         offset: const Offset(0, 8),
                                       ),
@@ -159,7 +159,7 @@ class _SectionTitle extends StatelessWidget {
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: PlanrDesign.accentSoft.withOpacity(0.72),
+            color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
             borderRadius: BorderRadius.circular(15),
           ),
           child: const Icon(
@@ -252,7 +252,7 @@ class _PinnedMomentViewerState extends State<_PinnedMomentViewer> {
             top: MediaQuery.of(context).padding.top + 12,
             right: 16,
             child: Material(
-              color: Colors.white.withOpacity(0.16),
+              color: Colors.white.withValues(alpha: 0.16),
               shape: const CircleBorder(),
               child: InkWell(
                 customBorder: const CircleBorder(),
@@ -281,7 +281,7 @@ class _PinnedMomentViewerState extends State<_PinnedMomentViewer> {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.14),
+                    color: Colors.white.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
@@ -311,7 +311,7 @@ class _MomentTapGradient extends StatelessWidget {
         gradient: LinearGradient(
           colors: [
             Colors.transparent,
-            Colors.black.withOpacity(0.20),
+            Colors.black.withValues(alpha: 0.20),
           ],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -330,10 +330,10 @@ class _NoPinnedMoments extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.46),
+        color: Colors.white.withValues(alpha: 0.46),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: Colors.white.withOpacity(0.92),
+          color: Colors.white.withValues(alpha: 0.92),
         ),
       ),
       child: const Row(
@@ -401,7 +401,7 @@ class _MomentPlaceholder extends StatelessWidget {
             child: Icon(
               Icons.favorite_rounded,
               size: 58,
-              color: Colors.white.withOpacity(0.18),
+              color: Colors.white.withValues(alpha: 0.18),
             ),
           ),
           Center(
@@ -410,14 +410,14 @@ class _MomentPlaceholder extends StatelessWidget {
               children: [
                 Icon(
                   Icons.add_photo_alternate_rounded,
-                  color: Colors.white.withOpacity(0.88),
+                  color: Colors.white.withValues(alpha: 0.88),
                   size: 31,
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'Add',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.92),
+                    color: Colors.white.withValues(alpha: 0.92),
                     fontSize: 13,
                     fontWeight: FontWeight.w900,
                   ),

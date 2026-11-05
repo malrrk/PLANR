@@ -1,0 +1,57 @@
+rules_version = '2';
+
+// PLANR Storage rules. Images only, size-capped, writable by the owning user or page manager.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isImageUnder(maxBytes) {
+      return request.resource.size < maxBytes
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    function canManagePage(pageId) {
+      let page = firestore.get(/databases/(default)/documents/public_pages/$(pageId)).data;
+      return signedIn() && (request.auth.uid == page.ownerUid || request.auth.uid in page.adminUids);
+    }
+
+    match /users/{uid}/{fileName} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == uid
+        && fileName in ['profile.jpg', 'background.jpg']
+        && isImageUnder(10 * 1024 * 1024);
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /events/{uid}/{fileName} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == uid
+        && isImageUnder(10 * 1024 * 1024);
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /stories/public_pages/{pageId}/{fileName} {
+      allow read: if signedIn();
+      allow write: if canManagePage(pageId) && isImageUnder(10 * 1024 * 1024);
+      allow delete: if canManagePage(pageId);
+    }
+
+    match /stories/{uid}/{fileName} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == uid
+        && isImageUnder(10 * 1024 * 1024);
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /public_pages/{pageId}/{fileName} {
+      allow read: if signedIn();
+      allow write: if canManagePage(pageId)
+        && fileName in ['photo.jpg', 'background.jpg']
+        && isImageUnder(10 * 1024 * 1024);
+      allow delete: if canManagePage(pageId);
+    }
+  }
+}

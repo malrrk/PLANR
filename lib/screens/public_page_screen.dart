@@ -8,6 +8,8 @@ import '../core/widgets/planr_card.dart';
 import '../models/event.dart';
 import '../models/public_page.dart';
 import '../providers/public_page_provider.dart';
+import '../providers/moderation_provider.dart';
+import '../widgets/moderation/moderation_actions.dart';
 import '../widgets/event_tag_chips.dart';
 import 'event_detail_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -147,6 +149,15 @@ class _PublicPageScreenState extends ConsumerState<PublicPageScreen> {
                       ? () => Navigator.pop(context)
                       : null,
                   onManage: () => _openEditPage(page),
+                  onReport: canManage
+                      ? null
+                      : () => showReportDialog(
+                            context,
+                            ref,
+                            target: ReportTarget.page,
+                            targetId: page.id,
+                            title: 'Report ${page.name}',
+                          ),
                   onToggleFollow: (isFollowing) => _toggleFollow(
                     page: page,
                     isFollowing: isFollowing,
@@ -214,6 +225,7 @@ class _PublicPageHeader extends StatelessWidget {
     required this.onToggleFollow,
     required this.onManage,
     required this.onBack,
+    required this.onReport,
   });
 
   final PublicPage page;
@@ -223,6 +235,7 @@ class _PublicPageHeader extends StatelessWidget {
   final ValueChanged<bool> onToggleFollow;
   final VoidCallback onManage;
   final VoidCallback? onBack;
+  final VoidCallback? onReport;
 
   @override
   Widget build(BuildContext context) {
@@ -237,9 +250,9 @@ class _PublicPageHeader extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.black.withOpacity(0.10),
-                    Colors.black.withOpacity(0.24),
-                    Colors.black.withOpacity(0.88),
+                    Colors.black.withValues(alpha: 0.10),
+                    Colors.black.withValues(alpha: 0.24),
+                    Colors.black.withValues(alpha: 0.88),
                   ],
                   stops: const [0.0, 0.48, 1.0],
                   begin: Alignment.topCenter,
@@ -270,6 +283,13 @@ class _PublicPageHeader extends StatelessWidget {
                         const Spacer(),
                         if (page.isVerified)
                           const _VerifiedPill(),
+                        if (onReport != null) ...[
+                          const SizedBox(width: 10),
+                          _CircleHeaderButton(
+                            icon: Icons.flag_outlined,
+                            onTap: onReport!,
+                          ),
+                        ],
                       ],
                     ),
                     const Spacer(),
@@ -307,7 +327,7 @@ class _PublicPageHeader extends StatelessWidget {
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
                                             color:
-                                                Colors.white.withOpacity(0.78),
+                                                Colors.white.withValues(alpha: 0.78),
                                             fontSize: 14,
                                             fontWeight: FontWeight.w800,
                                           ),
@@ -453,11 +473,11 @@ class _PageLogo extends StatelessWidget {
       height: 76,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.94),
+        color: Colors.white.withValues(alpha: 0.94),
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.20),
+            color: Colors.black.withValues(alpha: 0.20),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -528,7 +548,7 @@ class _AboutPageCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return PlanrCard(
       padding: const EdgeInsets.all(18),
-      color: PlanrDesign.cardLight.withOpacity(0.86),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.86),
       radius: 30,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -600,7 +620,7 @@ class _PageManagerActionsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return PlanrCard(
       padding: const EdgeInsets.all(18),
-      color: PlanrDesign.cardLight.withOpacity(0.88),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.88),
       radius: 30,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -685,7 +705,7 @@ class _ManagerActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: PlanrDesign.accentSoft.withOpacity(0.72),
+      color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         onTap: onTap,
@@ -695,7 +715,7 @@ class _ManagerActionTile extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
             ),
           ),
           child: Column(
@@ -752,7 +772,7 @@ class _WideManagerActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: PlanrDesign.accentSoft.withOpacity(0.72),
+      color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         onTap: onTap,
@@ -762,7 +782,7 @@ class _WideManagerActionTile extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
             ),
           ),
           child: Row(
@@ -876,7 +896,7 @@ class _PageEventCard extends StatelessWidget {
     return PlanrCard(
       onTap: onTap,
       padding: const EdgeInsets.all(10),
-      color: PlanrDesign.cardLight.withOpacity(0.86),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.86),
       radius: 28,
       child: Row(
         children: [
@@ -884,7 +904,7 @@ class _PageEventCard extends StatelessWidget {
             width: 88,
             height: 102,
             decoration: BoxDecoration(
-              color: PlanrDesign.accentSoft.withOpacity(0.72),
+              color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
               borderRadius: BorderRadius.circular(22),
             ),
             clipBehavior: Clip.antiAlias,
@@ -947,7 +967,7 @@ class _NoPageEventsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return PlanrCard(
       padding: const EdgeInsets.all(22),
-      color: PlanrDesign.cardLight.withOpacity(0.86),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.86),
       radius: 30,
       child: Column(
         children: [
@@ -1038,7 +1058,7 @@ class _CircleHeaderButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withOpacity(0.18),
+      color: Colors.white.withValues(alpha: 0.18),
       shape: const CircleBorder(),
       child: InkWell(
         onTap: onTap,
@@ -1049,7 +1069,7 @@ class _CircleHeaderButton extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: Colors.white.withOpacity(0.22),
+              color: Colors.white.withValues(alpha: 0.22),
             ),
           ),
           child: Icon(
@@ -1072,10 +1092,10 @@ class _VerifiedPill extends StatelessWidget {
       height: 38,
       padding: const EdgeInsets.symmetric(horizontal: 13),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.18),
+        color: Colors.white.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: Colors.white.withOpacity(0.22),
+          color: Colors.white.withValues(alpha: 0.22),
         ),
       ),
       child: const Row(
@@ -1115,24 +1135,24 @@ class _DarkMiniPill extends StatelessWidget {
       height: 29,
       padding: const EdgeInsets.symmetric(horizontal: 9),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.16),
+        color: Colors.white.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: Colors.white.withOpacity(0.20),
+          color: Colors.white.withValues(alpha: 0.20),
         ),
       ),
       child: Row(
         children: [
           Icon(
             icon,
-            color: Colors.white.withOpacity(0.92),
+            color: Colors.white.withValues(alpha: 0.92),
             size: 14,
           ),
           const SizedBox(width: 5),
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.92),
+              color: Colors.white.withValues(alpha: 0.92),
               fontSize: 11.5,
               fontWeight: FontWeight.w900,
             ),
@@ -1160,10 +1180,10 @@ class _InfoIcon extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: PlanrDesign.accentSoft.withOpacity(0.72),
+        color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(size * 0.38),
         border: Border.all(
-          color: Colors.white.withOpacity(0.88),
+          color: Colors.white.withValues(alpha: 0.88),
         ),
       ),
       child: Icon(
@@ -1188,7 +1208,7 @@ class _CategoryPill extends StatelessWidget {
       height: 34,
       padding: const EdgeInsets.symmetric(horizontal: 11),
       decoration: BoxDecoration(
-        color: PlanrDesign.accentSoft.withOpacity(0.72),
+        color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(999),
       ),
       alignment: Alignment.center,
@@ -1294,7 +1314,7 @@ class _LoadingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return PlanrCard(
       padding: const EdgeInsets.all(18),
-      color: PlanrDesign.cardLight.withOpacity(0.86),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.86),
       radius: 30,
       child: Row(
         children: [
@@ -1337,7 +1357,7 @@ class _SmallErrorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return PlanrCard(
       padding: const EdgeInsets.all(18),
-      color: PlanrDesign.cardLight.withOpacity(0.86),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.86),
       radius: 30,
       child: Row(
         children: [

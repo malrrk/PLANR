@@ -175,13 +175,13 @@ class PlanrDesign {
   );
 
   static BoxShadow get softShadow => BoxShadow(
-        color: Colors.black.withOpacity(0.055),
+        color: Colors.black.withValues(alpha: 0.055),
         blurRadius: 24,
         offset: const Offset(0, 10),
       );
 
   static BoxShadow get cardShadow => BoxShadow(
-        color: Colors.black.withOpacity(0.075),
+        color: Colors.black.withValues(alpha: 0.075),
         blurRadius: 28,
         offset: const Offset(0, 12),
       );
@@ -190,10 +190,10 @@ class PlanrDesign {
     double radius = cardRadius,
   }) {
     return BoxDecoration(
-      color: card.withOpacity(0.72),
+      color: card.withValues(alpha: 0.72),
       borderRadius: BorderRadius.circular(radius),
       border: Border.all(
-        color: Colors.white.withOpacity(0.9),
+        color: Colors.white.withValues(alpha: 0.9),
       ),
       boxShadow: [softShadow],
     );
@@ -208,9 +208,9 @@ class PlanrDesign {
   static LinearGradient eventOverlayGradient() {
     return LinearGradient(
       colors: [
-        Colors.black.withOpacity(0.04),
-        Colors.black.withOpacity(0.24),
-        Colors.black.withOpacity(0.90),
+        Colors.black.withValues(alpha: 0.04),
+        Colors.black.withValues(alpha: 0.24),
+        Colors.black.withValues(alpha: 0.90),
       ],
       stops: const [0, 0.48, 1],
       begin: Alignment.topCenter,

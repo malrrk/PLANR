@@ -61,7 +61,7 @@ class _CreateStoryScreenState extends ConsumerState<CreateStoryScreen> {
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withOpacity(0.28),
+      barrierColor: Colors.black.withValues(alpha: 0.28),
       builder: (context) {
         return SafeArea(
           child: Padding(
@@ -69,10 +69,10 @@ class _CreateStoryScreenState extends ConsumerState<CreateStoryScreen> {
             child: Container(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
               decoration: BoxDecoration(
-                color: PlanrDesign.cardLight.withOpacity(0.98),
+                color: PlanrDesign.cardLight.withValues(alpha: 0.98),
                 borderRadius: BorderRadius.circular(30),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.95),
+                  color: Colors.white.withValues(alpha: 0.95),
                 ),
                 boxShadow: [PlanrDesign.cardShadow],
               ),
@@ -83,7 +83,7 @@ class _CreateStoryScreenState extends ConsumerState<CreateStoryScreen> {
                     width: 42,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: PlanrDesign.softMuted.withOpacity(0.35),
+                      color: PlanrDesign.softMuted.withValues(alpha: 0.35),
                       borderRadius: BorderRadius.circular(999),
                     ),
                   ),
@@ -310,10 +310,10 @@ class _StoryPreviewCard extends StatelessWidget {
           padding: const EdgeInsets.all(3),
           child: Container(
             decoration: BoxDecoration(
-              color: PlanrDesign.card.withOpacity(0.78),
+              color: PlanrDesign.card.withValues(alpha: 0.78),
               borderRadius: BorderRadius.circular(31),
               border: Border.all(
-                color: Colors.white.withOpacity(0.92),
+                color: Colors.white.withValues(alpha: 0.92),
                 width: 1.2,
               ),
             ),
@@ -334,9 +334,9 @@ class _StoryPreviewCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          Colors.black.withOpacity(0.06),
-                          Colors.black.withOpacity(0.10),
-                          Colors.black.withOpacity(0.55),
+                          Colors.black.withValues(alpha: 0.06),
+                          Colors.black.withValues(alpha: 0.10),
+                          Colors.black.withValues(alpha: 0.55),
                         ],
                         stops: const [0, 0.55, 1],
                         begin: Alignment.topCenter,
@@ -350,7 +350,7 @@ class _StoryPreviewCard extends StatelessWidget {
                     top: 14,
                     right: 14,
                     child: Material(
-                      color: Colors.black.withOpacity(0.42),
+                      color: Colors.black.withValues(alpha: 0.42),
                       shape: const CircleBorder(),
                       child: InkWell(
                         customBorder: const CircleBorder(),
@@ -393,9 +393,9 @@ class _EmptyStoryState extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            PlanrDesign.cardLight.withOpacity(0.96),
-            PlanrDesign.accentSoft.withOpacity(0.52),
-            const Color(0xFFF9F1FF).withOpacity(0.88),
+            PlanrDesign.cardLight.withValues(alpha: 0.96),
+            PlanrDesign.accentSoft.withValues(alpha: 0.52),
+            const Color(0xFFF9F1FF).withValues(alpha: 0.88),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -410,10 +410,10 @@ class _EmptyStoryState extends StatelessWidget {
               width: 74,
               height: 74,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.82),
+                color: Colors.white.withValues(alpha: 0.82),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.96),
+                  color: Colors.white.withValues(alpha: 0.96),
                 ),
                 boxShadow: [PlanrDesign.softShadow],
               ),
@@ -460,7 +460,7 @@ class _StorySelectedLabel extends StatelessWidget {
     return PlanrCard(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       radius: 22,
-      color: Colors.white.withOpacity(0.88),
+      color: Colors.white.withValues(alpha: 0.88),
       shadow: false,
       child: const Row(
         children: [
@@ -507,8 +507,8 @@ class _StoryRemoveButton extends StatelessWidget {
 
     return Material(
       color: disabled
-          ? PlanrDesign.softMuted.withOpacity(0.18)
-          : Colors.white.withOpacity(0.42),
+          ? PlanrDesign.softMuted.withValues(alpha: 0.18)
+          : Colors.white.withValues(alpha: 0.42),
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
@@ -520,8 +520,8 @@ class _StoryRemoveButton extends StatelessWidget {
             shape: BoxShape.circle,
             border: Border.all(
               color: disabled
-                  ? Colors.black.withOpacity(0.05)
-                  : Colors.white.withOpacity(0.95),
+                  ? Colors.black.withValues(alpha: 0.05)
+                  : Colors.white.withValues(alpha: 0.95),
               width: 1.2,
             ),
           ),
@@ -555,11 +555,11 @@ class _SourceSheetOption extends StatelessWidget {
   Widget build(BuildContext context) {
     final iconColor = muted ? PlanrDesign.softMuted : PlanrDesign.accentDark;
     final iconBackground = muted
-        ? PlanrDesign.card.withOpacity(0.6)
-        : PlanrDesign.accentSoft.withOpacity(0.75);
+        ? PlanrDesign.card.withValues(alpha: 0.6)
+        : PlanrDesign.accentSoft.withValues(alpha: 0.75);
 
     return Material(
-      color: PlanrDesign.card.withOpacity(0.62),
+      color: PlanrDesign.card.withValues(alpha: 0.62),
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         onTap: onTap,
@@ -569,7 +569,7 @@ class _SourceSheetOption extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: Colors.white.withOpacity(0.92),
+              color: Colors.white.withValues(alpha: 0.92),
             ),
           ),
           child: Row(
@@ -581,7 +581,7 @@ class _SourceSheetOption extends StatelessWidget {
                   color: iconBackground,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.88),
+                    color: Colors.white.withValues(alpha: 0.88),
                   ),
                 ),
                 child: Icon(

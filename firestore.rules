@@ -1,0 +1,498 @@
+rules_version = '2';
+
+// PLANR Firestore rules. Anything not matched below is denied.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helpers ----------
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function changedKeysOnly(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    function textBetween(value, min, max) {
+      return value is string && value.size() >= min && value.size() <= max;
+    }
+
+    function optionalText(data, key, max) {
+      return !(key in data) || data[key] == null || textBetween(data[key], 0, max);
+    }
+
+    function reservedUsername(name) {
+      return name in [
+        'admin', 'administrator', 'support', 'help', 'planr', 'official',
+        'team', 'null', 'undefined', 'deleted', 'unknown', 'system'
+      ];
+    }
+
+    function hasBlocked(ownerUid, otherUid) {
+      return exists(/databases/$(database)/documents/users/$(ownerUid)/blocked/$(otherUid));
+    }
+
+    function eventPath(eventId) {
+      return /databases/$(database)/documents/events/$(eventId);
+    }
+
+    function eventData(eventId) {
+      return get(eventPath(eventId)).data;
+    }
+
+    function attendeePath(eventId, uid) {
+      return /databases/$(database)/documents/events/$(eventId)/attendees/$(uid);
+    }
+
+    function invitePath(eventId, uid) {
+      return /databases/$(database)/documents/events/$(eventId)/invites/$(uid);
+    }
+
+    function isAttendee(eventId, uid) {
+      return exists(attendeePath(eventId, uid));
+    }
+
+    function isInvited(eventId, uid) {
+      return exists(invitePath(eventId, uid));
+    }
+
+    function isEventCreator(eventId) {
+      return signedIn() && eventData(eventId).creatorUid == request.auth.uid;
+    }
+
+    function canReadEvent(eventId) {
+      return signedIn() && (
+        eventData(eventId).visibility == 'public'
+        || eventData(eventId).creatorUid == request.auth.uid
+        || isAttendee(eventId, request.auth.uid)
+        || isInvited(eventId, request.auth.uid)
+      );
+    }
+
+    // Creator, or any attendee when the event allows guest invites.
+    function canInvite(eventId) {
+      return isEventCreator(eventId)
+        || (isAttendee(eventId, request.auth.uid) && eventData(eventId).guestsCanInvite == true);
+    }
+
+    // Event details mirrored into invite documents; the creator keeps them in sync.
+    function inviteEventFields() {
+      return [
+        'eventTitle', 'eventDescription', 'eventImageUrl', 'eventAddress',
+        'eventTags', 'eventDate', 'linkedPublicEventTitle', 'linkedPublicEventImageUrl'
+      ];
+    }
+
+    function pagePath(pageId) {
+      return /databases/$(database)/documents/public_pages/$(pageId);
+    }
+
+    function canManagePage(pageId) {
+      return signedIn() && (
+        get(pagePath(pageId)).data.ownerUid == request.auth.uid
+        || request.auth.uid in get(pagePath(pageId)).data.adminUids
+      );
+    }
+
+    function canPostEventUpdates(eventId) {
+      return isEventCreator(eventId)
+        || (eventData(eventId).organizerType == 'publicPage'
+            && canManagePage(eventData(eventId).organizerId));
+    }
+
+    // True when this very write batch moves the request "<fromUid>_<toUid>" from pending to accepted
+    // and the caller is the receiver, so old accepted requests cannot be replayed.
+    function acceptingRequest(fromUid, toUid) {
+      let path = /databases/$(database)/documents/friend_requests/$(fromUid + '_' + toUid);
+      return request.auth.uid == toUid
+        && exists(path)
+        && get(path).data.status == 'pending'
+        && getAfter(path).data.status == 'accepted';
+    }
+
+    function acceptedRequestBetween(a, b) {
+      return acceptingRequest(a, b) || acceptingRequest(b, a);
+    }
+
+    function validEventFields(d) {
+      return textBetween(d.get('title', ''), 1, 260)
+        && textBetween(d.get('description', ''), 1, 4000)
+        && textBetween(d.get('address', ''), 1, 300)
+        && d.get('visibility', 'public') in ['public', 'private']
+        && d.get('eventKind', 'public') in ['public', 'private', 'linkedGroup']
+        && ((d.get('eventKind', 'public') == 'public') == (d.get('visibility', 'public') == 'public'))
+        && (d.get('eventKind', 'public') != 'public' || d.get('chatEnabled', false) == false)
+        && d.get('tags', []) is list && d.get('tags', []).size() <= 20;
+    }
+
+    // ---------- usernames (public lookup for login, no listing) ----------
+
+    match /usernames/{username} {
+      allow get: if true;
+      allow list: if false;
+      // A name can only be claimed together with the claimer's own profile.
+      allow create: if signedIn()
+        && username.matches('^[a-z0-9._]{3,20}$')
+        && !reservedUsername(username)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.username == username
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.username == username;
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // ---------- moderation ----------
+
+    match /reports/{reportId} {
+      allow create: if signedIn()
+        && request.resource.data.reporterUid == request.auth.uid
+        && request.resource.data.targetType in ['event', 'user', 'page', 'story', 'message']
+        && textBetween(request.resource.data.targetId, 1, 200)
+        && textBetween(request.resource.data.reason, 1, 60)
+        && optionalText(request.resource.data, 'details', 500);
+      allow read, update, delete: if false;
+    }
+
+    // ---------- users ----------
+
+    match /users/{uid} {
+      allow read: if signedIn();
+
+      allow create: if isSelf(uid)
+        && request.resource.data.uid == uid
+        && textBetween(request.resource.data.get('displayName', ''), 1, 60)
+        && request.resource.data.get('username', '').matches('^[a-z0-9._]{3,20}$')
+        && optionalText(request.resource.data, 'bio', 300)
+        && request.resource.data.get('score', 0) == 0
+        && request.resource.data.get('hostedEventCount', 0) == 0
+        && request.resource.data.get('joinedEventCount', 0) == 0
+        && request.resource.data.get('pinnedStoryImageUrls', []).size() <= 3;
+
+      // username, email and counters are not client-editable after creation.
+      allow update: if isSelf(uid)
+        && request.resource.data.uid == uid
+        && changedKeysOnly([
+          'displayName', 'bio', 'photoUrl', 'backgroundImageUrl',
+          'pinnedStoryImageUrls', 'updatedAt'
+        ])
+        && textBetween(request.resource.data.get('displayName', ''), 1, 60)
+        && optionalText(request.resource.data, 'bio', 300)
+        && request.resource.data.get('pinnedStoryImageUrls', []).size() <= 3;
+
+      allow delete: if isSelf(uid);
+
+      match /blocked/{blockedUid} {
+        allow read, delete: if isSelf(uid);
+        allow create: if isSelf(uid) && blockedUid != uid;
+        allow update: if false;
+      }
+
+      match /friends/{friendUid} {
+        allow read: if signedIn();
+
+        // Both sides are written by the accepting user, backed by an accepted request.
+        allow create: if (isSelf(uid) || isSelf(friendUid))
+          && request.resource.data.uid == friendUid
+          && acceptedRequestBetween(uid, friendUid);
+
+        // Friends refresh their own copy after changing their profile.
+        allow update: if ((isSelf(uid) || isSelf(friendUid))
+            && request.resource.data.uid == friendUid
+            && acceptedRequestBetween(uid, friendUid))
+          || (isSelf(friendUid)
+            && request.resource.data.uid == friendUid
+            && changedKeysOnly([
+              'displayName', 'photoUrl', 'bio', 'backgroundImageUrl',
+              'pinnedStoryImageUrls', 'updatedAt'
+            ]));
+
+        allow delete: if isSelf(uid) || isSelf(friendUid);
+      }
+
+      match /followed_pages/{pageId} {
+        allow read, write: if isSelf(uid);
+      }
+
+      // Denormalised copy of events the user attends.
+      match /my_events/{eventId} {
+        allow read: if isSelf(uid);
+        allow create, update, delete: if isSelf(uid)
+          || isEventCreator(eventId)
+          || (request.method == 'update'
+              && isAttendee(eventId, request.auth.uid)
+              && changedKeysOnly([
+                'lastMessageText', 'lastMessageSenderUid',
+                'lastMessageSenderName', 'lastMessageAt'
+              ]));
+      }
+
+      match /event_invites/{eventId} {
+        allow read: if isSelf(uid);
+        allow create: if signedIn()
+          && request.resource.data.uid == uid
+          && request.resource.data.invitedByUid == request.auth.uid
+          && request.resource.data.status == 'pending'
+          && !hasBlocked(uid, request.auth.uid)
+          && eventData(eventId).eventKind != 'public'
+          && canInvite(eventId);
+        allow update: if (isSelf(uid)
+            && request.resource.data.status in ['accepted', 'declined']
+            && changedKeysOnly(['status', 'acceptedAt', 'declinedAt']))
+          || (signedIn()
+            && request.resource.data.uid == uid
+            && request.resource.data.invitedByUid == request.auth.uid
+            && request.resource.data.status == 'pending'
+            && !hasBlocked(uid, request.auth.uid)
+            && canInvite(eventId))
+          || (isEventCreator(eventId) && changedKeysOnly(inviteEventFields()));
+        allow delete: if isSelf(uid) || isEventCreator(eventId);
+      }
+    }
+
+    // ---------- friend requests (doc id = "<fromUid>_<toUid>") ----------
+
+    match /friend_requests/{requestId} {
+      allow read: if signedIn()
+        && (resource.data.fromUid == request.auth.uid
+            || resource.data.toUid == request.auth.uid);
+
+      allow create: if signedIn()
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.toUid is string
+        && request.resource.data.toUid != request.auth.uid
+        && requestId == request.resource.data.fromUid + '_' + request.resource.data.toUid
+        && request.resource.data.status == 'pending'
+        && !hasBlocked(request.resource.data.toUid, request.auth.uid);
+
+      allow update: if signedIn() && (
+        // Receiver answers a pending request.
+        (resource.data.toUid == request.auth.uid
+          && resource.data.status == 'pending'
+          && request.resource.data.status in ['accepted', 'declined']
+          && changedKeysOnly(['status', 'declinedAt']))
+        // Sender asks again: after an unfriend, or a week after a decline.
+        || (resource.data.fromUid == request.auth.uid
+          && (resource.data.status == 'accepted'
+              || (resource.data.status == 'declined'
+                  && request.time > resource.data.declinedAt + duration.value(7, 'd')))
+          && request.resource.data.status == 'pending'
+          && request.resource.data.fromUid == resource.data.fromUid
+          && request.resource.data.toUid == resource.data.toUid
+          && !hasBlocked(resource.data.toUid, request.auth.uid))
+      );
+
+      allow delete: if signedIn()
+        && (resource.data.fromUid == request.auth.uid
+            || resource.data.toUid == request.auth.uid);
+    }
+
+    // ---------- events ----------
+
+    match /events/{eventId} {
+      allow read: if signedIn() && (
+        resource == null
+        || resource.data.visibility == 'public'
+        || resource.data.creatorUid == request.auth.uid
+        || isAttendee(eventId, request.auth.uid)
+        || isInvited(eventId, request.auth.uid)
+      );
+
+      allow create: if signedIn()
+        && request.resource.data.creatorUid == request.auth.uid
+        && validEventFields(request.resource.data)
+        && request.resource.data.get('attendeeCount', 0) == 1
+        && ((request.resource.data.get('organizerType', 'profile') == 'profile'
+              && request.resource.data.get('organizerId', request.auth.uid) == request.auth.uid)
+            || (request.resource.data.get('organizerType', 'profile') == 'publicPage'
+                && canManagePage(request.resource.data.organizerId)));
+
+      allow update: if signedIn() && (
+        // Creator edits.
+        (resource.data.creatorUid == request.auth.uid
+          && request.resource.data.creatorUid == resource.data.creatorUid
+          && validEventFields(request.resource.data))
+        // Attendees refresh the chat summary.
+        || (isAttendee(eventId, request.auth.uid)
+          && changedKeysOnly([
+            'lastMessageText', 'lastMessageSenderUid',
+            'lastMessageSenderName', 'lastMessageAt'
+          ]))
+        // Join / leave adjusts the counter by exactly one, in the same batch.
+        || (changedKeysOnly(['attendeeCount'])
+          && ((!exists(attendeePath(eventId, request.auth.uid))
+                && existsAfter(attendeePath(eventId, request.auth.uid))
+                && request.resource.data.attendeeCount == resource.data.attendeeCount + 1)
+              || (exists(attendeePath(eventId, request.auth.uid))
+                && !existsAfter(attendeePath(eventId, request.auth.uid))
+                && request.resource.data.attendeeCount == resource.data.attendeeCount - 1)))
+      );
+
+      allow delete: if isSelf(resource.data.creatorUid);
+
+      match /attendees/{uid} {
+        allow read: if canReadEvent(eventId);
+
+        allow create: if isSelf(uid)
+          && request.resource.data.uid == uid
+          && (
+            (request.resource.data.role == 'creator'
+              && getAfter(eventPath(eventId)).data.creatorUid == uid)
+            || (request.resource.data.role == 'member'
+              && (eventData(eventId).visibility == 'public' || isInvited(eventId, uid)))
+          );
+
+        // Attendees refresh their own name and photo.
+        allow update: if isSelf(uid)
+          && request.resource.data.uid == uid
+          && changedKeysOnly(['displayName', 'photoUrl']);
+
+        allow delete: if isSelf(uid) || isEventCreator(eventId);
+      }
+
+      match /invites/{uid} {
+        allow read: if isSelf(uid)
+          || isEventCreator(eventId)
+          || (signedIn() && isAttendee(eventId, request.auth.uid));
+
+        allow create: if signedIn()
+          && request.resource.data.uid == uid
+          && request.resource.data.invitedByUid == request.auth.uid
+          && request.resource.data.status == 'pending'
+          && !hasBlocked(uid, request.auth.uid)
+          && eventData(eventId).eventKind != 'public'
+          && canInvite(eventId);
+
+        allow update: if (isSelf(uid)
+            && request.resource.data.status in ['accepted', 'declined']
+            && changedKeysOnly(['status', 'acceptedAt', 'declinedAt']))
+          || (signedIn()
+            && request.resource.data.uid == uid
+            && request.resource.data.invitedByUid == request.auth.uid
+            && request.resource.data.status == 'pending'
+            && !hasBlocked(uid, request.auth.uid)
+            && canInvite(eventId))
+          || (isEventCreator(eventId) && changedKeysOnly(inviteEventFields()));
+
+        allow delete: if isSelf(uid) || isEventCreator(eventId);
+      }
+
+      match /messages/{messageId} {
+        allow read: if signedIn()
+          && (isAttendee(eventId, request.auth.uid) || isEventCreator(eventId));
+
+        allow create: if signedIn()
+          && isAttendee(eventId, request.auth.uid)
+          && eventData(eventId).chatEnabled == true
+          && request.resource.data.senderUid == request.auth.uid
+          && textBetween(request.resource.data.text, 1, 2000);
+
+        allow update: if false;
+        allow delete: if isEventCreator(eventId)
+          || (signedIn() && resource.data.senderUid == request.auth.uid);
+      }
+
+      match /updates/{updateId} {
+        allow read: if canReadEvent(eventId);
+
+        allow create: if signedIn()
+          && request.resource.data.authorUid == request.auth.uid
+          && textBetween(request.resource.data.text, 1, 600)
+          && canPostEventUpdates(eventId);
+
+        allow update: if false;
+        allow delete: if canPostEventUpdates(eventId);
+      }
+    }
+
+    // ---------- public pages ----------
+
+    match /public_pages/{pageId} {
+      allow read: if signedIn();
+
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.adminUids == [request.auth.uid]
+        && request.resource.data.followerCount == 0
+        && request.resource.data.eventCount == 0
+        && request.resource.data.isVerified == false
+        && textBetween(request.resource.data.name, 1, 80)
+        && textBetween(request.resource.data.handle, 1, 40)
+        && optionalText(request.resource.data, 'description', 1000);
+
+      allow update: if signedIn() && (
+        // Owner/admins edit page details.
+        ((resource.data.ownerUid == request.auth.uid
+            || request.auth.uid in resource.data.adminUids)
+          && changedKeysOnly([
+            'name', 'handle', 'description', 'category', 'tags',
+            'photoUrl', 'backgroundImageUrl', 'updatedAt'
+          ])
+          && textBetween(request.resource.data.name, 1, 80)
+          && textBetween(request.resource.data.handle, 1, 40)
+          && optionalText(request.resource.data, 'description', 1000))
+        // Owner/admins create or delete one of the page's events.
+        || ((resource.data.ownerUid == request.auth.uid
+            || request.auth.uid in resource.data.adminUids)
+          && changedKeysOnly(['eventCount', 'updatedAt'])
+          && (request.resource.data.eventCount == resource.data.eventCount + 1
+              || request.resource.data.eventCount == resource.data.eventCount - 1))
+        // Only the owner manages admins and must stay an admin.
+        || (resource.data.ownerUid == request.auth.uid
+          && changedKeysOnly(['adminUids', 'updatedAt'])
+          && request.auth.uid in request.resource.data.adminUids)
+        // Follow / unfollow adjusts the counter by one, in the same transaction.
+        || (changedKeysOnly(['followerCount', 'updatedAt'])
+          && ((!exists(/databases/$(database)/documents/public_pages/$(pageId)/followers/$(request.auth.uid))
+                && existsAfter(/databases/$(database)/documents/public_pages/$(pageId)/followers/$(request.auth.uid))
+                && request.resource.data.followerCount == resource.data.followerCount + 1)
+              || (exists(/databases/$(database)/documents/public_pages/$(pageId)/followers/$(request.auth.uid))
+                && !existsAfter(/databases/$(database)/documents/public_pages/$(pageId)/followers/$(request.auth.uid))
+                && request.resource.data.followerCount == resource.data.followerCount - 1)))
+      );
+
+      // Owners remove their page, e.g. when deleting their account.
+      allow delete: if isSelf(resource.data.ownerUid);
+
+      match /followers/{uid} {
+        allow read: if isSelf(uid) || canManagePage(pageId);
+        allow create: if isSelf(uid) && request.resource.data.uid == uid;
+        allow update: if false;
+        allow delete: if isSelf(uid);
+      }
+    }
+
+    // ---------- stories ----------
+
+    match /stories/{storyId} {
+      // Feeds are filtered client-side; Firestore rules cannot express per-owner friendship for list queries.
+      allow read: if signedIn();
+
+      allow create: if signedIn()
+        && request.resource.data.id == storyId
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.imageUrl is string
+        && request.resource.data.expiresAt is timestamp
+        && (
+          (request.resource.data.ownerType == 'user' && request.resource.data.pageId == null)
+          || (request.resource.data.ownerType == 'publicPage'
+              && canManagePage(request.resource.data.pageId))
+        );
+
+      // Owners refresh the name and photo shown on their stories.
+      allow update: if signedIn()
+        && resource.data.ownerType == 'user'
+        && resource.data.ownerUid == request.auth.uid
+        && changedKeysOnly(['ownerDisplayName', 'ownerPhotoUrl']);
+
+      allow delete: if signedIn() && (
+        (resource.data.ownerType == 'user' && resource.data.ownerUid == request.auth.uid)
+        || (resource.data.ownerType == 'publicPage' && canManagePage(resource.data.pageId))
+      );
+    }
+  }
+}

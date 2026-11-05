@@ -36,7 +36,7 @@ class PlanrButton extends StatelessWidget {
     final backgroundColor = switch (variant) {
       PlanrButtonVariant.filled => PlanrDesign.accent,
       PlanrButtonVariant.soft => PlanrDesign.accentSoft,
-      PlanrButtonVariant.outlined => Colors.white.withOpacity(0.42),
+      PlanrButtonVariant.outlined => Colors.white.withValues(alpha: 0.42),
       PlanrButtonVariant.ghost => Colors.transparent,
     };
 
@@ -50,7 +50,7 @@ class PlanrButton extends StatelessWidget {
     final borderColor = switch (variant) {
       PlanrButtonVariant.filled => PlanrDesign.accent,
       PlanrButtonVariant.soft => PlanrDesign.accentSoft,
-      PlanrButtonVariant.outlined => Colors.white.withOpacity(0.95),
+      PlanrButtonVariant.outlined => Colors.white.withValues(alpha: 0.95),
       PlanrButtonVariant.ghost => Colors.transparent,
     };
 
@@ -58,7 +58,7 @@ class PlanrButton extends StatelessWidget {
       width: fullWidth ? double.infinity : null,
       height: height,
       child: Material(
-        color: disabled ? PlanrDesign.softMuted.withOpacity(0.25) : backgroundColor,
+        color: disabled ? PlanrDesign.softMuted.withValues(alpha: 0.25) : backgroundColor,
         borderRadius: BorderRadius.circular(999),
         child: InkWell(
           onTap: disabled ? null : onPressed,
@@ -68,7 +68,7 @@ class PlanrButton extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
-                color: disabled ? Colors.black.withOpacity(0.05) : borderColor,
+                color: disabled ? Colors.black.withValues(alpha: 0.05) : borderColor,
                 width: 1.2,
               ),
             ),

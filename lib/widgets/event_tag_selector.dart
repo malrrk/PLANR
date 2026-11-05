@@ -102,11 +102,11 @@ class _EventTagSelectorState extends State<EventTagSelector> {
                     ),
                     decoration: BoxDecoration(
                       color: selectedCount > 0
-                          ? PlanrDesign.accentSoft.withOpacity(0.78)
-                          : PlanrDesign.cardLight.withOpacity(0.80),
+                          ? PlanrDesign.accentSoft.withValues(alpha: 0.78)
+                          : PlanrDesign.cardLight.withValues(alpha: 0.80),
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.92),
+                        color: Colors.white.withValues(alpha: 0.92),
                       ),
                     ),
                     child: Text(
@@ -220,11 +220,11 @@ class _TagChoiceChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final backgroundColor = selected
         ? PlanrDesign.accent
-        : PlanrDesign.cardLight.withOpacity(0.82);
+        : PlanrDesign.cardLight.withValues(alpha: 0.82);
 
     final borderColor = selected
-        ? PlanrDesign.accentDark.withOpacity(0.28)
-        : Colors.white.withOpacity(0.95);
+        ? PlanrDesign.accentDark.withValues(alpha: 0.28)
+        : Colors.white.withValues(alpha: 0.95);
 
     final foregroundColor = selected ? Colors.white : PlanrDesign.ink;
     final iconColor = selected ? Colors.white : PlanrDesign.accentDark;
@@ -252,7 +252,7 @@ class _TagChoiceChip extends StatelessWidget {
             boxShadow: selected && !compact
                 ? [
                     BoxShadow(
-                      color: PlanrDesign.accent.withOpacity(0.23),
+                      color: PlanrDesign.accent.withValues(alpha: 0.23),
                       blurRadius: 13,
                       offset: const Offset(0, 6),
                     ),

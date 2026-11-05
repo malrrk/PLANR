@@ -92,6 +92,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       return;
     }
 
+    if (displayName.length > UserProfileService.maxDisplayNameLength ||
+        bio.length > UserProfileService.maxBioLength) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Name or bio is too long.')),
+      );
+      return;
+    }
+
     setState(() {
       _saving = true;
     });
@@ -129,14 +137,28 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         backgroundImageUrl: backgroundImageUrl,
       );
 
+      await service.propagateProfileChange(
+        uid: user.uid,
+        displayName: displayName,
+        bio: bio.isEmpty ? null : bio,
+        photoUrl: photoUrl,
+        backgroundImageUrl: backgroundImageUrl,
+      );
+
       if (!mounted) return;
       Navigator.pop(context);
-    } catch (e) {
+    } on ProfileException catch (e) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to save profile: $e'),
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not save your profile. Please try again.'),
         ),
       );
     } finally {
@@ -216,6 +238,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                 const SizedBox(height: 16),
                                 PlanrTextField(
                                   controller: _displayNameController,
+                                  maxLength: UserProfileService.maxDisplayNameLength,
                                   label: 'Display name',
                                   hintText: 'Your name',
                                   textInputAction: TextInputAction.next,
@@ -227,6 +250,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                 const SizedBox(height: 16),
                                 PlanrTextField(
                                   controller: _bioController,
+                                  maxLength: UserProfileService.maxBioLength,
                                   label: 'Bio',
                                   hintText: 'Tell people a little about you',
                                   maxLines: 4,
@@ -286,7 +310,7 @@ class _EditProfileTopBar extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: Colors.black.withOpacity(0.12),
+                  color: Colors.black.withValues(alpha: 0.12),
                   width: 1.1,
                 ),
               ),
@@ -339,7 +363,7 @@ class _EditProfileTopBar extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(
-                  color: Colors.black.withOpacity(0.12),
+                  color: Colors.black.withValues(alpha: 0.12),
                   width: 1.1,
                 ),
               ),
@@ -390,10 +414,10 @@ class _ImageEditorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: PlanrDesign.cardLight.withOpacity(0.88),
+        color: PlanrDesign.cardLight.withValues(alpha: 0.88),
         borderRadius: BorderRadius.circular(34),
         border: Border.all(
-          color: Colors.white.withOpacity(0.95),
+          color: Colors.white.withValues(alpha: 0.95),
           width: 1.1,
         ),
         boxShadow: [PlanrDesign.softShadow],
@@ -447,7 +471,7 @@ class _ImageEditorCard extends StatelessWidget {
                       gradient: PlanrDesign.storyRingGradient,
                       boxShadow: [
                         BoxShadow(
-                          color: PlanrDesign.accent.withOpacity(0.16),
+                          color: PlanrDesign.accent.withValues(alpha: 0.16),
                           blurRadius: 26,
                           offset: const Offset(0, 13),
                         ),
@@ -502,7 +526,7 @@ class _BackgroundPlaceholder extends StatelessWidget {
       child: Center(
         child: Icon(
           Icons.image_rounded,
-          color: Colors.white.withOpacity(0.82),
+          color: Colors.white.withValues(alpha: 0.82),
           size: 54,
         ),
       ),
@@ -548,7 +572,7 @@ class _ImageEditPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withOpacity(0.90),
+      color: Colors.white.withValues(alpha: 0.90),
       borderRadius: BorderRadius.circular(999),
       child: InkWell(
         onTap: onTap,
@@ -561,11 +585,11 @@ class _ImageEditPill extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
-              color: Colors.white.withOpacity(0.95),
+              color: Colors.white.withValues(alpha: 0.95),
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
+                color: Colors.black.withValues(alpha: 0.08),
                 blurRadius: 12,
                 offset: const Offset(0, 6),
               ),
@@ -625,10 +649,10 @@ class _UsernameField extends StatelessWidget {
             vertical: 15,
           ),
           decoration: BoxDecoration(
-            color: PlanrDesign.cardLight.withOpacity(0.82),
+            color: PlanrDesign.cardLight.withValues(alpha: 0.82),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: Colors.white.withOpacity(0.95),
+              color: Colors.white.withValues(alpha: 0.95),
             ),
           ),
           child: Text(
@@ -671,7 +695,7 @@ class _SectionTitle extends StatelessWidget {
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: PlanrDesign.accentSoft.withOpacity(0.72),
+            color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
             borderRadius: BorderRadius.circular(15),
           ),
           child: Icon(

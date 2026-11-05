@@ -469,10 +469,10 @@ class _InfoNotice extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
       decoration: BoxDecoration(
-        color: PlanrDesign.cardLight.withOpacity(0.76),
+        color: PlanrDesign.cardLight.withValues(alpha: 0.76),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: Colors.white.withOpacity(0.9),
+          color: Colors.white.withValues(alpha: 0.9),
         ),
       ),
       child: Row(
@@ -481,7 +481,7 @@ class _InfoNotice extends StatelessWidget {
             width: 39,
             height: 39,
             decoration: BoxDecoration(
-              color: PlanrDesign.accentSoft.withOpacity(0.72),
+              color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
               borderRadius: BorderRadius.circular(15),
             ),
             child: Icon(
@@ -540,8 +540,8 @@ class _LargeActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final background = enabled
-        ? PlanrDesign.accentSoft.withOpacity(0.72)
-        : PlanrDesign.cardLight.withOpacity(0.7);
+        ? PlanrDesign.accentSoft.withValues(alpha: 0.72)
+        : PlanrDesign.cardLight.withValues(alpha: 0.7);
 
     final foreground = enabled ? PlanrDesign.accentDark : PlanrDesign.softMuted;
 
@@ -559,7 +559,7 @@ class _LargeActionButton extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
             ),
           ),
           child: Column(
@@ -619,7 +619,7 @@ class _CreatorUtilityButton extends StatelessWidget {
     final color = isDestructive ? Colors.redAccent : PlanrDesign.accentDark;
 
     return Material(
-      color: PlanrDesign.cardLight.withOpacity(0.72),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.72),
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -632,7 +632,7 @@ class _CreatorUtilityButton extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
             ),
           ),
           child: Row(
