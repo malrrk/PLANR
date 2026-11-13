@@ -21,19 +21,20 @@ class PlanrAvatar extends StatelessWidget {
     final avatar = CircleAvatar(
       radius: radius,
       backgroundColor: PlanrDesign.accentSoft,
-      backgroundImage: imageUrl != null && imageUrl!.isNotEmpty
+      foregroundImage: imageUrl != null && imageUrl!.trim().isNotEmpty
           ? NetworkImage(imageUrl!)
           : null,
-      child: imageUrl == null || imageUrl!.isEmpty
-          ? Text(
-              _initials,
-              style: TextStyle(
-                color: PlanrDesign.accentDark,
-                fontSize: radius * 0.62,
-                fontWeight: FontWeight.w900,
-              ),
-            )
+      onForegroundImageError: imageUrl != null && imageUrl!.trim().isNotEmpty
+          ? (error, stackTrace) {}
           : null,
+      child: Text(
+        _initials,
+        style: TextStyle(
+          color: PlanrDesign.accentDark,
+          fontSize: radius * 0.62,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
     );
 
     if (!showRing) return avatar;

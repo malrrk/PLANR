@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/app_settings.dart';
 import '../core/theme/planr_design.dart';
 import '../screens/create_story_screen.dart';
 import '../screens/notification_center_screen.dart';
@@ -86,18 +87,33 @@ class _BellButton extends ConsumerWidget {
     final invitesAsync = ref.watch(pendingEventInvitesProvider);
     final friendRequestsAsync = ref.watch(incomingFriendRequestsProvider);
 
-    final inviteCount = invitesAsync.maybeWhen(
-      data: (invites) => invites.length,
-      orElse: () => 0,
+    final settings = AppSettings.instance;
+
+    return ListenableBuilder(
+      listenable: Listenable.merge(
+        [settings.notifyInvites, settings.notifyFriendRequests],
+      ),
+      builder: (context, _) {
+        final inviteCount = !settings.notifyInvites.value
+            ? 0
+            : invitesAsync.maybeWhen(
+                data: (invites) => invites.length,
+                orElse: () => 0,
+              );
+
+        final friendRequestCount = !settings.notifyFriendRequests.value
+            ? 0
+            : friendRequestsAsync.maybeWhen(
+                data: (requests) => requests.length,
+                orElse: () => 0,
+              );
+
+        return _bell(inviteCount + friendRequestCount > 0);
+      },
     );
+  }
 
-    final friendRequestCount = friendRequestsAsync.maybeWhen(
-      data: (requests) => requests.length,
-      orElse: () => 0,
-    );
-
-    final hasNotifications = inviteCount + friendRequestCount > 0;
-
+  Widget _bell(bool hasNotifications) {
     return Stack(
       clipBehavior: Clip.none,
       children: [

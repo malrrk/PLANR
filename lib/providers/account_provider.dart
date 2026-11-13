@@ -27,24 +27,44 @@ class AccountService {
   DocumentReference<Map<String, dynamic>> _userRef(String uid) =>
       _firestore.collection('users').doc(uid);
 
-  /// Re-checks the password, removes the user's data and finally the login. Safe to retry.
-  Future<String?> deleteAccount({required String password}) async {
+  /// Returned instead of deleting when the login is too old and the password must be asked first.
+  static const reauthRequired = 'reauth-required';
+
+  static const _freshLoginWindow = Duration(minutes: 4);
+
+  Future<bool> _signedInRecently(User user) async {
+    try {
+      final authTime = (await user.getIdTokenResult()).authTime;
+      return authTime != null &&
+          DateTime.now().difference(authTime) < _freshLoginWindow;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Removes the user's data and finally the login. Safe to retry.
+  /// Without [password] the login must be recent, otherwise [reauthRequired] is returned before anything is deleted.
+  Future<String?> deleteAccount({String? password}) async {
     final user = _auth.currentUser;
     final email = user?.email;
     if (user == null || email == null) return 'No user logged in.';
 
-    try {
-      await user.reauthenticateWithCredential(
-        EmailAuthProvider.credential(email: email, password: password.trim()),
-      );
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
-        return 'Password is incorrect.';
+    if (password == null) {
+      if (!await _signedInRecently(user)) return reauthRequired;
+    } else {
+      try {
+        await user.reauthenticateWithCredential(
+          EmailAuthProvider.credential(email: email, password: password.trim()),
+        );
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+          return 'Password is incorrect.';
+        }
+        if (e.code == 'network-request-failed') {
+          return 'Network error. Please check your connection.';
+        }
+        return 'Could not verify your password. Please try again.';
       }
-      if (e.code == 'network-request-failed') {
-        return 'Network error. Please check your connection.';
-      }
-      return 'Could not verify your password. Please try again.';
     }
 
     final uid = user.uid;

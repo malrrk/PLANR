@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
+import '../core/app_settings.dart';
 import '../core/theme/planr_design.dart';
 import '../core/widgets/planr_background.dart';
 import '../core/widgets/planr_card.dart';
@@ -31,7 +33,7 @@ class NotificationCenterScreen extends ConsumerWidget {
     );
   }
 
-  String _formatDate(dynamic value) {
+  String _formatDate(BuildContext context, dynamic value) {
     DateTime? date;
 
     if (value is Timestamp) {
@@ -42,18 +44,15 @@ class NotificationCenterScreen extends ConsumerWidget {
 
     if (date == null) return '';
 
-    final day = date.day.toString().padLeft(2, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    final hour = date.hour.toString().padLeft(2, '0');
-    final minute = date.minute.toString().padLeft(2, '0');
-
-    return '$day.$month · $hour:$minute';
+    final locale = Localizations.localeOf(context).toString();
+    return DateFormat.MMMd(locale).add_Hm().format(date);
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final invitesAsync = ref.watch(pendingEventInvitesProvider);
     final friendRequestsAsync = ref.watch(incomingFriendRequestsProvider);
+    final settings = AppSettings.instance;
 
     return PlanrBackground(
       variant: PlanrBackgroundVariant.home,
@@ -61,7 +60,11 @@ class NotificationCenterScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         body: SafeArea(
           bottom: false,
-          child: ListView(
+          child: ListenableBuilder(
+            listenable: Listenable.merge(
+              [settings.notifyInvites, settings.notifyFriendRequests],
+            ),
+            builder: (context, _) => ListView(
             padding: const EdgeInsets.fromLTRB(
               PlanrDesign.pagePadding,
               18,
@@ -102,6 +105,7 @@ class NotificationCenterScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 22),
+              if (settings.notifyInvites.value)
               invitesAsync.when(
                 data: (invites) {
                   return _NotificationBlock(
@@ -127,7 +131,7 @@ class NotificationCenterScreen extends ConsumerWidget {
                               invite['invitedByDisplayName'] != null
                                   ? 'Invited by ${invite['invitedByDisplayName']}'
                                   : null,
-                              _formatDate(invite['eventDate']),
+                              _formatDate(context, invite['eventDate']),
                             ]
                                 .whereType<String>()
                                 .where((text) => text.trim().isNotEmpty)
@@ -142,7 +146,10 @@ class NotificationCenterScreen extends ConsumerWidget {
                   message: 'Could not load event invites.',
                 ),
               ),
-              const SizedBox(height: 14),
+              if (settings.notifyInvites.value &&
+                  settings.notifyFriendRequests.value)
+                const SizedBox(height: 14),
+              if (settings.notifyFriendRequests.value)
               friendRequestsAsync.when(
                 data: (requests) {
                   return _NotificationBlock(
@@ -176,6 +183,7 @@ class NotificationCenterScreen extends ConsumerWidget {
                 ),
               ),
             ],
+          ),
           ),
         ),
       ),

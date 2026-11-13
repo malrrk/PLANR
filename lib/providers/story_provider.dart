@@ -276,6 +276,8 @@ class StoryService {
   Future<String?> addStory({
     required File file,
   }) async {
+    Reference? uploaded;
+
     try {
       final user = _auth.currentUser;
       if (user == null) return 'No user logged in.';
@@ -287,8 +289,14 @@ class StoryService {
 
       final ref = _storage.ref().child('stories/${user.uid}/$storyId.jpg');
 
-      await ref.putFile(file, _imageMetadata);
-      final imageUrl = await ref.getDownloadURL();
+      final String imageUrl;
+      try {
+        await ref.putFile(file, _imageMetadata);
+        imageUrl = await ref.getDownloadURL();
+      } on FirebaseException {
+        return 'Could not upload the photo. Please try again.';
+      }
+      uploaded = ref;
 
       final story = Story(
         id: storyId,
@@ -312,6 +320,9 @@ class StoryService {
 
       return null;
     } catch (_) {
+      try {
+        await uploaded?.delete();
+      } catch (_) {}
       return 'Failed to add story.';
     }
   }

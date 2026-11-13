@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 
 import '../core/theme/planr_design.dart';
 import '../core/widgets/planr_background.dart';
@@ -10,6 +11,7 @@ import '../core/widgets/planr_button.dart';
 import '../core/widgets/planr_card.dart';
 import '../core/widgets/planr_scaffold.dart';
 import '../core/widgets/planr_text_field.dart';
+import '../l10n/l10n.dart';
 import '../models/public_page.dart';
 import '../providers/event_provider.dart';
 import '../providers/public_page_provider.dart';
@@ -191,13 +193,8 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   }
 
   String get _formattedDate {
-    final day = _selectedDate.day.toString().padLeft(2, '0');
-    final month = _selectedDate.month.toString().padLeft(2, '0');
-    final year = _selectedDate.year.toString();
-    final hour = _selectedDate.hour.toString().padLeft(2, '0');
-    final minute = _selectedDate.minute.toString().padLeft(2, '0');
-
-    return '$day.$month.$year · $hour:$minute';
+    final locale = Localizations.localeOf(context).toString();
+    return DateFormat.yMd(locale).add_Hm().format(_selectedDate);
   }
 
   @override
@@ -205,7 +202,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     final managedPagesAsync = ref.watch(myManagedPublicPagesProvider);
 
     return PlanrScaffold(
-      title: 'Create Event',
+      title: context.l10n.createEventTitle,
       variant: PlanrBackgroundVariant.create,
       resizeToAvoidBottomInset: true,
       child: ListView(

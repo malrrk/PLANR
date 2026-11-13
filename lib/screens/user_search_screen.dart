@@ -9,6 +9,7 @@ import '../core/widgets/planr_background.dart';
 import '../core/widgets/planr_card.dart';
 import '../core/widgets/planr_empty_state.dart';
 import '../core/widgets/planr_scaffold.dart';
+import '../l10n/l10n.dart';
 import '../models/user_profile.dart';
 import '../providers/friends_provider.dart';
 import '../providers/moderation_provider.dart';
@@ -29,6 +30,8 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
   List<UserProfile> _results = [];
   bool _loading = false;
   bool _hasSearched = false;
+  bool _searchFailed = false;
+  int _requestVersion = 0;
 
   @override
   void dispose() {
@@ -39,6 +42,7 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
 
   void _onQueryChanged(String value) {
     _debounce?.cancel();
+    _requestVersion++;
 
     final query = value.trim();
 
@@ -47,6 +51,7 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
         _results = [];
         _loading = false;
         _hasSearched = false;
+        _searchFailed = false;
       });
       return;
     }
@@ -57,6 +62,8 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
   }
 
   Future<void> _search([String? forcedQuery]) async {
+    _debounce?.cancel();
+    final requestVersion = ++_requestVersion;
     final query = (forcedQuery ?? _controller.text).trim();
 
     if (query.isEmpty) {
@@ -71,26 +78,36 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
     setState(() {
       _loading = true;
       _hasSearched = true;
+      _searchFailed = false;
     });
 
-    final users = await ref.read(userProfileServiceProvider).searchUsers(query);
-
-    if (!mounted) return;
-
-    setState(() {
-      _results = users;
-      _loading = false;
-    });
+    try {
+      final users = await ref.read(userProfileServiceProvider).searchUsers(query);
+      if (!mounted || requestVersion != _requestVersion) return;
+      setState(() {
+        _results = users;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted || requestVersion != _requestVersion) return;
+      setState(() {
+        _results = [];
+        _loading = false;
+        _searchFailed = true;
+      });
+    }
   }
 
   void _clearSearch() {
     _debounce?.cancel();
+    _requestVersion++;
     _controller.clear();
 
     setState(() {
       _results = [];
       _loading = false;
       _hasSearched = false;
+      _searchFailed = false;
     });
   }
 
@@ -115,7 +132,7 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
         .toList();
 
     return PlanrScaffold(
-      title: 'Find Friends',
+      title: context.l10n.findFriendsScreenTitle,
       variant: PlanrBackgroundVariant.friends,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -129,13 +146,12 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
           ),
           const SizedBox(height: 16),
           if (!_hasSearched && !_loading)
-            const Expanded(
+            Expanded(
               child: Center(
                 child: PlanrEmptyState(
                   icon: Icons.person_search_rounded,
-                  title: 'Search by username',
-                  subtitle:
-                      'Start typing a username to find people on PLANR.',
+                  title: context.l10n.searchByUsername,
+                  subtitle: context.l10n.searchByUsernameHint,
                 ),
               ),
             )
@@ -145,20 +161,39 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                 child: CircularProgressIndicator(strokeWidth: 2.6),
               ),
             )
+          else if (_searchFailed)
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    PlanrEmptyState(
+                      icon: Icons.error_outline_rounded,
+                      title: context.l10n.searchFailed,
+                      subtitle: context.l10n.searchFailedHint,
+                    ),
+                    TextButton.icon(
+                      onPressed: _search,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: Text(context.l10n.retry),
+                    ),
+                  ],
+                ),
+              ),
+            )
           else if (visibleResults.isEmpty)
-            const Expanded(
+            Expanded(
               child: Center(
                 child: PlanrEmptyState(
                   icon: Icons.search_off_rounded,
-                  title: 'No users found',
-                  subtitle:
-                      'Try another username or check the spelling.',
+                  title: context.l10n.noUsersFound,
+                  subtitle: context.l10n.noUsersFoundHint,
                 ),
               ),
             )
           else ...[
             Text(
-              '${visibleResults.length} result${visibleResults.length == 1 ? '' : 's'}',
+              context.l10n.searchResults(visibleResults.length),
               style: const TextStyle(
                 color: PlanrDesign.muted,
                 fontSize: 13.5,
@@ -211,9 +246,9 @@ class _SearchHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Discover people',
-            style: TextStyle(
+          Text(
+            context.l10n.discoverPeople,
+            style: const TextStyle(
               color: PlanrDesign.ink,
               fontSize: 24,
               fontWeight: FontWeight.w900,
@@ -221,9 +256,9 @@ class _SearchHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 5),
-          const Text(
-            'Search usernames and send friend requests.',
-            style: TextStyle(
+          Text(
+            context.l10n.discoverPeopleHint,
+            style: const TextStyle(
               color: PlanrDesign.muted,
               fontSize: 13.5,
               fontWeight: FontWeight.w700,
@@ -251,7 +286,7 @@ class _SearchHeader extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
               decoration: InputDecoration(
-                hintText: 'Search username',
+                hintText: context.l10n.searchUsername,
                 hintStyle: const TextStyle(
                   color: PlanrDesign.softMuted,
                   fontSize: 14,

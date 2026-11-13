@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme/planr_design.dart';
+import '../l10n/l10n.dart';
 import 'create_event_screen.dart';
 import 'discover_screen.dart';
 import 'home_screen.dart';
@@ -103,7 +104,7 @@ class _PlanrBottomNav extends StatelessWidget {
           Expanded(
             child: _BottomNavItem(
               icon: Icons.home_rounded,
-              label: 'Home',
+              label: context.l10n.navHome,
               selected: selectedIndex == 0,
               onTap: onHomeTap,
             ),
@@ -111,7 +112,7 @@ class _PlanrBottomNav extends StatelessWidget {
           Expanded(
             child: _BottomNavItem(
               icon: Icons.search_rounded,
-              label: 'Discover',
+              label: context.l10n.navDiscover,
               selected: selectedIndex == 1,
               onTap: onEventsTap,
             ),
@@ -124,7 +125,7 @@ class _PlanrBottomNav extends StatelessWidget {
           Expanded(
             child: _BottomNavItem(
               icon: Icons.dashboard_customize_rounded,
-              label: 'MyPlanr',
+              label: context.l10n.navMyPlanr,
               selected: selectedIndex == 2,
               onTap: onStoriesTap,
             ),
@@ -132,7 +133,7 @@ class _PlanrBottomNav extends StatelessWidget {
           Expanded(
             child: _BottomNavItem(
               icon: Icons.person_outline_rounded,
-              label: 'Profile',
+              label: context.l10n.navProfile,
               selected: selectedIndex == 3,
               onTap: onProfileTap,
             ),
@@ -228,11 +229,11 @@ class _BottomCreateItem extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Create',
+          Text(
+            context.l10n.navCreate,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
+            style: const TextStyle(
               color: PlanrDesign.accent,
               fontSize: 12,
               fontWeight: FontWeight.w900,

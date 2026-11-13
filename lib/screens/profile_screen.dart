@@ -7,11 +7,10 @@ import '../core/widgets/planr_background.dart';
 import '../core/widgets/planr_button.dart';
 import '../core/widgets/planr_card.dart';
 import '../models/user_profile.dart';
-import '../providers/auth_provider.dart';
+import '../l10n/l10n.dart';
 import '../providers/friends_provider.dart';
 import '../providers/moderation_provider.dart';
 import '../providers/user_profile_provider.dart';
-import '../widgets/account/delete_account_dialog.dart';
 import '../widgets/moderation/moderation_actions.dart';
 import '../widgets/profile/profile_action_section.dart';
 import '../widgets/profile/profile_empty_state.dart';
@@ -19,10 +18,9 @@ import '../widgets/profile/profile_header.dart';
 import '../widgets/profile/profile_pinned_moments.dart';
 import '../widgets/profile/profile_stats_row.dart';
 import 'edit_profile_screen.dart';
-import 'blocked_users_screen.dart';
-import 'legal_screen.dart';
 import 'friend_requests_screen.dart';
 import 'friends_screen.dart';
+import 'settings_screen.dart';
 import 'user_search_screen.dart';
 import 'manage_pinned_moments_screen.dart';
 import 'managed_public_pages_screen.dart';
@@ -162,6 +160,9 @@ class ProfileScreen extends ConsumerWidget {
                         onEditPressed: isOwnProfile
                             ? () => _open(context, const EditProfileScreen())
                             : null,
+                        onSettingsPressed: isOwnProfile
+                            ? () => _open(context, const SettingsScreen())
+                            : null,
                         trailing:
                             isOwnProfile ? null : _moreMenu(context, ref, profile),
                       ),
@@ -222,14 +223,6 @@ class ProfileScreen extends ConsumerWidget {
                                 context,
                                 const FriendRequestsScreen(),
                               ),
-                              onBlockedUsers: () =>
-                                  _open(context, const BlockedUsersScreen()),
-                              onLegal: () => _open(context, const LegalScreen()),
-                              onDeleteAccount: () =>
-                                  showDeleteAccountDialog(context, ref),
-                              onLogout: () async {
-                                await ref.read(authProvider).logout();
-                              },
                             ),
                           ],
                         ],
@@ -253,12 +246,14 @@ class _ProfileTopBar extends StatelessWidget {
     required this.profile,
     required this.isOwnProfile,
     required this.onEditPressed,
+    this.onSettingsPressed,
     this.trailing,
   });
 
   final UserProfile profile;
   final bool isOwnProfile;
   final VoidCallback? onEditPressed;
+  final VoidCallback? onSettingsPressed;
   final Widget? trailing;
 
   @override
@@ -301,7 +296,7 @@ class _ProfileTopBar extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                isOwnProfile ? 'Profile' : profile.displayName,
+                isOwnProfile ? context.l10n.profileTitle : profile.displayName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
@@ -314,7 +309,9 @@ class _ProfileTopBar extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                isOwnProfile ? 'Your PLANR identity' : '@${profile.username}',
+                isOwnProfile
+                    ? context.l10n.profileSubtitle
+                    : '@${profile.username}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
@@ -354,6 +351,38 @@ class _ProfileTopBar extends StatelessWidget {
               ),
             ),
           ),
+        if (isOwnProfile && onSettingsPressed != null) ...[
+          const SizedBox(width: 8),
+          Material(
+            color: PlanrDesign.backgroundButton,
+            shape: const CircleBorder(),
+            elevation: 3,
+            shadowColor: Colors.black12,
+            child: InkWell(
+              onTap: onSettingsPressed,
+              customBorder: const CircleBorder(),
+              child: Tooltip(
+                message: context.l10n.settingsTooltip,
+                child: Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.black.withValues(alpha: 0.12),
+                      width: 1.1,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.settings_rounded,
+                    color: PlanrDesign.accentDark,
+                    size: 21,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
         ?trailing,
       ],
     );
@@ -371,21 +400,24 @@ class _EmailVerificationBanner extends StatefulWidget {
 class _EmailVerificationBannerState extends State<_EmailVerificationBanner> {
   bool _busy = false;
 
-  Future<void> _run(Future<String> Function(User user) action) async {
+  Future<void> _run(
+    Future<String> Function(User user, AppLocalizations l10n) action,
+  ) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null || _busy) return;
 
+    final l10n = context.l10n;
     setState(() => _busy = true);
 
     String message;
     try {
-      message = await action(user);
+      message = await action(user, l10n);
     } on FirebaseAuthException catch (e) {
       message = e.code == 'too-many-requests'
-          ? 'Please wait a moment before trying again.'
-          : 'Something went wrong. Please try again.';
+          ? l10n.waitBeforeRetry
+          : l10n.somethingWentWrong;
     } catch (_) {
-      message = 'Something went wrong. Please try again.';
+      message = l10n.somethingWentWrong;
     }
 
     if (!mounted) return;
@@ -404,18 +436,18 @@ class _EmailVerificationBannerState extends State<_EmailVerificationBanner> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Verify your email',
-            style: TextStyle(
+          Text(
+            context.l10n.verifyEmailTitle,
+            style: const TextStyle(
               color: PlanrDesign.ink,
               fontSize: 16,
               fontWeight: FontWeight.w900,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'We sent a link to your email address. Open it to confirm this account.',
-            style: TextStyle(color: PlanrDesign.muted, fontWeight: FontWeight.w600),
+          Text(
+            context.l10n.verifyEmailBody,
+            style: const TextStyle(color: PlanrDesign.muted, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -424,23 +456,23 @@ class _EmailVerificationBannerState extends State<_EmailVerificationBanner> {
               TextButton(
                 onPressed: _busy
                     ? null
-                    : () => _run((user) async {
+                    : () => _run((user, l10n) async {
                           await user.sendEmailVerification();
-                          return 'Verification email sent.';
+                          return l10n.verificationEmailSent;
                         }),
-                child: const Text('Resend email'),
+                child: Text(context.l10n.resendEmail),
               ),
               TextButton(
                 onPressed: _busy
                     ? null
-                    : () => _run((user) async {
+                    : () => _run((user, l10n) async {
                           await user.reload();
                           return FirebaseAuth.instance.currentUser?.emailVerified ==
                                   true
-                              ? 'Email verified. Thank you!'
-                              : 'Not verified yet.';
+                              ? l10n.emailVerifiedThanks
+                              : l10n.notVerifiedYet;
                         }),
-                child: const Text('I verified it'),
+                child: Text(context.l10n.iVerifiedIt),
               ),
             ],
           ),

@@ -2,11 +2,23 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/app_settings.dart';
 import 'core/theme/planr_design.dart';
+import 'l10n/gen/app_localizations.dart';
 import 'providers/auth_provider.dart';
 import 'screens/auth_gate.dart';
+
+/// Denied or signed-out reads cannot succeed by repeating them; other failures keep Riverpod's backoff.
+Duration? planrProviderRetry(int retryCount, Object error) {
+  if (error is FirebaseException &&
+      (error.code == 'permission-denied' || error.code == 'unauthenticated')) {
+    return null;
+  }
+  return ProviderContainer.defaultRetry(retryCount, error);
+}
 
 /// Owns the Riverpod container and recreates it whenever the signed-in user changes,
 /// so cached streams and state from one account never reach the next one.
@@ -86,6 +98,7 @@ class _PlanrRootState extends State<PlanrRoot> {
 
     return ProviderScope(
       key: ValueKey(_uid ?? 'signed-out'),
+      retry: planrProviderRetry,
       child: widget.child,
     );
   }
@@ -96,11 +109,22 @@ class PlannerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Planr',
-      debugShowCheckedModeBanner: false,
-      theme: _buildPlanrTheme(),
-      home: const AuthGate(),
+    return ValueListenableBuilder<Locale?>(
+      valueListenable: AppSettings.instance.locale,
+      builder: (context, locale, _) => MaterialApp(
+        onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
+        debugShowCheckedModeBanner: false,
+        theme: _buildPlanrTheme(),
+        locale: locale,
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        home: const AuthGate(),
+      ),
     );
   }
 }

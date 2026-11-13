@@ -1,10 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:planner_app/providers/account_provider.dart';
 import 'package:planner_app/providers/auth_provider.dart';
 import 'package:planner_app/providers/friends_provider.dart';
 import 'package:planner_app/screens/auth_screen.dart';
 import 'package:planner_app/screens/friend_requests_screen.dart';
+import 'package:planner_app/widgets/account/delete_account_dialog.dart';
+
+class RecordingAccountService extends Fake implements AccountService {
+  int deletions = 0;
+  bool requirePassword = false;
+  String? lastPassword;
+
+  @override
+  Future<String?> deleteAccount({String? password}) async {
+    deletions++;
+    if (requirePassword && password == null) return AccountService.reauthRequired;
+    lastPassword = password;
+    return null;
+  }
+}
 
 class RecordingAuthService extends Fake implements AuthService {
   String? submittedEmail;
@@ -29,6 +45,86 @@ class RecordingFriendsService extends Fake implements FriendsService {
 }
 
 void main() {
+  for (final secondStep in [false, true]) {
+    testWidgets('cancel deletion at ${secondStep ? 'second' : 'first'} step',
+        (tester) async {
+      final service = RecordingAccountService();
+      await tester.pumpWidget(ProviderScope(
+        overrides: [accountServiceProvider.overrideWithValue(service)],
+        child: MaterialApp(home: Consumer(builder: (context, ref, child) {
+          return Scaffold(body: TextButton(
+            onPressed: () => showDeleteAccountDialog(context, ref),
+            child: const Text('Open deletion'),
+          ));
+        })),
+      ));
+      await tester.tap(find.text('Open deletion'));
+      await tester.pumpAndSettle();
+      expect(find.byType(TextField), findsNothing);
+      if (secondStep) {
+        await tester.tap(find.text('Continue'));
+        await tester.pumpAndSettle();
+        expect(find.text('Are you sure?'), findsOneWidget);
+      }
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(service.deletions, 0);
+      expect(find.byType(AlertDialog), findsNothing);
+    });
+  }
+
+  testWidgets('an old sign-in asks for the password only after the final confirmation',
+      (tester) async {
+    final service = RecordingAccountService()..requirePassword = true;
+    await tester.pumpWidget(ProviderScope(
+      overrides: [accountServiceProvider.overrideWithValue(service)],
+      child: MaterialApp(home: Consumer(builder: (context, ref, child) {
+        return Scaffold(body: TextButton(
+          onPressed: () => showDeleteAccountDialog(context, ref),
+          child: const Text('Open deletion'),
+        ));
+      })),
+    ));
+    await tester.tap(find.text('Open deletion'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    expect(find.byType(TextField), findsNothing);
+
+    await tester.tap(find.text('Delete permanently'));
+    await tester.pumpAndSettle();
+    expect(find.byType(TextField), findsOneWidget);
+    expect(service.lastPassword, isNull);
+
+    await tester.enterText(find.byType(TextField), 'secret');
+    await tester.tap(find.text('Delete permanently'));
+    await tester.pumpAndSettle();
+
+    expect(service.lastPassword, 'secret');
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets('deletion starts only after the second confirmation', (tester) async {
+    final service = RecordingAccountService();
+    await tester.pumpWidget(ProviderScope(
+      overrides: [accountServiceProvider.overrideWithValue(service)],
+      child: MaterialApp(home: Consumer(builder: (context, ref, child) {
+        return Scaffold(body: TextButton(
+          onPressed: () => showDeleteAccountDialog(context, ref),
+          child: const Text('Open deletion'),
+        ));
+      })),
+    ));
+    await tester.tap(find.text('Open deletion'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+    expect(service.deletions, 0);
+    await tester.tap(find.text('Delete permanently'));
+    await tester.pumpAndSettle();
+    expect(service.deletions, 1);
+  });
+
   testWidgets('password recovery submits email and shows a neutral result',
       (tester) async {
     final service = RecordingAuthService();

@@ -408,6 +408,8 @@ class EventService {
     bool organizerVerified = false,
     PublicPage? organizerPage,
   }) async {
+    Reference? uploaded;
+
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -459,8 +461,13 @@ class EventService {
       String? imageUrl;
       if (imageFile != null) {
         final ref = _storage.ref().child('events/${user.uid}/$eventId.jpg');
-        await ref.putFile(imageFile, _imageMetadata);
-        imageUrl = await ref.getDownloadURL();
+        try {
+          await ref.putFile(imageFile, _imageMetadata);
+          imageUrl = await ref.getDownloadURL();
+        } on FirebaseException {
+          return 'Could not upload the photo. Please try again.';
+        }
+        uploaded = ref;
       }
 
       final eventRef = _firestore.collection('events').doc(eventId);
@@ -523,6 +530,9 @@ class EventService {
 
       return null;
     } catch (_) {
+      try {
+        await uploaded?.delete();
+      } catch (_) {}
       return 'Failed to create event.';
     }
   }

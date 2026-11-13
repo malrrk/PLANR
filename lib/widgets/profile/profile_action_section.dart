@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/planr_design.dart';
+import '../../l10n/l10n.dart';
 
 class ProfileActionSection extends StatelessWidget {
   const ProfileActionSection({
@@ -9,85 +10,55 @@ class ProfileActionSection extends StatelessWidget {
     required this.onFriends,
     required this.onFindFriends,
     required this.onFriendRequests,
-    required this.onBlockedUsers,
-    required this.onLegal,
-    required this.onDeleteAccount,
-    required this.onLogout,
   });
 
   final VoidCallback onEditProfile;
   final VoidCallback onFriends;
   final VoidCallback onFindFriends;
   final VoidCallback onFriendRequests;
-  final VoidCallback onBlockedUsers;
-  final VoidCallback onLegal;
-  final VoidCallback onDeleteAccount;
-  final VoidCallback onLogout;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return Column(
       children: [
         _ActionCard(
-          title: 'Social',
-          subtitle: 'People and requests',
+          title: l10n.socialTitle,
+          subtitle: l10n.socialSubtitle,
+          isSocial: true,
           children: [
             _ActionRow(
               icon: Icons.people_alt_rounded,
-              title: 'Friends',
-              subtitle: 'See your circle',
+              title: l10n.friendsTitle,
+              subtitle: l10n.friendsSubtitle,
               onTap: onFriends,
             ),
             _ActionRow(
               icon: Icons.person_search_rounded,
-              title: 'Find friends',
-              subtitle: 'Search by username',
+              title: l10n.findFriendsTitle,
+              subtitle: l10n.findFriendsSubtitle,
               onTap: onFindFriends,
             ),
             _ActionRow(
               icon: Icons.group_add_rounded,
-              title: 'Friend requests',
-              subtitle: 'Accept new connections',
+              title: l10n.friendRequestsTitle,
+              subtitle: l10n.friendRequestsSubtitle,
               onTap: onFriendRequests,
             ),
           ],
         ),
         const SizedBox(height: 16),
         _ActionCard(
-          title: 'Account',
-          subtitle: 'Profile, session and safety',
+          title: l10n.profileCardTitle,
+          subtitle: l10n.profileCardSubtitle,
+          isSocial: false,
           children: [
             _ActionRow(
               icon: Icons.edit_rounded,
-              title: 'Edit profile',
-              subtitle: 'Photo, background and bio',
+              title: l10n.editProfileTitle,
+              subtitle: l10n.editProfileSubtitle,
               onTap: onEditProfile,
-            ),
-            _ActionRow(
-              icon: Icons.block_rounded,
-              title: 'Blocked users',
-              subtitle: 'Manage who you blocked',
-              onTap: onBlockedUsers,
-            ),
-            _ActionRow(
-              icon: Icons.policy_rounded,
-              title: 'Terms & Privacy',
-              subtitle: 'Community rules and your data',
-              onTap: onLegal,
-            ),
-            _ActionRow(
-              icon: Icons.logout_rounded,
-              title: 'Log out',
-              subtitle: 'Leave this device',
-              danger: true,
-              onTap: onLogout,
-            ),
-            _ActionRow(
-              icon: Icons.delete_forever_rounded,
-              title: 'Delete account',
-              subtitle: 'Permanently remove your data',
-              danger: true,
-              onTap: onDeleteAccount,
             ),
           ],
         ),
@@ -100,11 +71,13 @@ class _ActionCard extends StatelessWidget {
   const _ActionCard({
     required this.title,
     required this.subtitle,
+    required this.isSocial,
     required this.children,
   });
 
   final String title;
   final String subtitle;
+  final bool isSocial;
   final List<Widget> children;
 
   @override
@@ -125,6 +98,7 @@ class _ActionCard extends StatelessWidget {
           _ActionCardHeader(
             title: title,
             subtitle: subtitle,
+            isSocial: isSocial,
           ),
           const SizedBox(height: 14),
           ...children,
@@ -138,15 +112,15 @@ class _ActionCardHeader extends StatelessWidget {
   const _ActionCardHeader({
     required this.title,
     required this.subtitle,
+    required this.isSocial,
   });
 
   final String title;
   final String subtitle;
+  final bool isSocial;
 
   @override
   Widget build(BuildContext context) {
-    final isSocial = title == 'Social';
-
     return Row(
       children: [
         Container(
@@ -202,21 +176,17 @@ class _ActionRow extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
-    this.danger = false,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
-  final bool danger;
 
   @override
   Widget build(BuildContext context) {
-    final accent = danger ? Colors.red.shade600 : PlanrDesign.accentDark;
-    final background = danger
-        ? Colors.red.shade50
-        : PlanrDesign.accentSoft.withValues(alpha: 0.62);
+    const accent = PlanrDesign.accentDark;
+    final background = PlanrDesign.accentSoft.withValues(alpha: 0.62);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -256,10 +226,8 @@ class _ActionRow extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: TextStyle(
-                          color: danger
-                              ? Colors.red.shade700
-                              : PlanrDesign.ink,
+                        style: const TextStyle(
+                          color: PlanrDesign.ink,
                           fontSize: 15.5,
                           fontWeight: FontWeight.w900,
                         ),
@@ -276,9 +244,9 @@ class _ActionRow extends StatelessWidget {
                     ],
                   ),
                 ),
-                Icon(
+                const Icon(
                   Icons.chevron_right_rounded,
-                  color: danger ? Colors.red.shade300 : PlanrDesign.softMuted,
+                  color: PlanrDesign.softMuted,
                 ),
               ],
             ),

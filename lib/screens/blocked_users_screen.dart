@@ -5,6 +5,7 @@ import '../core/theme/planr_design.dart';
 import '../core/widgets/planr_empty_state.dart';
 import '../core/widgets/planr_scaffold.dart';
 import '../core/widgets/planr_background.dart';
+import '../l10n/l10n.dart';
 import '../providers/moderation_provider.dart';
 import '../providers/user_profile_provider.dart';
 
@@ -13,19 +14,20 @@ class BlockedUsersScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final blockedAsync = ref.watch(blockedUidsProvider);
 
     return PlanrScaffold(
-      title: 'Blocked users',
+      title: l10n.blockedUsersTitle,
       variant: PlanrBackgroundVariant.friends,
       child: blockedAsync.when(
         data: (blocked) {
           if (blocked.isEmpty) {
-            return const Center(
+            return Center(
               child: PlanrEmptyState(
                 icon: Icons.block_rounded,
-                title: 'No blocked users',
-                subtitle: 'People you block will show up here.',
+                title: l10n.noBlockedUsers,
+                subtitle: l10n.noBlockedUsersHint,
               ),
             );
           }
@@ -39,11 +41,21 @@ class BlockedUsersScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => const Center(
-          child: PlanrEmptyState(
-            icon: Icons.error_outline_rounded,
-            title: 'Could not load',
-            subtitle: 'Please try again later.',
+        error: (_, _) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              PlanrEmptyState(
+                icon: Icons.error_outline_rounded,
+                title: l10n.couldNotLoad,
+                subtitle: l10n.tryAgainLater,
+              ),
+              TextButton.icon(
+                onPressed: () => ref.invalidate(blockedUidsProvider),
+                icon: const Icon(Icons.refresh_rounded),
+                label: Text(l10n.retry),
+              ),
+            ],
           ),
         ),
       ),
@@ -58,8 +70,9 @@ class _BlockedTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
     final profile = ref.watch(userProfileByIdProvider(uid)).value;
-    final name = profile?.displayName ?? 'Unknown user';
+    final name = profile?.displayName ?? l10n.unknownUser;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -87,10 +100,10 @@ class _BlockedTile extends ConsumerWidget {
                   await ref.read(moderationServiceProvider).unblockUser(uid);
               if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(error ?? '$name is unblocked.')),
+                SnackBar(content: Text(error ?? l10n.userUnblocked(name))),
               );
             },
-            child: const Text('Unblock'),
+            child: Text(l10n.unblock),
           ),
         ],
       ),

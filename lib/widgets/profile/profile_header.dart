@@ -104,13 +104,18 @@ class _CoverImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (profile.backgroundImageUrl != null &&
-        profile.backgroundImageUrl!.isNotEmpty) {
+        profile.backgroundImageUrl!.trim().isNotEmpty) {
       return Image.network(
         profile.backgroundImageUrl!,
         fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _placeholder(),
       );
     }
 
+    return _placeholder();
+  }
+
+  Widget _placeholder() {
     return Container(
       decoration: const BoxDecoration(
         gradient: PlanrDesign.brandGradient,
