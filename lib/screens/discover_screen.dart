@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/plan_time.dart';
 import '../core/theme/planr_design.dart';
 import '../core/widgets/planr_background.dart';
 import '../core/widgets/planr_card.dart';
@@ -10,8 +11,39 @@ import '../models/public_page.dart';
 import '../providers/event_provider.dart';
 import '../providers/public_page_provider.dart';
 import '../widgets/event_tag_chips.dart';
+import '../widgets/save_event_button.dart';
 import 'event_detail_screen.dart';
+import 'happening_now_screen.dart';
 import 'public_page_screen.dart';
+
+enum _DateFilter {
+  any('Any time', Icons.event_rounded),
+  today('Today', Icons.today_rounded),
+  tomorrow('Tomorrow', Icons.wb_sunny_rounded),
+  weekend('Weekend', Icons.weekend_rounded);
+
+  const _DateFilter(this.label, this.icon);
+
+  final String label;
+  final IconData icon;
+
+  bool matches(DateTime date, DateTime now) {
+    switch (this) {
+      case _DateFilter.any:
+        return true;
+      case _DateFilter.today:
+        return isSameDay(date, now);
+      case _DateFilter.tomorrow:
+        return isSameDay(date, now.add(const Duration(days: 1)));
+      case _DateFilter.weekend:
+        final soon = date.difference(now).inDays < 7;
+        final weekendDay = date.weekday == DateTime.saturday ||
+            date.weekday == DateTime.sunday ||
+            (date.weekday == DateTime.friday && date.hour >= 17);
+        return soon && weekendDay;
+    }
+  }
+}
 
 class DiscoverScreen extends ConsumerStatefulWidget {
   const DiscoverScreen({super.key});
@@ -25,9 +57,11 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
 
   String _searchQuery = '';
   String? _selectedTagId;
+  _DateFilter _dateFilter = _DateFilter.any;
 
   bool get _hasSearch => _searchQuery.isNotEmpty;
-  bool get _hasFilter => _selectedTagId != null || _hasSearch;
+  bool get _hasFilter =>
+      _selectedTagId != null || _hasSearch || _dateFilter != _DateFilter.any;
 
   @override
   void dispose() {
@@ -57,6 +91,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     setState(() {
       _searchQuery = '';
       _selectedTagId = null;
+      _dateFilter = _DateFilter.any;
     });
   }
 
@@ -71,12 +106,14 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   List<Event> _filteredEvents(List<Event> events) {
     final query = _searchQuery;
     final selectedTagId = _selectedTagId;
+    final now = DateTime.now();
 
     return events.where((event) {
       final matchesTag =
           selectedTagId == null || event.tags.contains(selectedTagId);
 
       if (!matchesTag) return false;
+      if (!_dateFilter.matches(event.date, now)) return false;
 
       if (query.isEmpty) return true;
 
@@ -130,6 +167,16 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
 
       return searchableText.contains(query);
     }).toList();
+  }
+
+  /// Public events starting within the next 36 hours, soonest first (capped for focus).
+  List<Event> _happeningNow(List<Event> events) {
+    final limit = DateTime.now().add(const Duration(hours: 36));
+
+    final soon = events.where((event) => event.date.isBefore(limit)).toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+
+    return soon.take(HappeningNowScreen.maxEvents).toList();
   }
 
   List<Event> _hotEvents(List<Event> events) {
@@ -202,6 +249,8 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
 
                   final showExploreSections = !_hasSearch;
                   final showSearchSections = _hasSearch;
+                  final showCurated = _dateFilter == _DateFilter.any;
+                  final happeningNow = _happeningNow(futureEvents);
 
                   return ListView(
                     physics: const BouncingScrollPhysics(),
@@ -219,6 +268,12 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                         onChanged: _setSearchQuery,
                       ),
                       const SizedBox(height: 16),
+                      _DiscoverDateFilter(
+                        selected: _dateFilter,
+                        onSelected: (filter) =>
+                            setState(() => _dateFilter = filter),
+                      ),
+                      const SizedBox(height: 10),
                       _DiscoverTagFilter(
                         selectedTagId: _selectedTagId,
                         onTagSelected: _toggleTag,
@@ -226,7 +281,23 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                       const SizedBox(height: 28),
 
                       if (showExploreSections) ...[
-                        if (topPages.isNotEmpty) ...[
+                        if (showCurated &&
+                            _selectedTagId == null &&
+                            happeningNow.isNotEmpty) ...[
+                          _HappeningNowBanner(
+                            events: happeningNow,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => HappeningNowScreen(
+                                  events: happeningNow,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 30),
+                        ],
+                        if (showCurated && topPages.isNotEmpty) ...[
                           const _SectionHeader(
                             title: 'Top Pages',
                             subtitle:
@@ -239,7 +310,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                           ),
                           const SizedBox(height: 30),
                         ],
-                        if (hotEvents.isNotEmpty) ...[
+                        if (showCurated && hotEvents.isNotEmpty) ...[
                           const _SectionHeader(
                             title: 'Hot Events',
                             subtitle: 'Popular plans people are joining.',
@@ -423,6 +494,141 @@ class _DiscoverSearchBar extends StatelessWidget {
             fontWeight: FontWeight.w700,
           ),
           border: InputBorder.none,
+        ),
+      ),
+    );
+  }
+}
+
+class _DiscoverDateFilter extends StatelessWidget {
+  const _DiscoverDateFilter({
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final _DateFilter selected;
+  final ValueChanged<_DateFilter> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 43,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: _DateFilter.values.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final filter = _DateFilter.values[index];
+
+          return _FilterChipButton(
+            label: filter.label,
+            icon: filter.icon,
+            selected: selected == filter,
+            onTap: () => onSelected(filter),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _HappeningNowBanner extends StatelessWidget {
+  const _HappeningNowBanner({
+    required this.events,
+    required this.onTap,
+  });
+
+  final List<Event> events;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final today = events.where((e) => isSameDay(e.date, DateTime.now())).length;
+    final subtitle = today > 0
+        ? '$today ${today == 1 ? 'event' : 'events'} today, swipe through them'
+        : '${events.length} ${events.length == 1 ? 'event' : 'events'} coming up soon';
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(28),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(28),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
+          decoration: BoxDecoration(
+            gradient: PlanrDesign.brandGradient,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: PlanrDesign.accent.withValues(alpha: 0.28),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.bolt_rounded, color: Colors.white, size: 20),
+                        SizedBox(width: 4),
+                        Text(
+                          'HAPPENING NOW',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      events.first.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.92),
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                width: 46,
+                height: 46,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.play_arrow_rounded,
+                  color: PlanrDesign.accent,
+                  size: 28,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1113,6 +1319,11 @@ class _HotEventCard extends StatelessWidget {
               ),
             ),
             Positioned(
+              top: 10,
+              right: 10,
+              child: SaveEventButton(event: event),
+            ),
+            Positioned(
               left: 16,
               right: 16,
               bottom: 16,
@@ -1244,6 +1455,15 @@ class _DiscoverEventCard extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Align(
+            alignment: Alignment.topCenter,
+            child: SaveEventButton(
+              event: event,
+              size: 38,
+              onDark: false,
             ),
           ),
         ],

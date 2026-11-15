@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/planr_design.dart';
 import '../l10n/l10n.dart';
-import 'create_event_screen.dart';
+import '../providers/event_provider.dart';
+import '../widgets/plans/quick_plan_sheet.dart';
+import 'chats_screen.dart';
 import 'discover_screen.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';
-import 'my_planr_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -24,23 +26,16 @@ class _MainShellState extends State<MainShell> {
     });
   }
 
-  void _openCreateEvent() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const CreateEventScreen(),
-      ),
-    );
+  void _openQuickPlan() {
+    showQuickPlanSheet(context);
   }
 
   @override
   Widget build(BuildContext context) {
     final screens = [
-      HomeScreen(
-        onOpenMyPlanr: () => _selectTab(2),
-      ),
+      const HomeScreen(),
       const DiscoverScreen(),
-      const MyPlanrScreen(),
+      const ChatsScreen(),
       const ProfileScreen(),
     ];
 
@@ -54,8 +49,8 @@ class _MainShellState extends State<MainShell> {
           selectedIndex: _index,
           onHomeTap: () => _selectTab(0),
           onEventsTap: () => _selectTab(1),
-          onCreateTap: _openCreateEvent,
-          onStoriesTap: () => _selectTab(2),
+          onCreateTap: _openQuickPlan,
+          onChatsTap: () => _selectTab(2),
           onProfileTap: () => _selectTab(3),
         ),
       ),
@@ -63,13 +58,13 @@ class _MainShellState extends State<MainShell> {
   }
 }
 
-class _PlanrBottomNav extends StatelessWidget {
+class _PlanrBottomNav extends ConsumerWidget {
   const _PlanrBottomNav({
     required this.selectedIndex,
     required this.onHomeTap,
     required this.onEventsTap,
     required this.onCreateTap,
-    required this.onStoriesTap,
+    required this.onChatsTap,
     required this.onProfileTap,
   });
 
@@ -77,11 +72,16 @@ class _PlanrBottomNav extends StatelessWidget {
   final VoidCallback onHomeTap;
   final VoidCallback onEventsTap;
   final VoidCallback onCreateTap;
-  final VoidCallback onStoriesTap;
+  final VoidCallback onChatsTap;
   final VoidCallback onProfileTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasUnreadChat = ref.watch(myEventsProvider).maybeWhen(
+          data: (events) => events.any((event) => event.hasUnreadMessages),
+          orElse: () => false,
+        );
+
     return Container(
       height: 86,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -124,10 +124,13 @@ class _PlanrBottomNav extends StatelessWidget {
           ),
           Expanded(
             child: _BottomNavItem(
-              icon: Icons.dashboard_customize_rounded,
-              label: context.l10n.navMyPlanr,
+              icon: selectedIndex == 2
+                  ? Icons.chat_bubble_rounded
+                  : Icons.chat_bubble_outline_rounded,
+              label: context.l10n.navChats,
               selected: selectedIndex == 2,
-              onTap: onStoriesTap,
+              showDot: hasUnreadChat && selectedIndex != 2,
+              onTap: onChatsTap,
             ),
           ),
           Expanded(
@@ -150,11 +153,13 @@ class _BottomNavItem extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.showDot = false,
   });
 
   final IconData icon;
   final String label;
   final bool selected;
+  final bool showDot;
   final VoidCallback onTap;
 
   @override
@@ -170,10 +175,29 @@ class _BottomNavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              color: color,
-              size: selected ? 29 : 27,
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  icon,
+                  color: color,
+                  size: selected ? 29 : 27,
+                ),
+                if (showDot)
+                  Positioned(
+                    right: -1,
+                    top: -1,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: PlanrDesign.storyRingStart,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.6),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 4),
             Text(

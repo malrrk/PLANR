@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/event_tag.dart';
 import '../models/user_profile.dart';
 import 'firebase_providers.dart';
 
@@ -74,6 +75,7 @@ class UserProfileService {
 
   static const int maxDisplayNameLength = 60;
   static const int maxBioLength = 300;
+  static const int maxInterests = 6;
 
   Future<void> createUserProfile({
     required String uid,
@@ -109,6 +111,7 @@ class UserProfileService {
     String? bio,
     String? photoUrl,
     String? backgroundImageUrl,
+    List<String>? interests,
   }) async {
     final trimmedDisplayName = displayName.trim();
     final trimmedBio = bio?.trim();
@@ -142,6 +145,10 @@ class UserProfileService {
 
     if (backgroundImageUrl != null) {
       data['backgroundImageUrl'] = backgroundImageUrl;
+    }
+
+    if (interests != null) {
+      data['interests'] = sanitizeEventTagIds(interests).take(maxInterests).toList();
     }
 
     await _firestore.collection('users').doc(uid).set(

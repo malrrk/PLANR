@@ -3,11 +3,13 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/public_page.dart';
 import '../models/story.dart';
+import '../models/story_audience.dart';
 import 'friends_provider.dart';
 import 'dart:async';
 import 'firebase_providers.dart';
@@ -89,9 +91,8 @@ final friendsStoriesProvider = StreamProvider<List<Story>>((ref) {
           return managedPagesAsync.when(
             data: (managedPages) {
               final allowedUserIds = <String>{
-                user.uid,
                 ...friends.map((e) => e.uid),
-              }.where((uid) => !blocked.contains(uid)).toList();
+              }.where((uid) => uid != user.uid && !blocked.contains(uid)).toList();
 
               final allowedPageIds = <String>{
                 ...followedPages.map((page) => page.id),
@@ -99,6 +100,8 @@ final friendsStoriesProvider = StreamProvider<List<Story>>((ref) {
               }.toList();
 
               return _watchCombinedStoryFeed(
+                myUid: user.uid,
+                blockedUids: blocked,
                 allowedUserIds: allowedUserIds,
                 allowedPageIds: allowedPageIds,
               );
@@ -116,7 +119,11 @@ final friendsStoriesProvider = StreamProvider<List<Story>>((ref) {
   );
 });
 
+/// Firestore rules only allow queries that prove the audience, so the feed is the union of:
+/// my own stories, stories shared with me, and public stories of friends and followed pages.
 Stream<List<Story>> _watchCombinedStoryFeed({
+  required String myUid,
+  required Set<String> blockedUids,
   required List<String> allowedUserIds,
   required List<String> allowedPageIds,
 }) {
@@ -129,11 +136,17 @@ Stream<List<Story>> _watchCombinedStoryFeed({
   void emit() {
     final now = DateTime.now();
 
-    final stories = <Story>[
+    final byId = <String, Story>{};
+    for (final story in [
       ...userBuckets.values.expand((stories) => stories),
       ...pageBuckets.values.expand((stories) => stories),
-    ]
+    ]) {
+      byId[story.id] = story;
+    }
+
+    final stories = byId.values
         .where((story) => story.expiresAt.isAfter(now))
+        .where((story) => !blockedUids.contains(story.ownerUid))
         .toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
@@ -155,29 +168,37 @@ Stream<List<Story>> _watchCombinedStoryFeed({
 
   final userChunks = chunkIds(allowedUserIds);
 
-  for (var i = 0; i < userChunks.length; i++) {
-    final bucketKey = 'users_$i';
-    final chunk = userChunks[i];
-
-    final subscription = FirebaseFirestore.instance
-      .collection('stories')
-      .where('ownerType', isEqualTo: 'user')
-      .where('ownerUid', whereIn: chunk)
-      .snapshots()
-      .listen(
-      (snapshot) {
-        final stories = snapshot.docs
-            .map((doc) => Story.fromMap({...doc.data(), 'id': doc.id}))
-            .where((story) => story.isUserStory)
-            .toList();
-
-        userBuckets[bucketKey] = stories;
-        emit();
-      },
-      onError: controller.addError,
+  void listenToUserStories(String bucketKey, Query<Map<String, dynamic>> query) {
+    subscriptions.add(
+      query.snapshots().listen(
+        (snapshot) {
+          userBuckets[bucketKey] = snapshot.docs
+              .map((doc) => Story.fromMap({...doc.data(), 'id': doc.id}))
+              .where((story) => story.isUserStory)
+              .toList();
+          emit();
+        },
+        onError: controller.addError,
+      ),
     );
+  }
 
-    subscriptions.add(subscription);
+  final storiesRef = FirebaseFirestore.instance.collection('stories');
+
+  listenToUserStories('mine', storiesRef.where('ownerUid', isEqualTo: myUid));
+  listenToUserStories(
+    'shared',
+    storiesRef.where('viewerUids', arrayContains: myUid),
+  );
+
+  for (var i = 0; i < userChunks.length; i++) {
+    listenToUserStories(
+      'public_$i',
+      storiesRef
+          .where('audience', isEqualTo: 'public')
+          .where('ownerType', isEqualTo: 'user')
+          .where('ownerUid', whereIn: userChunks[i]),
+    );
   }
 
   final pageChunks = chunkIds(allowedPageIds);
@@ -188,6 +209,7 @@ Stream<List<Story>> _watchCombinedStoryFeed({
 
     final subscription = FirebaseFirestore.instance
       .collection('stories')
+      .where('audience', isEqualTo: 'public')
       .where('ownerType', isEqualTo: 'publicPage')
       .where('pageId', whereIn: chunk)
       .snapshots()
@@ -228,6 +250,7 @@ final publicPagePreviewStoriesProvider =
     StreamProvider.family<List<Story>, String>((ref, pageId) {
     return FirebaseFirestore.instance
       .collection('stories')
+      .where('audience', isEqualTo: 'public')
       .where('ownerType', isEqualTo: 'publicPage')
       .where('pageId', isEqualTo: pageId)
       .where('isPublicPreview', isEqualTo: true)
@@ -273,14 +296,71 @@ class StoryService {
         <String>[];
   }
 
+  /// Returns the people who may see a story with this audience, limited to current friends.
+  @visibleForTesting
+  Future<List<String>> viewerUidsFor({
+    required String uid,
+    required StoryAudience audience,
+    required List<String> selectedUids,
+  }) async {
+    if (audience == StoryAudience.public || audience == StoryAudience.onlyMe) {
+      return const [];
+    }
+
+    final friendsSnapshot = await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('friends')
+        .get();
+    final friendUids = friendsSnapshot.docs.map((doc) => doc.id).toSet();
+
+    switch (audience) {
+      case StoryAudience.friends:
+        return friendUids.toList();
+      case StoryAudience.selected:
+        return selectedUids.where(friendUids.contains).toList();
+      case StoryAudience.close:
+        final closeSnapshot = await _firestore
+            .collection('users')
+            .doc(uid)
+            .collection('relationships')
+            .where('tier', isEqualTo: 'close')
+            .get();
+        return closeSnapshot.docs
+            .map((doc) => doc.id)
+            .where(friendUids.contains)
+            .toList();
+      case StoryAudience.public:
+      case StoryAudience.onlyMe:
+        return const [];
+    }
+  }
+
   Future<String?> addStory({
     required File file,
+    StoryAudience audience = StoryAudience.friends,
+    List<String> selectedUids = const [],
+    String? eventId,
+    String? eventTitle,
   }) async {
     Reference? uploaded;
 
     try {
       final user = _auth.currentUser;
       if (user == null) return 'No user logged in.';
+
+      if (audience == StoryAudience.selected && selectedUids.isEmpty) {
+        return 'Pick at least one person.';
+      }
+
+      final viewerUids = await viewerUidsFor(
+        uid: user.uid,
+        audience: audience,
+        selectedUids: selectedUids,
+      );
+      if (viewerUids.length > 500) {
+        return 'That audience is too large. Try close friends instead.';
+      }
 
       final storyId = _uuid.v4();
       final now = DateTime.now();
@@ -311,6 +391,10 @@ class StoryService {
         expiresAt: expiresAt,
         dayKey: dayKey,
         isPublicPreview: false,
+        audience: audience.id,
+        viewerUids: viewerUids,
+        eventId: eventId,
+        eventTitle: eventTitle,
       );
 
       await _firestore

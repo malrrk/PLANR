@@ -178,11 +178,12 @@ service cloud.firestore {
         && request.resource.data.uid == uid
         && changedKeysOnly([
           'displayName', 'bio', 'photoUrl', 'backgroundImageUrl',
-          'pinnedStoryImageUrls', 'updatedAt'
+          'pinnedStoryImageUrls', 'interests', 'updatedAt'
         ])
         && textBetween(request.resource.data.get('displayName', ''), 1, 60)
         && optionalText(request.resource.data, 'bio', 300)
-        && request.resource.data.get('pinnedStoryImageUrls', []).size() <= 3;
+        && request.resource.data.get('pinnedStoryImageUrls', []).size() <= 3
+        && request.resource.data.get('interests', []).size() <= 8;
 
       allow delete: if isSelf(uid);
 
@@ -216,6 +217,19 @@ service cloud.firestore {
 
       match /followed_pages/{pageId} {
         allow read, write: if isSelf(uid);
+      }
+
+      // Private bookmarks of events; never visible to anyone else.
+      match /saved_events/{eventId} {
+        allow read, write: if isSelf(uid);
+      }
+
+      // The owner's private, one-sided classification of other people (e.g. close friends).
+      match /relationships/{otherUid} {
+        allow read, delete: if isSelf(uid);
+        allow create, update: if isSelf(uid)
+          && otherUid != uid
+          && request.resource.data.tier in ['close'];
       }
 
       // Denormalised copy of events the user attends.
@@ -469,17 +483,25 @@ service cloud.firestore {
     // ---------- stories ----------
 
     match /stories/{storyId} {
-      // Feeds are filtered client-side; Firestore rules cannot express per-owner friendship for list queries.
-      allow read: if signedIn();
+      // Queries must prove the audience: own stories, viewerUids array-contains me, or audience == 'public'.
+      allow read: if signedIn() && (
+        resource.data.ownerUid == request.auth.uid
+        || resource.data.audience == 'public'
+        || request.auth.uid in resource.data.viewerUids
+      );
 
       allow create: if signedIn()
         && request.resource.data.id == storyId
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.imageUrl is string
         && request.resource.data.expiresAt is timestamp
+        && request.resource.data.get('audience', 'public')
+            in ['public', 'friends', 'close', 'selected', 'onlyMe']
+        && request.resource.data.get('viewerUids', []).size() <= 500
         && (
           (request.resource.data.ownerType == 'user' && request.resource.data.pageId == null)
           || (request.resource.data.ownerType == 'publicPage'
+              && request.resource.data.get('audience', 'public') == 'public'
               && canManagePage(request.resource.data.pageId))
         );
 

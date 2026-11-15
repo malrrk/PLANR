@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'app.dart';
 import 'core/app_settings.dart';
+import 'core/story_views.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -12,6 +13,7 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   await AppSettings.load();
+  await StoryViews.load();
 
   runApp(const PlanrRoot());
 }

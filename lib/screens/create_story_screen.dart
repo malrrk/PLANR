@@ -10,7 +10,10 @@ import '../core/widgets/planr_button.dart';
 import '../core/widgets/planr_card.dart';
 import '../core/widgets/planr_scaffold.dart';
 import '../providers/story_provider.dart';
+import '../models/event.dart';
 import '../models/public_page.dart';
+import '../models/story_audience.dart';
+import '../widgets/story/story_options_sheets.dart';
 
 class CreateStoryScreen extends ConsumerStatefulWidget {
   const CreateStoryScreen({
@@ -30,6 +33,31 @@ class _CreateStoryScreenState extends ConsumerState<CreateStoryScreen> {
   final ImagePicker _picker = ImagePicker();
   String? _imagePath;
   bool _saving = false;
+  StoryAudience _audience = StoryAudience.friends;
+  Set<String> _selectedUids = {};
+  Event? _event;
+
+  Future<void> _chooseAudience() async {
+    final choice = await showStoryAudienceSheet(
+      context,
+      initial: StoryAudienceChoice(_audience, _selectedUids),
+    );
+
+    if (choice == null || !mounted) return;
+
+    setState(() {
+      _audience = choice.audience;
+      _selectedUids = choice.selectedUids;
+    });
+  }
+
+  Future<void> _chooseEvent() async {
+    final event = await showStoryEventPicker(context);
+
+    if (event == null || !mounted) return;
+
+    setState(() => _event = event);
+  }
 
   Future<void> _pickFromGallery() async {
     final file = await _picker.pickImage(
@@ -165,6 +193,10 @@ class _CreateStoryScreenState extends ConsumerState<CreateStoryScreen> {
     final error = widget.page == null
         ? await service.addStory(
             file: File(_imagePath!),
+            audience: _audience,
+            selectedUids: _selectedUids.toList(),
+            eventId: _event?.id,
+            eventTitle: _event?.title,
           )
         : await service.addPageStory(
             page: widget.page!,
@@ -264,6 +296,28 @@ class _CreateStoryScreenState extends ConsumerState<CreateStoryScreen> {
 
           const SizedBox(height: 14),
 
+          if (!isPageStory) ...[
+            _StoryOptionRow(
+              icon: _audience.icon,
+              title: 'Audience',
+              value: _audience == StoryAudience.selected
+                  ? 'Selected people (${_selectedUids.length})'
+                  : _audience.label,
+              onTap: _saving ? null : _chooseAudience,
+            ),
+            const SizedBox(height: 10),
+            _StoryOptionRow(
+              icon: Icons.event_rounded,
+              title: 'Event',
+              value: _event?.title ?? 'Optional, let friends join in',
+              onTap: _saving ? null : _chooseEvent,
+              onClear: _event == null
+                  ? null
+                  : () => setState(() => _event = null),
+            ),
+            const SizedBox(height: 14),
+          ],
+
           PlanrButton(
             label: _saving
                 ? 'Posting...'
@@ -276,6 +330,80 @@ class _CreateStoryScreenState extends ConsumerState<CreateStoryScreen> {
           ),
 
           const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+}
+
+class _StoryOptionRow extends StatelessWidget {
+  const _StoryOptionRow({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.onTap,
+    this.onClear,
+  });
+
+  final IconData icon;
+  final String title;
+  final String value;
+  final VoidCallback? onTap;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return PlanrCard(
+      onTap: onTap,
+      radius: 22,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      color: PlanrDesign.cardLight.withValues(alpha: 0.9),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: PlanrDesign.accentSoft,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: PlanrDesign.accentDark, size: 21),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: PlanrDesign.muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: PlanrDesign.ink,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (onClear != null)
+            IconButton(
+              onPressed: onClear,
+              icon: const Icon(Icons.close_rounded, size: 20),
+              color: PlanrDesign.muted,
+            )
+          else
+            const Icon(Icons.chevron_right_rounded, color: PlanrDesign.muted),
         ],
       ),
     );

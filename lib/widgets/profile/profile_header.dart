@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/planr_design.dart';
 import '../../core/widgets/planr_avatar.dart';
 import '../../models/user_profile.dart';
+import '../event_tag_chips.dart';
 
 class ProfileHeader extends StatelessWidget {
   const ProfileHeader({
@@ -84,6 +85,16 @@ class ProfileHeader extends StatelessWidget {
                       height: 1.42,
                     ),
                   ),
+                  if (profile.interests.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    Center(
+                      child: EventTagChips(
+                        tagIds: profile.interests,
+                        maxVisible: 6,
+                        compact: true,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

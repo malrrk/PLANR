@@ -1,6 +1,5 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -22,7 +21,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navCreate => 'Create';
 
   @override
-  String get navMyPlanr => 'MyPlanr';
+  String get navChats => 'Chats';
 
   @override
   String get navProfile => 'Profile';

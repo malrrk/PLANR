@@ -11,6 +11,8 @@ import '../core/widgets/planr_button.dart';
 import '../core/widgets/planr_card.dart';
 import '../core/widgets/planr_text_field.dart';
 import '../providers/user_profile_provider.dart';
+import '../widgets/event_tag_selector.dart';
+import '../widgets/profile/story_photo_picker.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -27,6 +29,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   File? _selectedProfileImage;
   File? _selectedBackgroundImage;
+  List<String> _interests = [];
 
   bool _saving = false;
   bool _initialized = false;
@@ -50,29 +53,74 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     return null;
   }
 
-  Future<void> _pickProfileImage() async {
+  Future<File?> _chooseImage() async {
+    final source = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: PlanrDesign.cardLight,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(
+                Icons.photo_library_rounded,
+                color: PlanrDesign.accent,
+              ),
+              title: const Text('From your gallery'),
+              onTap: () => Navigator.pop(sheetContext, 'gallery'),
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.auto_stories_rounded,
+                color: PlanrDesign.accent,
+              ),
+              title: const Text('From your stories'),
+              onTap: () => Navigator.pop(sheetContext, 'stories'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null || !mounted) return null;
+
+    if (source == 'stories') {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return null;
+
+      return pickPhotoFromMyStories(context, ref, uid: uid);
+    }
+
     final file = await _picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 88,
     );
 
-    if (file == null) return;
+    return file == null ? null : File(file.path);
+  }
+
+  Future<void> _pickProfileImage() async {
+    final file = await _chooseImage();
+
+    if (file == null || !mounted) return;
 
     setState(() {
-      _selectedProfileImage = File(file.path);
+      _selectedProfileImage = file;
     });
   }
 
   Future<void> _pickBackgroundImage() async {
-    final file = await _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 88,
-    );
+    final file = await _chooseImage();
 
-    if (file == null) return;
+    if (file == null || !mounted) return;
 
     setState(() {
-      _selectedBackgroundImage = File(file.path);
+      _selectedBackgroundImage = file;
     });
   }
 
@@ -135,6 +183,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         bio: bio.isEmpty ? null : bio,
         photoUrl: photoUrl,
         backgroundImageUrl: backgroundImageUrl,
+        interests: _interests,
       );
 
       await service.propagateProfileChange(
@@ -185,6 +234,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               if (!_initialized) {
                 _displayNameController.text = profile?.displayName ?? '';
                 _bioController.text = profile?.bio ?? '';
+                _interests = [...?profile?.interests];
                 _initialized = true;
               }
 
@@ -255,6 +305,36 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                   hintText: 'Tell people a little about you',
                                   maxLines: 4,
                                   textInputAction: TextInputAction.newline,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          PlanrCard(
+                            padding: const EdgeInsets.all(18),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const _SectionTitle(
+                                  title: 'Interests',
+                                  icon: Icons.favorite_rounded,
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Pick up to 6 things you love. They help friends and event suggestions find you.',
+                                  style: TextStyle(
+                                    color: PlanrDesign.muted,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                EventTagSelector(
+                                  selectedTagIds: _interests,
+                                  maxSelected: UserProfileService.maxInterests,
+                                  initiallyExpanded: false,
+                                  onChanged: (tags) =>
+                                      setState(() => _interests = tags),
                                 ),
                               ],
                             ),

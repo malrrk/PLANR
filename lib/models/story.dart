@@ -31,6 +31,16 @@ class Story {
   /// If true, this page story can appear as a public preview on the page.
   final bool isPublicPreview;
 
+  /// Who may see this story; see [StoryAudience].
+  final String audience;
+
+  /// Snapshot of the people who may see a non-public story (taken when it was posted).
+  final List<String> viewerUids;
+
+  /// Optional event this story points to, so viewers can plan around it.
+  final String? eventId;
+  final String? eventTitle;
+
   Story({
     required this.id,
     required this.ownerType,
@@ -44,6 +54,10 @@ class Story {
     required this.expiresAt,
     required this.dayKey,
     required this.isPublicPreview,
+    this.audience = 'public',
+    this.viewerUids = const [],
+    this.eventId,
+    this.eventTitle,
   });
 
   bool get isUserStory => ownerType == 'user';
@@ -72,6 +86,10 @@ class Story {
       'expiresAt': Timestamp.fromDate(expiresAt),
       'dayKey': dayKey,
       'isPublicPreview': isPublicPreview,
+      'audience': audience,
+      'viewerUids': viewerUids,
+      'eventId': eventId,
+      'eventTitle': eventTitle,
     };
   }
 
@@ -104,6 +122,13 @@ class Story {
       expiresAt: expiresAt,
       dayKey: map['dayKey'] as String? ?? dayKeyFromDate(createdAt),
       isPublicPreview: map['isPublicPreview'] as bool? ?? false,
+      audience: map['audience'] as String? ?? 'public',
+      viewerUids: (map['viewerUids'] as List<dynamic>?)
+              ?.whereType<String>()
+              .toList() ??
+          const [],
+      eventId: map['eventId'] as String?,
+      eventTitle: map['eventTitle'] as String?,
     );
   }
 

@@ -10,6 +10,7 @@ import '../models/event.dart';
 import '../models/event_tag.dart';
 import '../models/event_update.dart';
 import '../models/public_page.dart';
+import '../models/user_profile.dart';
 import 'firebase_providers.dart';
 import 'moderation_provider.dart';
 
@@ -407,6 +408,9 @@ class EventService {
     String? organizerPhotoUrl,
     bool organizerVerified = false,
     PublicPage? organizerPage,
+
+    /// Called with the new event id once the event was written.
+    void Function(String eventId)? onCreated,
   }) async {
     Reference? uploaded;
 
@@ -528,6 +532,8 @@ class EventService {
 
       await batch.commit();
 
+      onCreated?.call(eventId);
+
       return null;
     } catch (_) {
       try {
@@ -535,6 +541,56 @@ class EventService {
       } catch (_) {}
       return 'Failed to create event.';
     }
+  }
+
+  /// A private plan with chat, created from a title and a time, then shared with friends.
+  Future<String?> createQuickPlan({
+    required String title,
+    required DateTime date,
+    String? place,
+    List<UserProfile> invitees = const [],
+  }) async {
+    String? createdId;
+
+    final trimmedPlace = place?.trim() ?? '';
+
+    final error = await createEvent(
+      title: title,
+      description: 'Let\'s make it happen.',
+      address: trimmedPlace.isEmpty ? 'Place to be decided' : trimmedPlace,
+      date: date,
+      visibility: 'private',
+      eventKind: 'private',
+      chatEnabled: true,
+      guestsCanInvite: true,
+      tags: const [],
+      onCreated: (id) => createdId = id,
+    );
+    if (error != null) return error;
+
+    final eventId = createdId;
+    if (eventId == null || invitees.isEmpty) return null;
+
+    final doc = await _firestore.collection('events').doc(eventId).get();
+    final data = doc.data();
+    if (data == null) return null;
+
+    final event = Event.fromMap(data, doc.id);
+    var failedInvites = 0;
+
+    for (final friend in invitees) {
+      final inviteError = await inviteUserToEvent(
+        event: event,
+        invitedUid: friend.uid,
+        invitedDisplayName: friend.displayName,
+        invitedPhotoUrl: friend.photoUrl,
+      );
+      if (inviteError != null) failedInvites++;
+    }
+
+    return failedInvites == 0
+        ? null
+        : 'Plan created, but $failedInvites invite(s) could not be sent.';
   }
 
   Future<LinkedGroupCreationResult> createLinkedGroupFromPublicEventAndReturn({

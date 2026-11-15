@@ -122,11 +122,11 @@ abstract class AppLocalizations {
   /// **'Create'**
   String get navCreate;
 
-  /// No description provided for @navMyPlanr.
+  /// No description provided for @navChats.
   ///
   /// In en, this message translates to:
-  /// **'MyPlanr'**
-  String get navMyPlanr;
+  /// **'Chats'**
+  String get navChats;
 
   /// No description provided for @navProfile.
   ///

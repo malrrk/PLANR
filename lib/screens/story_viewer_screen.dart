@@ -2,13 +2,16 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/story_views.dart';
 import '../core/theme/planr_design.dart';
 import '../core/widgets/planr_avatar.dart';
 import '../models/story.dart';
+import '../models/story_audience.dart';
 import '../providers/moderation_provider.dart';
 import '../providers/story_provider.dart';
 import '../providers/user_profile_provider.dart';
 import '../widgets/moderation/moderation_actions.dart';
+import 'event_detail_screen.dart';
 import 'profile_screen.dart';
 import 'public_page_screen.dart';
 
@@ -349,6 +352,10 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
         final isPinned =
             currentStory.isUserStory && pinnedUrls.contains(currentStory.imageUrl);
 
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => StoryViews.instance.markViewed(currentStory.id),
+        );
+
         return Scaffold(
           backgroundColor: Colors.black,
           body: Stack(
@@ -399,6 +406,24 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
                 ),
               ),
 
+              if (currentStory.eventId != null)
+                Positioned(
+                  left: 18,
+                  right: 18,
+                  bottom: MediaQuery.of(context).padding.bottom +
+                      (isOwnStory ? 84 : 24),
+                  child: _StoryEventChip(
+                    title: currentStory.eventTitle ?? 'See the event',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            EventDetailScreen(eventId: currentStory.eventId!),
+                      ),
+                    ),
+                  ),
+                ),
+
               if (isOwnStory)
                 Positioned(
                   left: 18,
@@ -406,6 +431,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
                   bottom: MediaQuery.of(context).padding.bottom + 18,
                   child: _OwnStoryHint(
                     isPinned: isPinned,
+                    audience: StoryAudience.fromId(currentStory.audience),
                   ),
                 ),
             ],
@@ -747,9 +773,11 @@ class _StoryTopButton extends StatelessWidget {
 class _OwnStoryHint extends StatelessWidget {
   const _OwnStoryHint({
     required this.isPinned,
+    required this.audience,
   });
 
   final bool isPinned;
+  final StoryAudience audience;
 
   @override
   Widget build(BuildContext context) {
@@ -766,22 +794,83 @@ class _OwnStoryHint extends StatelessWidget {
         ),
         child: Row(
           children: [
+            Icon(audience.icon, color: Colors.white, size: 19),
+            const SizedBox(width: 7),
+            Text(
+              audience.label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(width: 14),
             Icon(
               isPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined,
               color: Colors.white,
-              size: 21,
+              size: 19,
             ),
-            const SizedBox(width: 9),
+            const SizedBox(width: 7),
             Expanded(
               child: Text(
-                isPinned
-                    ? 'Pinned to your profile'
-                    : 'Open the menu to pin this moment',
+                isPinned ? 'Pinned' : 'Menu to pin',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.88),
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StoryEventChip extends StatelessWidget {
+  const _StoryEventChip({required this.title, required this.onTap});
+
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.event_available_rounded,
+              color: PlanrDesign.accent,
+              size: 20,
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: PlanrDesign.ink,
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Join in',
+              style: TextStyle(
+                color: PlanrDesign.accentDark,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w900,
               ),
             ),
           ],

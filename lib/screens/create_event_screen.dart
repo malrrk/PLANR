@@ -21,9 +21,19 @@ class CreateEventScreen extends ConsumerStatefulWidget {
   const CreateEventScreen({
     super.key,
     this.initialOrganizerPage,
+    this.initialTitle,
+    this.initialPlace,
+    this.initialDate,
+    this.startPrivate = false,
   });
 
   final PublicPage? initialOrganizerPage;
+  final String? initialTitle;
+  final String? initialPlace;
+  final DateTime? initialDate;
+
+  /// Start as a private plan with friends instead of a public event.
+  final bool startPrivate;
 
   @override
   ConsumerState<CreateEventScreen> createState() => _CreateEventScreenState();
@@ -54,6 +64,15 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   @override
   void initState() {
     super.initState();
+
+    _titleController.text = widget.initialTitle ?? '';
+    _locationController.text = widget.initialPlace ?? '';
+    if (widget.initialDate != null) _selectedDate = widget.initialDate!;
+
+    if (widget.startPrivate) {
+      _visibility = 'private';
+      _chatEnabled = true;
+    }
 
     if (widget.initialOrganizerPage != null) {
       _visibility = 'public';

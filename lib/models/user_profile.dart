@@ -12,6 +12,9 @@ class UserProfile {
   final int joinedEventCount;
   final List<String> pinnedStoryImageUrls;
 
+  /// Event tag ids the person is into, shown on their profile.
+  final List<String> interests;
+
   const UserProfile({
     required this.uid,
     required this.displayName,
@@ -25,6 +28,7 @@ class UserProfile {
     this.hostedEventCount = 0,
     this.joinedEventCount = 0,
     this.pinnedStoryImageUrls = const [],
+    this.interests = const [],
   });
 
   Map<String, dynamic> toMap() {
@@ -40,6 +44,7 @@ class UserProfile {
       'hostedEventCount': hostedEventCount,
       'joinedEventCount': joinedEventCount,
       'pinnedStoryImageUrls': pinnedStoryImageUrls,
+      'interests': interests,
     };
   }
 
@@ -61,6 +66,10 @@ class UserProfile {
                   ?.whereType<String>()
                   .toList() ??
               const [],
+      interests: (map['interests'] as List<dynamic>?)
+              ?.whereType<String>()
+              .toList() ??
+          const [],
     );
   }
 
@@ -77,6 +86,7 @@ class UserProfile {
     int? hostedEventCount,
     int? joinedEventCount,
     List<String>? pinnedStoryImageUrls,
+    List<String>? interests,
   }) {
     return UserProfile(
       uid: uid ?? this.uid,
@@ -92,6 +102,7 @@ class UserProfile {
       joinedEventCount: joinedEventCount ?? this.joinedEventCount,
       pinnedStoryImageUrls:
           pinnedStoryImageUrls ?? this.pinnedStoryImageUrls,
+      interests: interests ?? this.interests,
     );
   }
 }

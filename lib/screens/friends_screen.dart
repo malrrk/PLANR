@@ -9,6 +9,7 @@ import '../core/widgets/planr_empty_state.dart';
 import '../core/widgets/planr_scaffold.dart';
 import '../models/user_profile.dart';
 import '../providers/friends_provider.dart';
+import '../providers/relationships_provider.dart';
 import 'profile_screen.dart';
 
 class FriendsScreen extends ConsumerStatefulWidget {
@@ -65,6 +66,27 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     );
   }
 
+  Future<void> _toggleClose(UserProfile friend, bool makeClose) async {
+    final error = await ref
+        .read(relationshipsServiceProvider)
+        .setCloseFriend(friend.uid, makeClose);
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            error ??
+                (makeClose
+                    ? '${friend.displayName} added to your close friends. They are not notified.'
+                    : '${friend.displayName} removed from your close friends.'),
+          ),
+        ),
+      );
+  }
+
   List<UserProfile> _filterFriends(List<UserProfile> friends) {
     final normalized = _query.trim().toLowerCase();
     if (normalized.isEmpty) return friends;
@@ -79,6 +101,8 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
   @override
   Widget build(BuildContext context) {
     final friendsAsync = ref.watch(myFriendsProvider);
+    final closeUids =
+        ref.watch(closeFriendUidsProvider).value ?? const <String>{};
 
     return PlanrScaffold(
       title: 'Friends',
@@ -118,9 +142,12 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                       },
               ),
               const SizedBox(height: 16),
+              const _CloseFriendsHint(),
+              const SizedBox(height: 14),
               Text(
                 _query.trim().isEmpty
                     ? '${friends.length} friend${friends.length == 1 ? '' : 's'}'
+                        '${closeUids.isEmpty ? '' : '  ·  ${closeUids.length} close'}'
                     : '${filteredFriends.length} result${filteredFriends.length == 1 ? '' : 's'}',
                 style: const TextStyle(
                   color: PlanrDesign.muted,
@@ -148,7 +175,12 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
 
                           return _FriendCard(
                             friend: friend,
+                            isClose: closeUids.contains(friend.uid),
                             onTap: () => _openProfile(friend),
+                            onToggleClose: () => _toggleClose(
+                              friend,
+                              !closeUids.contains(friend.uid),
+                            ),
                             onRemove: () => _confirmRemoveFriend(friend),
                           );
                         },
@@ -236,15 +268,56 @@ class _FriendsSearchField extends StatelessWidget {
   }
 }
 
+class _CloseFriendsHint extends StatelessWidget {
+  const _CloseFriendsHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: PlanrDesign.accentSoft.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: const Row(
+        children: [
+          Icon(
+            Icons.favorite_rounded,
+            color: PlanrDesign.storyRingStart,
+            size: 20,
+          ),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Tap the heart to add someone to your close friends. '
+              'Only you see this list and nobody is notified.',
+              style: TextStyle(
+                color: PlanrDesign.ink,
+                fontSize: 13,
+                height: 1.3,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _FriendCard extends StatelessWidget {
   const _FriendCard({
     required this.friend,
+    required this.isClose,
     required this.onTap,
+    required this.onToggleClose,
     required this.onRemove,
   });
 
   final UserProfile friend;
+  final bool isClose;
   final VoidCallback onTap;
+  final VoidCallback onToggleClose;
   final VoidCallback onRemove;
 
   @override
@@ -295,6 +368,16 @@ class _FriendCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
+            IconButton(
+              tooltip: isClose ? 'Remove from close friends' : 'Add to close friends',
+              onPressed: onToggleClose,
+              icon: Icon(
+                isClose ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                color: isClose
+                    ? PlanrDesign.storyRingStart
+                    : PlanrDesign.softMuted,
+              ),
+            ),
             _RemoveFriendButton(
               onTap: onRemove,
             ),
