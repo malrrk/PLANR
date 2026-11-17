@@ -12,11 +12,13 @@ class MyEventMiniCard extends ConsumerWidget {
     required this.event,
     required this.onTap,
     this.onChatTap,
+    this.featured = false,
   });
 
   final Event event;
   final VoidCallback onTap;
   final VoidCallback? onChatTap;
+  final bool featured;
 
   String _formatImageDay(DateTime date) {
     return date.day.toString().padLeft(2, '0');
@@ -45,15 +47,7 @@ class MyEventMiniCard extends ConsumerWidget {
     final hour = date.hour.toString().padLeft(2, '0');
     final minute = date.minute.toString().padLeft(2, '0');
 
-    const weekdays = [
-      'Mon',
-      'Tue',
-      'Wed',
-      'Thu',
-      'Fri',
-      'Sat',
-      'Sun',
-    ];
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     final weekday = weekdays[date.weekday - 1];
 
@@ -67,21 +61,23 @@ class MyEventMiniCard extends ConsumerWidget {
         event: event,
         onTap: onTap,
         onChatTap: onChatTap,
+        featured: featured,
         dayText: _formatImageDay(event.linkedPublicEventDate ?? event.date),
         monthText: _formatImageMonth(event.linkedPublicEventDate ?? event.date),
         dayTime: _formatDayTime(event.linkedPublicEventDate ?? event.date),
       );
     }
 
-    final location =
-        event.address.trim().isEmpty ? 'No location' : event.address.trim();
+    final location = event.address.trim().isEmpty
+        ? 'No location'
+        : event.address.trim();
 
     final isPrivate = event.visibility == 'private';
 
     // The stored copy of this event only has the count from when it was joined.
     final attendeeCount =
         ref.watch(eventByIdProvider(event.id)).value?.attendeeCount ??
-            event.attendeeCount;
+        event.attendeeCount;
 
     return Material(
       color: Colors.transparent,
@@ -90,7 +86,7 @@ class MyEventMiniCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(21),
         onTap: onTap,
         child: Container(
-          height: 98,
+          height: featured ? 120 : 98,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.43),
@@ -106,6 +102,7 @@ class MyEventMiniCard extends ConsumerWidget {
                 imageUrl: event.imageUrl,
                 dayText: _formatImageDay(event.date),
                 monthText: _formatImageMonth(event.date),
+                featured: featured,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -136,6 +133,7 @@ class _LinkedGroupNormalMiniCard extends StatelessWidget {
     required this.event,
     required this.onTap,
     required this.onChatTap,
+    required this.featured,
     required this.dayText,
     required this.monthText,
     required this.dayTime,
@@ -144,6 +142,7 @@ class _LinkedGroupNormalMiniCard extends StatelessWidget {
   final Event event;
   final VoidCallback onTap;
   final VoidCallback? onChatTap;
+  final bool featured;
   final String dayText;
   final String monthText;
   final String dayTime;
@@ -152,15 +151,14 @@ class _LinkedGroupNormalMiniCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final currentUid = FirebaseAuth.instance.currentUser?.uid;
 
-    final publicTitle =
-        event.linkedPublicEventTitle?.trim().isNotEmpty == true
-            ? event.linkedPublicEventTitle!.trim()
-            : event.title;
+    final publicTitle = event.linkedPublicEventTitle?.trim().isNotEmpty == true
+        ? event.linkedPublicEventTitle!.trim()
+        : event.title;
 
     final publicLocation =
         event.linkedPublicEventAddress?.trim().isNotEmpty == true
-            ? event.linkedPublicEventAddress!.trim()
-            : event.address.trim();
+        ? event.linkedPublicEventAddress!.trim()
+        : event.address.trim();
 
     final inviteContext = event.creatorUid == currentUid
         ? 'Created by you'
@@ -173,7 +171,7 @@ class _LinkedGroupNormalMiniCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(21),
         onTap: onTap,
         child: Container(
-          height: 116,
+          height: featured ? 138 : 116,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.43),
@@ -190,6 +188,7 @@ class _LinkedGroupNormalMiniCard extends StatelessWidget {
                 dayText: dayText,
                 monthText: monthText,
                 linked: true,
+                featured: featured,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -203,7 +202,9 @@ class _LinkedGroupNormalMiniCard extends StatelessWidget {
                           height: 22,
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           decoration: BoxDecoration(
-                            color: PlanrDesign.accentSoft.withValues(alpha: 0.7),
+                            color: PlanrDesign.accentSoft.withValues(
+                              alpha: 0.7,
+                            ),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: const Row(
@@ -234,7 +235,9 @@ class _LinkedGroupNormalMiniCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: PlanrDesign.softMuted.withValues(alpha: 0.95),
+                              color: PlanrDesign.softMuted.withValues(
+                                alpha: 0.95,
+                              ),
                               fontSize: 11.5,
                               height: 1,
                               fontWeight: FontWeight.w800,
@@ -268,7 +271,9 @@ class _LinkedGroupNormalMiniCard extends StatelessWidget {
                         Flexible(
                           flex: 6,
                           child: Text(
-                            publicLocation.isEmpty ? 'No location' : publicLocation,
+                            publicLocation.isEmpty
+                                ? 'No location'
+                                : publicLocation,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -319,12 +324,14 @@ class _EventImage extends StatelessWidget {
     required this.dayText,
     required this.monthText,
     this.linked = false,
+    this.featured = false,
   });
 
   final String? imageUrl;
   final String dayText;
   final String monthText;
   final bool linked;
+  final bool featured;
 
   @override
   Widget build(BuildContext context) {
@@ -332,8 +339,8 @@ class _EventImage extends StatelessWidget {
     final hasImage = trimmedImageUrl != null && trimmedImageUrl.isNotEmpty;
 
     return Container(
-      width: 74,
-      height: 82,
+      width: featured ? 88 : 74,
+      height: featured ? 104 : 82,
       decoration: BoxDecoration(
         color: PlanrDesign.accentSoft.withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(19),
@@ -456,15 +463,9 @@ class _ImagePlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: PlanrDesign.brandGradient,
-      ),
+      decoration: const BoxDecoration(gradient: PlanrDesign.brandGradient),
       child: const Center(
-        child: Icon(
-          Icons.celebration_rounded,
-          color: Colors.white,
-          size: 24,
-        ),
+        child: Icon(Icons.celebration_rounded, color: Colors.white, size: 24),
       ),
     );
   }
@@ -654,10 +655,7 @@ class _ChatButton extends StatelessWidget {
               decoration: BoxDecoration(
                 color: PlanrDesign.accent,
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.white,
-                  width: 1.7,
-                ),
+                border: Border.all(color: Colors.white, width: 1.7),
               ),
             ),
           ),

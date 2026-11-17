@@ -125,8 +125,8 @@ class _PlanrBottomNav extends ConsumerWidget {
           Expanded(
             child: _BottomNavItem(
               icon: selectedIndex == 2
-                  ? Icons.chat_bubble_rounded
-                  : Icons.chat_bubble_outline_rounded,
+                  ? Icons.forum_rounded
+                  : Icons.forum_outlined,
               label: context.l10n.navChats,
               selected: selectedIndex == 2,
               showDot: hasUnreadChat && selectedIndex != 2,

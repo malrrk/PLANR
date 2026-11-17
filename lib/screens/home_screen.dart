@@ -6,7 +6,6 @@ import '../core/widgets/fade_slide_in.dart';
 import '../core/widgets/planr_background.dart';
 import '../providers/home_feed_provider.dart';
 import '../widgets/home/home_discover_fallback.dart';
-import '../widgets/home/home_greeting.dart';
 import '../widgets/home/home_header.dart';
 import '../widgets/home/home_invitations_section.dart';
 import '../widgets/home/home_next_up_section.dart';
@@ -14,7 +13,6 @@ import '../widgets/home/home_people_section.dart';
 import '../widgets/home/home_saved_section.dart';
 import '../widgets/home/home_stories_row.dart';
 import 'notification_center_screen.dart';
-import 'plans_screen.dart';
 
 /// Home is personal: my stories, my plans, my people. Sections hide when they are empty.
 class HomeScreen extends ConsumerWidget {
@@ -58,15 +56,9 @@ class HomeScreen extends ConsumerWidget {
               children: [
                 FadeSlideIn(
                   child: HomeHeader(
-                    onCalendarTap: () => _push(context, const PlansScreen()),
                     onNotificationTap: () =>
                         _push(context, const NotificationCenterScreen()),
                   ),
-                ),
-                const SizedBox(height: 8),
-                const FadeSlideIn(
-                  delay: Duration(milliseconds: 60),
-                  child: HomeGreeting(),
                 ),
                 const SizedBox(height: 20),
                 const FadeSlideIn(

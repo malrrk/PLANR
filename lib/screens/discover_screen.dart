@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/plan_time.dart';
 import '../core/theme/planr_design.dart';
+import '../core/widgets/planr_avatar.dart';
 import '../core/widgets/planr_background.dart';
 import '../core/widgets/planr_card.dart';
 import '../models/event.dart';
@@ -10,11 +11,14 @@ import '../models/event_tag.dart';
 import '../models/public_page.dart';
 import '../providers/event_provider.dart';
 import '../providers/public_page_provider.dart';
+import '../widgets/attendee_preview.dart';
 import '../widgets/event_tag_chips.dart';
+import '../widgets/event_cover.dart';
 import '../widgets/save_event_button.dart';
 import 'event_detail_screen.dart';
 import 'happening_now_screen.dart';
 import 'public_page_screen.dart';
+import 'profile_screen.dart';
 
 enum _DateFilter {
   any('Any time', Icons.event_rounded),
@@ -58,10 +62,12 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   String _searchQuery = '';
   String? _selectedTagId;
   _DateFilter _dateFilter = _DateFilter.any;
+    bool _filtersExpanded = false;
 
   bool get _hasSearch => _searchQuery.isNotEmpty;
-  bool get _hasFilter =>
-      _selectedTagId != null || _hasSearch || _dateFilter != _DateFilter.any;
+    bool get _hasSelectedFilters =>
+      _selectedTagId != null || _dateFilter != _DateFilter.any;
+    bool get _hasFilter => _hasSelectedFilters || _hasSearch;
 
   @override
   void dispose() {
@@ -137,15 +143,24 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     }).toList();
   }
 
-  List<PublicPage> _filteredPages(List<PublicPage> pages) {
+  List<PublicPage> _filteredPages(List<PublicPage> pages, List<Event> events) {
     final query = _searchQuery;
     final selectedTagId = _selectedTagId;
+    final now = DateTime.now();
+    final pageIdsWithEvents = events
+        .where((event) => event.isOrganizedByPage)
+        .where((event) => _dateFilter.matches(event.date, now))
+        .map((event) => event.organizerId)
+        .toSet();
 
     return pages.where((page) {
       final matchesTag =
           selectedTagId == null || page.tags.contains(selectedTagId);
 
       if (!matchesTag) return false;
+      if (_dateFilter != _DateFilter.any && !pageIdsWithEvents.contains(page.id)) {
+        return false;
+      }
 
       if (query.isEmpty) return true;
 
@@ -205,7 +220,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
       return b.createdAt.compareTo(a.createdAt);
     });
 
-    return sorted.take(8).toList();
+    return _hasFilter ? sorted : sorted.take(8).toList();
   }
 
   void _openEvent(Event event) {
@@ -243,14 +258,10 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                 data: (pages) {
                   final futureEvents = _futureEvents(events);
                   final filteredEvents = _filteredEvents(futureEvents);
-                  final filteredPages = _filteredPages(pages);
-                  final hotEvents = _hotEvents(futureEvents);
-                  final topPages = _topPages(pages);
-
-                  final showExploreSections = !_hasSearch;
-                  final showSearchSections = _hasSearch;
-                  final showCurated = _dateFilter == _DateFilter.any;
-                  final happeningNow = _happeningNow(futureEvents);
+                  final filteredPages = _filteredPages(pages, futureEvents);
+                  final hotEvents = _hotEvents(filteredEvents);
+                  final topPages = _topPages(filteredPages);
+                  final happeningNow = _happeningNow(filteredEvents);
 
                   return ListView(
                     physics: const BouncingScrollPhysics(),
@@ -263,27 +274,46 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                     children: [
                       const _DiscoverHeader(),
                       const SizedBox(height: 18),
-                      _DiscoverSearchBar(
-                        controller: _searchController,
-                        onChanged: _setSearchQuery,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _DiscoverSearchBar(
+                              controller: _searchController,
+                              onChanged: _setSearchQuery,
+                              onClear: _hasSearch
+                                  ? () {
+                                      _searchController.clear();
+                                      _setSearchQuery('');
+                                    }
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _DiscoverFilterToggle(
+                            expanded: _filtersExpanded,
+                            hasSelection: _hasSelectedFilters,
+                            onTap: () => setState(
+                              () => _filtersExpanded = !_filtersExpanded,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      _DiscoverDateFilter(
-                        selected: _dateFilter,
-                        onSelected: (filter) =>
-                            setState(() => _dateFilter = filter),
-                      ),
-                      const SizedBox(height: 10),
-                      _DiscoverTagFilter(
-                        selectedTagId: _selectedTagId,
-                        onTagSelected: _toggleTag,
-                      ),
+                      if (_filtersExpanded) ...[
+                        const SizedBox(height: 16),
+                        _DiscoverDateFilter(
+                          selected: _dateFilter,
+                          onSelected: (filter) =>
+                              setState(() => _dateFilter = filter),
+                        ),
+                        const SizedBox(height: 10),
+                        _DiscoverTagFilter(
+                          selectedTagId: _selectedTagId,
+                          onTagSelected: _toggleTag,
+                        ),
+                      ],
                       const SizedBox(height: 28),
 
-                      if (showExploreSections) ...[
-                        if (showCurated &&
-                            _selectedTagId == null &&
-                            happeningNow.isNotEmpty) ...[
+                        if (happeningNow.isNotEmpty) ...[
                           _HappeningNowBanner(
                             events: happeningNow,
                             onTap: () => Navigator.push(
@@ -297,7 +327,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                           ),
                           const SizedBox(height: 30),
                         ],
-                        if (showCurated && topPages.isNotEmpty) ...[
+                        if (topPages.isNotEmpty) ...[
                           const _SectionHeader(
                             title: 'Top Pages',
                             subtitle:
@@ -310,21 +340,8 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                           ),
                           const SizedBox(height: 30),
                         ],
-                        if (showCurated && hotEvents.isNotEmpty) ...[
-                          const _SectionHeader(
-                            title: 'Hot Events',
-                            subtitle: 'Popular plans people are joining.',
-                          ),
-                          const SizedBox(height: 14),
-                          _HotEventsStrip(
-                            events: hotEvents,
-                            onEventTap: _openEvent,
-                          ),
-                          const SizedBox(height: 30),
-                        ],
                         _SectionHeader(
-                          title:
-                              _selectedTagId == null ? 'Explore Events' : 'Results',
+                          title: _eventFeedTitle(),
                           subtitle: _eventResultSubtitle(filteredEvents.length),
                         ),
                         const SizedBox(height: 14),
@@ -343,53 +360,18 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                               ),
                             ),
                           ),
-                      ],
-
-                      if (showSearchSections) ...[
-                        _SectionHeader(
-                          title: 'Page Results',
-                          subtitle: _pageResultSubtitle(filteredPages.length),
-                        ),
-                        const SizedBox(height: 14),
-                        if (filteredPages.isEmpty)
-                          const _SmallEmptyResultCard(
-                            icon: Icons.storefront_rounded,
-                            title: 'No matching pages.',
-                            subtitle:
-                                'Try another name, handle, category or tag.',
-                          )
-                        else
-                          ...filteredPages.map(
-                            (page) => Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: _PublicPageResultCard(
-                                page: page,
-                                onTap: () => _openPage(page),
-                              ),
-                            ),
+                        if (hotEvents.isNotEmpty) ...[
+                          const SizedBox(height: 30),
+                          const _SectionHeader(
+                            title: 'Hot Events',
+                            subtitle: 'Popular plans people are joining.',
                           ),
-                        const SizedBox(height: 24),
-                        _SectionHeader(
-                          title: 'Event Results',
-                          subtitle: _eventResultSubtitle(filteredEvents.length),
-                        ),
-                        const SizedBox(height: 14),
-                        if (filteredEvents.isEmpty)
-                          _DiscoverEmptyState(
-                            hasFilter: true,
-                            onReset: _resetFilters,
-                          )
-                        else
-                          ...filteredEvents.map(
-                            (event) => Padding(
-                              padding: const EdgeInsets.only(bottom: 14),
-                              child: _DiscoverEventCard(
-                                event: event,
-                                onTap: () => _openEvent(event),
-                              ),
-                            ),
+                          const SizedBox(height: 14),
+                          _HotEventsStrip(
+                            events: hotEvents,
+                            onEventTap: _openEvent,
                           ),
-                      ],
+                        ],
                     ],
                   );
                 },
@@ -411,16 +393,18 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     );
   }
 
-  String _eventResultSubtitle(int count) {
-    if (count == 0) return 'No public events found.';
-    if (count == 1) return '1 public event found.';
-    return '$count public events found.';
+  String _eventFeedTitle() {
+    final criteria = <String>[
+      if (_dateFilter != _DateFilter.any) _dateFilter.label,
+      if (_selectedTagId != null)
+        eventTagById(_selectedTagId!)?.label ?? _selectedTagId!,
+      if (_hasSearch) 'Search: ${_searchController.text.trim()}',
+    ];
+    return criteria.isEmpty ? 'Happening Now' : criteria.join(' · ');
   }
 
-  String _pageResultSubtitle(int count) {
-    if (count == 0) return 'No public pages found.';
-    if (count == 1) return '1 public page found.';
-    return '$count public pages found.';
+  String _eventResultSubtitle(int count) {
+    return count == 1 ? '1 upcoming event' : '$count upcoming events';
   }
 }
 
@@ -436,20 +420,9 @@ class _DiscoverHeader extends StatelessWidget {
           'Discover',
           style: TextStyle(
             color: PlanrDesign.ink,
-            fontSize: 36,
+            fontSize: 30,
             fontWeight: FontWeight.w900,
-            letterSpacing: -1.1,
             height: 1,
-          ),
-        ),
-        SizedBox(height: 8),
-        Text(
-          'Find public events, pages and places to join.',
-          style: TextStyle(
-            color: PlanrDesign.muted,
-            fontSize: 14.5,
-            fontWeight: FontWeight.w700,
-            height: 1.35,
           ),
         ),
       ],
@@ -461,10 +434,12 @@ class _DiscoverSearchBar extends StatelessWidget {
   const _DiscoverSearchBar({
     required this.controller,
     required this.onChanged,
+    required this.onClear,
   });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
+  final VoidCallback? onClear;
 
   @override
   Widget build(BuildContext context) {
@@ -481,20 +456,76 @@ class _DiscoverSearchBar extends StatelessWidget {
           fontSize: 15,
           fontWeight: FontWeight.w800,
         ),
-        decoration: const InputDecoration(
-          icon: Icon(
+        decoration: InputDecoration(
+          icon: const Icon(
             Icons.search_rounded,
             color: PlanrDesign.accentDark,
             size: 23,
           ),
           hintText: 'Search events, pages, tags, places...',
-          hintStyle: TextStyle(
+          hintStyle: const TextStyle(
             color: PlanrDesign.softMuted,
             fontSize: 14.5,
             fontWeight: FontWeight.w700,
           ),
+          suffixIcon: onClear == null
+              ? null
+              : IconButton(
+                  tooltip: 'Clear search',
+                  onPressed: onClear,
+                  icon: const Icon(Icons.close_rounded),
+                ),
           border: InputBorder.none,
         ),
+      ),
+    );
+  }
+}
+
+class _DiscoverFilterToggle extends StatelessWidget {
+  const _DiscoverFilterToggle({
+    required this.expanded,
+    required this.hasSelection,
+    required this.onTap,
+  });
+
+  final bool expanded;
+  final bool hasSelection;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      expanded: expanded,
+      value: hasSelection ? 'Filters active' : 'No filters selected',
+      child: Stack(
+        children: [
+          IconButton(
+            tooltip: expanded ? 'Collapse filters' : 'Expand filters',
+            onPressed: onTap,
+            style: IconButton.styleFrom(
+              backgroundColor: PlanrDesign.backgroundButton,
+              foregroundColor: PlanrDesign.accentDark,
+              fixedSize: const Size(48, 48),
+            ),
+            icon: Icon(
+              expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+            ),
+          ),
+          if (hasSelection)
+            Positioned(
+              right: 7,
+              top: 7,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: PlanrDesign.accent,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -546,86 +577,62 @@ class _HappeningNowBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final today = events.where((e) => isSameDay(e.date, DateTime.now())).length;
     final subtitle = today > 0
-        ? '$today ${today == 1 ? 'event' : 'events'} today, swipe through them'
+      ? '$today ${today == 1 ? 'event' : 'events'} today'
         : '${events.length} ${events.length == 1 ? 'event' : 'events'} coming up soon';
 
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(28),
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            gradient: PlanrDesign.brandGradient,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: PlanrDesign.accent.withValues(alpha: 0.28),
-                blurRadius: 24,
-                offset: const Offset(0, 12),
-              ),
-            ],
+            color: PlanrDesign.accentSoft.withValues(alpha: 0.65),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.9)),
           ),
           child: Row(
             children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: PlanrDesign.accent,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.bolt_rounded, color: Colors.white),
+              ),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.bolt_rounded, color: Colors.white, size: 20),
-                        SizedBox(width: 4),
-                        Text(
-                          'HAPPENING NOW',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      events.first.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
+                    const Text(
+                      'Next 36 hours',
+                      style: TextStyle(
+                        color: PlanrDesign.ink,
+                        fontSize: 16,
                         fontWeight: FontWeight.w900,
-                        letterSpacing: -0.5,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.92),
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
+                      style: const TextStyle(
+                        color: PlanrDesign.muted,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
-              Container(
-                width: 46,
-                height: 46,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.play_arrow_rounded,
-                  color: PlanrDesign.accent,
-                  size: 28,
-                ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: PlanrDesign.accent,
               ),
             ],
           ),
@@ -1036,104 +1043,6 @@ class _PublicPageCoverFallback extends StatelessWidget {
   }
 }
 
-class _PublicPageResultCard extends StatelessWidget {
-  const _PublicPageResultCard({
-    required this.page,
-    required this.onTap,
-  });
-
-  final PublicPage page;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final category = _categoryLabel(page.category);
-
-    return PlanrCard(
-      onTap: onTap,
-      padding: const EdgeInsets.all(14),
-      radius: 28,
-      color: PlanrDesign.cardLight.withValues(alpha: 0.86),
-      child: Row(
-        children: [
-          _PublicPageLogo(page: page, size: 58),
-          const SizedBox(width: 13),
-          Expanded(
-            child: SizedBox(
-              height: 66,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          page.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: PlanrDesign.ink,
-                            fontSize: 17.5,
-                            height: 1,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.45,
-                          ),
-                        ),
-                      ),
-                      if (page.isVerified) ...[
-                        const SizedBox(width: 5),
-                        const Icon(
-                          Icons.verified_rounded,
-                          color: PlanrDesign.accentDark,
-                          size: 17,
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    page.displayHandle.isEmpty
-                        ? category
-                        : '${page.displayHandle} · $category',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: PlanrDesign.muted,
-                      fontSize: 12.5,
-                      height: 1,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const Spacer(),
-                  Row(
-                    children: [
-                      _MiniPageMeta(
-                        icon: Icons.group_rounded,
-                        text: _followersLabel(page.followerCount),
-                      ),
-                      const SizedBox(width: 10),
-                      _MiniPageMeta(
-                        icon: Icons.event_rounded,
-                        text: '${page.eventCount} events',
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          const Icon(
-            Icons.chevron_right_rounded,
-            color: PlanrDesign.softMuted,
-            size: 27,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _PublicPageLogo extends StatelessWidget {
   const _PublicPageLogo({
     required this.page,
@@ -1191,43 +1100,6 @@ class _PageInitial extends StatelessWidget {
           fontWeight: FontWeight.w900,
         ),
       ),
-    );
-  }
-}
-
-class _MiniPageMeta extends StatelessWidget {
-  const _MiniPageMeta({
-    required this.icon,
-    required this.text,
-  });
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          color: PlanrDesign.eventMetaOrange,
-          size: 14.5,
-        ),
-        const SizedBox(width: 4),
-        Flexible(
-          child: Text(
-            text,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: PlanrDesign.eventMetaOrange,
-              fontSize: 12.2,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -1395,78 +1267,143 @@ class _DiscoverEventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PlanrCard(
+    final pageOrganizer = event.isOrganizedByPage;
+    final organizerName = pageOrganizer
+        ? event.organizerDisplayName
+        : event.creatorDisplayName;
+    final organizerPhoto = pageOrganizer
+        ? event.organizerPhotoUrl
+        : event.creatorPhotoUrl;
+
+    return Material(
+      color: PlanrDesign.ink,
+      borderRadius: BorderRadius.circular(28),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
       onTap: onTap,
-      padding: const EdgeInsets.all(10),
-      color: PlanrDesign.cardLight.withValues(alpha: 0.84),
-      child: Row(
-        children: [
-          Container(
-            width: 92,
-            height: 108,
-            decoration: BoxDecoration(
-              color: PlanrDesign.accentSoft.withValues(alpha: 0.7),
-              borderRadius: BorderRadius.circular(22),
+      child: SizedBox(
+        height: 286,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Hero(
+              tag: 'event-image-${event.id}',
+              child: EventCover(imageUrl: event.imageUrl, tags: event.tags, iconSize: 58),
             ),
-            clipBehavior: Clip.antiAlias,
-            child: _EventImage(event: event),
-          ),
-          const SizedBox(width: 13),
-          Expanded(
-            child: SizedBox(
-              height: 108,
+            const EventScrim(),
+            Positioned(
+              top: 14,
+              left: 14,
+              child: Tooltip(
+                message: 'View organizer',
+                child: Material(
+                  color: Colors.white,
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => pageOrganizer
+                            ? PublicPageScreen(pageId: event.organizerId)
+                            : ProfileScreen(userId: event.creatorUid),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(3),
+                      child: PlanrAvatar(
+                        imageUrl: organizerPhoto,
+                        name: organizerName,
+                        radius: 20,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 14,
+              right: 14,
+              child: SaveEventButton(event: event),
+            ),
+            Positioned(
+              left: 18,
+              right: 18,
+              bottom: 18,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  EventTagChips(
-                    tagIds: event.tags,
-                    maxVisible: 2,
-                    compact: true,
-                  ),
-                  const SizedBox(height: 7),
                   Text(
                     event.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: PlanrDesign.cardTitleStyle.copyWith(
-                      fontSize: 17,
-                      height: 1.08,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 27,
+                      height: 1.04,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
-                  const Spacer(),
-                  _LightMetaLine(
-                    icon: Icons.calendar_month_rounded,
-                    text: _formatDate(event.date),
-                  ),
-                  const SizedBox(height: 5),
+                  if (event.description.trim().isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      event.description,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                  if (event.tags.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 29,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: EventTagChips(
+                          tagIds: event.tags,
+                          maxVisible: 2,
+                          dark: true,
+                          compact: true,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
-                        child: _LightMetaLine(
-                          icon: Icons.location_on_outlined,
-                          text: event.address.isEmpty
-                              ? 'No location'
-                              : event.address,
+                        child: _DarkMetaLine(
+                          icon: Icons.calendar_month_rounded,
+                          text: _formatDate(event.date),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      _GoingBadge(count: event.attendeeCount),
+                      Expanded(
+                        child: _DarkMetaLine(
+                          icon: Icons.location_on_outlined,
+                          text: event.address.isEmpty ? 'No location' : event.address,
+                        ),
+                      ),
                     ],
+                  ),
+                  const SizedBox(height: 8),
+                  AttendeePreview(
+                    eventId: event.id,
+                    attendeeCount: event.attendeeCount,
+                    maxVisible: 3,
+                    dark: true,
                   ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(width: 6),
-          Align(
-            alignment: Alignment.topCenter,
-            child: SaveEventButton(
-              event: event,
-              size: 38,
-              onDark: false,
-            ),
-          ),
-        ],
+          ],
+        ),
+      ),
       ),
     );
   }
@@ -1592,79 +1529,6 @@ class _DarkMetaLine extends StatelessWidget {
   }
 }
 
-class _LightMetaLine extends StatelessWidget {
-  const _LightMetaLine({
-    required this.icon,
-    required this.text,
-  });
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          color: PlanrDesign.eventMetaOrange,
-          size: 16,
-        ),
-        const SizedBox(width: 5),
-        Expanded(
-          child: Text(
-            text,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: PlanrDesign.eventMetaOrange,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _GoingBadge extends StatelessWidget {
-  const _GoingBadge({
-    required this.count,
-  });
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: PlanrDesign.accentSoft.withValues(alpha: 0.78),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.group_rounded,
-            color: PlanrDesign.accentDark,
-            size: 14,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            '$count',
-            style: const TextStyle(
-              color: PlanrDesign.accentDark,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _DiscoverEmptyState extends StatelessWidget {
   const _DiscoverEmptyState({
     required this.hasFilter,
@@ -1722,62 +1586,6 @@ class _DiscoverEmptyState extends StatelessWidget {
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-class _SmallEmptyResultCard extends StatelessWidget {
-  const _SmallEmptyResultCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return PlanrCard(
-      padding: const EdgeInsets.all(18),
-      color: PlanrDesign.cardLight.withValues(alpha: 0.86),
-      radius: 28,
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            color: PlanrDesign.accentDark,
-            size: 28,
-          ),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: PlanrDesign.ink,
-                    fontSize: 16.5,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: PlanrDesign.muted,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    height: 1.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
