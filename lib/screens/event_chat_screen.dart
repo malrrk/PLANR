@@ -29,6 +29,7 @@ class EventChatScreen extends ConsumerStatefulWidget {
 
 class _EventChatScreenState extends ConsumerState<EventChatScreen> {
   final _controller = TextEditingController();
+  final _composerFocusNode = FocusNode();
 
   bool _sending = false;
   DateTime? _lastMarkedReadAt;
@@ -36,6 +37,7 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
   @override
   void dispose() {
     _controller.dispose();
+    _composerFocusNode.dispose();
     super.dispose();
   }
 
@@ -201,7 +203,7 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
                       actionLabel:
                           widget.event.chatEnabled ? 'Write first message' : null,
                       onActionPressed:
-                          widget.event.chatEnabled ? () {} : null,
+                          widget.event.chatEnabled ? _composerFocusNode.requestFocus : null,
                     ),
                   );
                 }
@@ -265,6 +267,7 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
           ),
           _MessageComposer(
             controller: _controller,
+            focusNode: _composerFocusNode,
             enabled: widget.event.chatEnabled && !_sending,
             sending: _sending,
             onSend: _send,
@@ -538,12 +541,14 @@ class _TappableSenderAvatar extends StatelessWidget {
 class _MessageComposer extends StatelessWidget {
   const _MessageComposer({
     required this.controller,
+    required this.focusNode,
     required this.enabled,
     required this.sending,
     required this.onSend,
   });
 
   final TextEditingController controller;
+  final FocusNode focusNode;
   final bool enabled;
   final bool sending;
   final VoidCallback onSend;
@@ -574,6 +579,7 @@ class _MessageComposer extends StatelessWidget {
                 ),
                 child: TextField(
                   controller: controller,
+                  focusNode: focusNode,
                   enabled: enabled,
                   minLines: 1,
                   maxLines: 4,

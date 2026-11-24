@@ -9,6 +9,7 @@ import '../../screens/edit_event_screen.dart';
 import '../../screens/event_chat_screen.dart';
 import '../../screens/event_detail_screen.dart';
 import '../../screens/invite_to_event_screen.dart';
+import '../plans/plan_from_event.dart';
 import 'event_detail_info_card.dart';
 
 class EventDetailActionPanel extends ConsumerWidget {
@@ -141,6 +142,9 @@ class _PublicEventActions extends ConsumerWidget {
     required BuildContext context,
     required WidgetRef ref,
   }) async {
+    final confirmed = await confirmPublicEventPlan(context);
+    if (!confirmed || !context.mounted) return;
+
     final service = ref.read(eventServiceProvider);
 
     final result = await service.createLinkedGroupFromPublicEventAndReturn(

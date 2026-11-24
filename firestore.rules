@@ -14,6 +14,11 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
+    function publicDataClean() {
+      let path = /databases/$(database)/documents/release_security/public_data;
+      return exists(path) && get(path).data.get('emailsRemoved', false) == true;
+    }
+
     function changedKeysOnly(keys) {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
     }
@@ -130,15 +135,17 @@ service cloud.firestore {
         && d.get('tags', []) is list && d.get('tags', []).size() <= 20;
     }
 
-    // ---------- usernames (public lookup for login, no listing) ----------
+    // ---------- usernames ----------
 
     match /usernames/{username} {
-      allow get: if true;
+      allow get: if !exists(/databases/$(database)/documents/usernames/$(username))
+        || !('email' in resource.data);
       allow list: if false;
       // A name can only be claimed together with the claimer's own profile.
       allow create: if signedIn()
         && username.matches('^[a-z0-9._]{3,20}$')
         && !reservedUsername(username)
+        && request.resource.data.keys().hasOnly(['uid', 'username', 'displayName', 'createdAt'])
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.username == username
         && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.username == username;
@@ -161,9 +168,11 @@ service cloud.firestore {
     // ---------- users ----------
 
     match /users/{uid} {
-      allow read: if signedIn();
+      allow get: if signedIn() && (resource == null || isSelf(uid) || !('email' in resource.data));
+      allow list: if signedIn() && publicDataClean();
 
       allow create: if isSelf(uid)
+        && !('email' in request.resource.data)
         && request.resource.data.uid == uid
         && textBetween(request.resource.data.get('displayName', ''), 1, 60)
         && request.resource.data.get('username', '').matches('^[a-z0-9._]{3,20}$')
@@ -194,15 +203,18 @@ service cloud.firestore {
       }
 
       match /friends/{friendUid} {
-        allow read: if signedIn();
+        allow get: if signedIn() && (resource == null || !('email' in resource.data));
+        allow list: if signedIn() && publicDataClean();
 
         // Both sides are written by the accepting user, backed by an accepted request.
         allow create: if (isSelf(uid) || isSelf(friendUid))
+          && !('email' in request.resource.data)
           && request.resource.data.uid == friendUid
           && acceptedRequestBetween(uid, friendUid);
 
         // Friends refresh their own copy after changing their profile.
-        allow update: if ((isSelf(uid) || isSelf(friendUid))
+        allow update: if !('email' in request.resource.data)
+          && (((isSelf(uid) || isSelf(friendUid))
             && request.resource.data.uid == friendUid
             && acceptedRequestBetween(uid, friendUid))
           || (isSelf(friendUid)
@@ -210,7 +222,7 @@ service cloud.firestore {
             && changedKeysOnly([
               'displayName', 'photoUrl', 'bio', 'backgroundImageUrl',
               'pinnedStoryImageUrls', 'updatedAt'
-            ]));
+            ])));
 
         allow delete: if isSelf(uid) || isSelf(friendUid);
       }

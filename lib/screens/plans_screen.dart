@@ -67,7 +67,8 @@ class _PlansScreenState extends ConsumerState<PlansScreen> {
   @override
   Widget build(BuildContext context) {
     final locale = Localizations.localeOf(context).toString();
-    final events = ref.watch(myEventsProvider).value ?? const <Event>[];
+    final eventsAsync = ref.watch(myEventsProvider);
+    final events = eventsAsync.value ?? const <Event>[];
     final now = DateTime.now();
 
     final daysWithPlans = <DateTime>{
@@ -80,7 +81,7 @@ class _PlansScreenState extends ConsumerState<PlansScreen> {
         .toList()
       ..sort((a, b) => a.date.compareTo(b.date));
 
-    final past = pastEvents(events, now: now).take(12).toList();
+    final past = pastEvents(events, now: now);
 
     return PlanrBackground(
       variant: PlanrBackgroundVariant.events,
@@ -178,7 +179,18 @@ class _PlansScreenState extends ConsumerState<PlansScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              if (selectedEvents.isEmpty)
+              if (!eventsAsync.hasValue && eventsAsync.isLoading)
+                const Center(child: CircularProgressIndicator())
+              else if (!eventsAsync.hasValue && eventsAsync.hasError)
+                const Text(
+                  'Could not load your plans.',
+                  style: TextStyle(
+                    color: PlanrDesign.muted,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                )
+              else if (selectedEvents.isEmpty)
                 _EmptyDay(
                   isPast: _selected.isBefore(DateTime(now.year, now.month, now.day)),
                   onPlan: () => showQuickPlanSheet(context),

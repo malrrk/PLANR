@@ -19,10 +19,12 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _index = 0;
+  final Set<int> _visited = {0};
 
   void _selectTab(int index) {
     setState(() {
       _index = index;
+      _visited.add(index);
     });
   }
 
@@ -41,7 +43,13 @@ class _MainShellState extends State<MainShell> {
 
     return Scaffold(
       extendBody: true,
-      body: screens[_index],
+      body: IndexedStack(
+        index: _index,
+        children: [
+          for (var index = 0; index < screens.length; index++)
+            if (_visited.contains(index)) screens[index] else const SizedBox.shrink(),
+        ],
+      ),
       bottomNavigationBar: SafeArea(
         top: false,
         minimum: const EdgeInsets.fromLTRB(14, 0, 14, 12),

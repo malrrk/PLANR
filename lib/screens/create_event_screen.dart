@@ -12,8 +12,11 @@ import '../core/widgets/planr_card.dart';
 import '../core/widgets/planr_scaffold.dart';
 import '../core/widgets/planr_text_field.dart';
 import '../l10n/l10n.dart';
+import '../models/event.dart';
 import '../models/public_page.dart';
+import '../models/user_profile.dart';
 import '../providers/event_provider.dart';
+import '../providers/firebase_providers.dart';
 import '../providers/public_page_provider.dart';
 import '../widgets/event_tag_selector.dart';
 
@@ -25,12 +28,14 @@ class CreateEventScreen extends ConsumerStatefulWidget {
     this.initialPlace,
     this.initialDate,
     this.startPrivate = false,
+    this.initialInvitees = const [],
   });
 
   final PublicPage? initialOrganizerPage;
   final String? initialTitle;
   final String? initialPlace;
   final DateTime? initialDate;
+  final List<UserProfile> initialInvitees;
 
   /// Start as a private plan with friends instead of a public event.
   final bool startPrivate;
@@ -57,6 +62,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   PublicPage? _selectedOrganizerPage;
 
   List<String> _selectedTagIds = [];
+  late final List<UserProfile> _invitees;
 
   bool get _isPublicEvent => _visibility == 'public';
   bool get _isPrivateEvent => _visibility == 'private';
@@ -64,6 +70,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   @override
   void initState() {
     super.initState();
+    _invitees = [...widget.initialInvitees];
 
     _titleController.text = widget.initialTitle ?? '';
     _locationController.text = widget.initialPlace ?? '';
@@ -176,8 +183,12 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     });
 
     final eventKind = _isPublicEvent ? 'public' : 'private';
+    final invitees = _isPrivateEvent ? List<UserProfile>.of(_invitees) : <UserProfile>[];
+    final firestore = invitees.isEmpty ? null : ref.read(firestoreProvider);
+    final service = ref.read(eventServiceProvider);
+    String? createdId;
 
-    final error = await ref.read(eventServiceProvider).createEvent(
+    final error = await service.createEvent(
           title: title,
           description: description,
           address: location,
@@ -189,20 +200,56 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
           guestsCanInvite: _isPrivateEvent ? _guestsCanInvite : true,
           organizerPage: _isPublicEvent ? _selectedOrganizerPage : null,
           imageFile: _imagePath != null ? File(_imagePath!) : null,
+          onCreated: (eventId) => createdId = eventId,
         );
 
     if (!mounted) return;
 
-    setState(() {
-      _saving = false;
-    });
-
     if (error != null) {
+      setState(() => _saving = false);
       _showSnackBar(error);
       return;
     }
 
+    var failedInvites = 0;
+    if (invitees.isNotEmpty) {
+      try {
+        final eventId = createdId;
+        final snapshot = eventId == null
+            ? null
+            : await firestore!.collection('events').doc(eventId).get();
+        final data = snapshot?.data();
+        if (snapshot == null || data == null) {
+          failedInvites = invitees.length;
+        } else {
+          final event = Event.fromMap(data, snapshot.id);
+          for (final friend in invitees) {
+            try {
+              final inviteError = await service.inviteUserToEvent(
+                event: event,
+                invitedUid: friend.uid,
+                invitedDisplayName: friend.displayName,
+                invitedPhotoUrl: friend.photoUrl,
+              );
+              if (inviteError != null) failedInvites++;
+            } catch (_) {
+              failedInvites++;
+            }
+          }
+        }
+      } catch (_) {
+        failedInvites = invitees.length;
+      }
+    }
+
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
     Navigator.pop(context);
+    if (failedInvites > 0) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Plan created, but $failedInvites invite(s) could not be sent.')),
+      );
+    }
   }
 
   void _showSnackBar(String message) {
@@ -268,6 +315,36 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
               ],
             ),
           ),
+
+          if (_invitees.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            PlanrCard(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Inviting friends',
+                    style: TextStyle(color: PlanrDesign.ink, fontSize: 16, fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 8),
+                  if (_isPublicEvent)
+                    const Text('Friends can only be invited to private plans.')
+                  else
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        for (final friend in _invitees)
+                          InputChip(
+                            label: Text(friend.displayName),
+                            onDeleted: _saving ? null : () => setState(() => _invitees.remove(friend)),
+                          ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ],
 
           const SizedBox(height: 18),
 

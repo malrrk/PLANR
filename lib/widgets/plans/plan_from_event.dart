@@ -6,6 +6,29 @@ import '../../models/event.dart';
 import '../../providers/event_provider.dart';
 import '../../screens/invite_to_event_screen.dart';
 
+Future<bool> confirmPublicEventPlan(BuildContext context) async {
+  return await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Make a plan?'),
+          content: const Text(
+            'Creating a new private group also means you will be marked as going to this public event.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Continue'),
+            ),
+          ],
+        ),
+      ) ??
+      false;
+}
+
 /// Turns a public event (saved, in a story, in Discover) into a private plan with chat,
 /// then lets the user invite friends right away.
 Future<void> startPlanFromEvent(
@@ -13,6 +36,9 @@ Future<void> startPlanFromEvent(
   WidgetRef ref,
   Event publicEvent,
 ) async {
+  final confirmed = await confirmPublicEventPlan(context);
+  if (!confirmed || !context.mounted) return;
+
   final navigator = Navigator.of(context);
   final messenger = ScaffoldMessenger.of(context);
 
@@ -32,10 +58,8 @@ Future<void> startPlanFromEvent(
 
   navigator.push(
     MaterialPageRoute(
-      builder: (_) => InviteToEventScreen(
-        event: group,
-        openEventDetailOnFinish: true,
-      ),
+      builder: (_) =>
+          InviteToEventScreen(event: group, openEventDetailOnFinish: true),
     ),
   );
 }

@@ -186,7 +186,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   Widget build(BuildContext context) {
     final title = _isLogin ? 'Welcome back' : 'Create account';
     final subtitle = _isLogin
-        ? 'Log in with your username or email.'
+      ? 'Log in with your email.'
         : 'Create your PLANR account.';
 
     return PlanrBackground(
@@ -266,10 +266,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
                           PlanrTextField(
                             controller: _emailController,
-                            label: _isLogin ? 'Username or email' : 'Email',
-                            hintText: _isLogin ? 'your_username' : 'you@example.com',
-                            keyboardType:
-                                _isLogin ? TextInputType.text : TextInputType.emailAddress,
+                            label: 'Email',
+                            hintText: 'you@example.com',
+                            keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
                             prefixIcon: _isLogin
                                 ? Icons.alternate_email_rounded

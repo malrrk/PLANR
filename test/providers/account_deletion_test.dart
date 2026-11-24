@@ -46,6 +46,22 @@ class _FakeAuth extends Fake implements FirebaseAuth {
 /// Every call throws, like a bucket the user cannot reach. Deletion must carry on regardless.
 class _BrokenStorage extends Fake implements FirebaseStorage {}
 
+class _WorkingStorage extends Fake implements FirebaseStorage {
+  @override
+  Reference ref([String? path]) => _WorkingReference();
+
+  @override
+  Reference refFromURL(String url) => _WorkingReference();
+}
+
+class _WorkingReference extends Fake implements Reference {
+  @override
+  Reference child(String path) => this;
+
+  @override
+  Future<void> delete() async {}
+}
+
 void main() {
   late FakeFirebaseFirestore firestore;
   late _FakeUser user;
@@ -116,6 +132,41 @@ void main() {
     expect(user.deleted, isFalse);
     expect(await exists('users/alice'), isTrue);
     expect(await exists('events/hosted'), isTrue);
+  });
+
+  test('a storage failure is not reported as complete account deletion', () async {
+    final error = await service.deleteAccount(password: 'correct');
+
+    expect(error, isNotNull);
+    expect(user.deleted, isFalse);
+  });
+
+  test('account deletion removes messages sent in another users event', () async {
+    final auth = _FakeAuth(user);
+    final storage = _WorkingStorage();
+    final workingService = AccountService(
+      firestore,
+      storage,
+      auth,
+      EventService(firestore, storage, auth),
+    );
+    await firestore.doc('events/joined').update({
+      'eventKind': 'private',
+      'visibility': 'private',
+      'chatEnabled': true,
+    });
+    await firestore.doc('events/joined/messages/alice-message').set({
+      'senderUid': 'alice',
+      'text': 'A message from Alice',
+    });
+    await firestore.doc('events/joined/messages/bob-message').set({
+      'senderUid': 'bob',
+      'text': 'A message from Bob',
+    });
+
+    expect(await workingService.deleteAccount(password: 'correct'), isNull);
+    expect(await exists('events/joined/messages/alice-message'), isFalse);
+    expect(await exists('events/joined/messages/bob-message'), isTrue);
   });
 
   test('deleting removes the account data and the login, and leaves other people alone', () async {

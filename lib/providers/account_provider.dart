@@ -110,6 +110,17 @@ class AccountService {
 
     for (final doc in mine.docs) {
       final event = Event.fromMap(doc.data(), doc.id);
+      if (event.creatorUid != uid) {
+        final messages = await _firestore
+            .collection('events')
+            .doc(event.id)
+            .collection('messages')
+            .where('senderUid', isEqualTo: uid)
+            .get();
+        for (final message in messages.docs) {
+          await message.reference.delete();
+        }
+      }
       final error = event.creatorUid == uid
           ? await _events.deleteEvent(event)
           : await _events.leaveEvent(event);
@@ -155,10 +166,10 @@ class AccountService {
 
     for (final doc in stories.docs) {
       final imageUrl = doc.data()['imageUrl'] as String?;
-      await doc.reference.delete();
       if (imageUrl != null) {
-        await _ignoreErrors(() => _storage.refFromURL(imageUrl).delete());
+        await _deleteStorageObject(() => _storage.refFromURL(imageUrl).delete());
       }
+      await doc.reference.delete();
     }
   }
 
@@ -191,11 +202,11 @@ class AccountService {
         .get();
 
     for (final doc in pages.docs) {
-      await doc.reference.delete();
       await _deleteFiles([
         'public_pages/${doc.id}/photo.jpg',
         'public_pages/${doc.id}/background.jpg',
       ]);
+      await doc.reference.delete();
     }
   }
 
@@ -225,7 +236,15 @@ class AccountService {
 
   Future<void> _deleteFiles(List<String> paths) async {
     for (final path in paths) {
-      await _ignoreErrors(() => _storage.ref().child(path).delete());
+      await _deleteStorageObject(() => _storage.ref().child(path).delete());
+    }
+  }
+
+  Future<void> _deleteStorageObject(Future<void> Function() operation) async {
+    try {
+      await operation();
+    } on FirebaseException catch (error) {
+      if (error.code != 'object-not-found') rethrow;
     }
   }
 

@@ -85,7 +85,7 @@ export const acceptFriendRequest = onCall(async (request) => {
         toUser.usernameLower ??
           String(toUser.username ?? "user").toLowerCase()
       ),
-      email: String(toUser.email ?? ""),
+      email: FieldValue.delete(),
       photoUrl: toUser.photoUrl ?? null,
       bio: toUser.bio ?? null,
       createdAt: FieldValue.serverTimestamp(),
@@ -103,7 +103,7 @@ export const acceptFriendRequest = onCall(async (request) => {
         fromUser.usernameLower ??
           String(fromUser.username ?? "user").toLowerCase()
       ),
-      email: String(fromUser.email ?? ""),
+      email: FieldValue.delete(),
       photoUrl: fromUser.photoUrl ?? null,
       bio: fromUser.bio ?? null,
       createdAt: FieldValue.serverTimestamp(),

@@ -178,7 +178,7 @@ class _QuickPlanSheetState extends ConsumerState<QuickPlanSheet> {
     );
   }
 
-  void _openFullForm() {
+  void _openFullForm(List<UserProfile> friends) {
     final navigator = Navigator.of(context);
     final title = _titleController.text.trim();
     final place = _placeController.text.trim();
@@ -192,6 +192,7 @@ class _QuickPlanSheetState extends ConsumerState<QuickPlanSheet> {
           initialPlace: place,
           initialDate: date,
           startPrivate: true,
+          initialInvitees: friends.where((friend) => _inviteeUids.contains(friend.uid)).toList(),
         ),
       ),
     );
@@ -370,7 +371,7 @@ class _QuickPlanSheetState extends ConsumerState<QuickPlanSheet> {
               Row(
                 children: [
                   TextButton(
-                    onPressed: _sending ? null : _openFullForm,
+                    onPressed: _sending ? null : () => _openFullForm(friends),
                     child: const Text(
                       'More options',
                       style: TextStyle(

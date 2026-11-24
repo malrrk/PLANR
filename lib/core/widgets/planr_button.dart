@@ -19,6 +19,7 @@ class PlanrButton extends StatelessWidget {
     this.isLoading = false,
     this.fullWidth = true,
     this.height = 50,
+    this.fitLabel = false,
   });
 
   final String label;
@@ -28,6 +29,7 @@ class PlanrButton extends StatelessWidget {
   final bool isLoading;
   final bool fullWidth;
   final double height;
+  final bool fitLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +55,25 @@ class PlanrButton extends StatelessWidget {
       PlanrButtonVariant.outlined => Colors.white.withValues(alpha: 0.95),
       PlanrButtonVariant.ghost => Colors.transparent,
     };
+
+    final content = Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (icon != null) ...[
+          Icon(icon, color: foregroundColor, size: 18),
+          const SizedBox(width: 8),
+        ],
+        Text(
+          label,
+          style: TextStyle(
+            color: foregroundColor,
+            fontSize: 15,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
 
     return SizedBox(
       width: fullWidth ? double.infinity : null,
@@ -82,28 +103,9 @@ class PlanrButton extends StatelessWidget {
                         color: foregroundColor,
                       ),
                     )
-                  : Row(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (icon != null) ...[
-                          Icon(
-                            icon,
-                            color: foregroundColor,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                        Text(
-                          label,
-                          style: TextStyle(
-                            color: foregroundColor,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ],
-                    ),
+                  : fitLabel
+                      ? FittedBox(fit: BoxFit.scaleDown, child: content)
+                      : content,
             ),
           ),
         ),

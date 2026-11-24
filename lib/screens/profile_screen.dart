@@ -97,7 +97,7 @@ class ProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    final currentUid = ref.watch(firebaseAuthProvider).currentUser?.uid;
     final targetUid = userId ?? currentUid;
 
     if (targetUid == null) {
@@ -179,7 +179,9 @@ class ProfileScreen extends ConsumerWidget {
                       delegate: SliverChildListDelegate(
                         [
                           if (isOwnProfile) ...[
-                            const _EmailVerificationBanner(),
+                            _EmailVerificationBanner(
+                              auth: ref.watch(firebaseAuthProvider),
+                            ),
                             const SizedBox(height: 16),
                           ],
                           ProfileHeader(
@@ -194,6 +196,9 @@ class ProfileScreen extends ConsumerWidget {
                           ProfileStatsRow(
                             profile: profile,
                             friendsCount: friendsCount,
+                            onFriendsTap: isOwnProfile
+                                ? () => _open(context, const FriendsScreen())
+                                : null,
                           ),
                           const SizedBox(height: 16),
                           ProfilePinnedMoments(
@@ -208,20 +213,20 @@ class ProfileScreen extends ConsumerWidget {
                           ),
                           if (isOwnProfile) ...[
                             const SizedBox(height: 16),
-                            _PublicPagesEntryCard(
-                              onTap: () => _open(
-                                context,
-                                const ManagedPublicPagesScreen(),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
                             ProfileActionSection(
-                              onEditProfile: () => _open(context, const EditProfileScreen()),
                               onFriends: () => _open(context, const FriendsScreen()),
                               onFindFriends: () => _open(context, const UserSearchScreen()),
                               onFriendRequests: () => _open(
                                 context,
                                 const FriendRequestsScreen(),
+                              ),
+                              requestCount: ref.watch(incomingFriendRequestsProvider).value?.length ?? 0,
+                            ),
+                            const SizedBox(height: 16),
+                            _PublicPagesEntryCard(
+                              onTap: () => _open(
+                                context,
+                                const ManagedPublicPagesScreen(),
                               ),
                             ),
                           ],
@@ -309,9 +314,7 @@ class _ProfileTopBar extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                isOwnProfile
-                    ? context.l10n.profileSubtitle
-                    : '@${profile.username}',
+                isOwnProfile ? context.l10n.profileSubtitle : '@${profile.username}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
@@ -333,7 +336,9 @@ class _ProfileTopBar extends StatelessWidget {
             child: InkWell(
               onTap: onEditPressed,
               customBorder: const CircleBorder(),
-              child: Container(
+              child: Tooltip(
+                message: context.l10n.editProfileTitle,
+                child: Container(
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
@@ -348,6 +353,7 @@ class _ProfileTopBar extends StatelessWidget {
                   color: PlanrDesign.accentDark,
                   size: 21,
                 ),
+              ),
               ),
             ),
           ),
@@ -390,7 +396,9 @@ class _ProfileTopBar extends StatelessWidget {
 }
 
 class _EmailVerificationBanner extends StatefulWidget {
-  const _EmailVerificationBanner();
+  const _EmailVerificationBanner({required this.auth});
+
+  final FirebaseAuth auth;
 
   @override
   State<_EmailVerificationBanner> createState() =>
@@ -403,7 +411,7 @@ class _EmailVerificationBannerState extends State<_EmailVerificationBanner> {
   Future<void> _run(
     Future<String> Function(User user, AppLocalizations l10n) action,
   ) async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = widget.auth.currentUser;
     if (user == null || _busy) return;
 
     final l10n = context.l10n;
@@ -427,7 +435,7 @@ class _EmailVerificationBannerState extends State<_EmailVerificationBanner> {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = widget.auth.currentUser;
     if (user == null || user.emailVerified) return const SizedBox.shrink();
 
     return PlanrCard(
@@ -839,15 +847,9 @@ class _PublicPagesEntryCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: PlanrDesign.accentSoft.withValues(alpha: 0.74),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.92),
-              ),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.92)),
             ),
-            child: const Icon(
-              Icons.storefront_rounded,
-              color: PlanrDesign.accentDark,
-              size: 24,
-            ),
+            child: const Icon(Icons.storefront_rounded, color: PlanrDesign.accentDark, size: 24),
           ),
           const SizedBox(width: 13),
           const Expanded(
@@ -856,32 +858,18 @@ class _PublicPagesEntryCard extends StatelessWidget {
               children: [
                 Text(
                   'Public Pages',
-                  style: TextStyle(
-                    color: PlanrDesign.ink,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.25,
-                  ),
+                  style: TextStyle(color: PlanrDesign.ink, fontSize: 17, fontWeight: FontWeight.w900, letterSpacing: -0.25),
                 ),
                 SizedBox(height: 3),
                 Text(
                   'Create and manage pages for public events.',
-                  style: TextStyle(
-                    color: PlanrDesign.muted,
-                    fontSize: 12.8,
-                    fontWeight: FontWeight.w700,
-                    height: 1.25,
-                  ),
+                  style: TextStyle(color: PlanrDesign.muted, fontSize: 12.8, fontWeight: FontWeight.w700, height: 1.25),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 10),
-          const Icon(
-            Icons.chevron_right_rounded,
-            color: PlanrDesign.softMuted,
-            size: 27,
-          ),
+          const Icon(Icons.chevron_right_rounded, color: PlanrDesign.softMuted, size: 27),
         ],
       ),
     );

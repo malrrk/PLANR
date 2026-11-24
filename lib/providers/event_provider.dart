@@ -1081,6 +1081,14 @@ class EventService {
         return 'Only the creator can delete this event.';
       }
 
+      if (event.imageUrl != null) {
+        try {
+          await _storage.refFromURL(event.imageUrl!).delete();
+        } on FirebaseException catch (error) {
+          if (error.code != 'object-not-found') rethrow;
+        }
+      }
+
       final eventRef = _firestore.collection('events').doc(event.id);
 
       final attendeesSnapshot = await eventRef.collection('attendees').get();
@@ -1128,12 +1136,6 @@ class EventService {
             'eventCount': FieldValue.increment(-1),
             'updatedAt': FieldValue.serverTimestamp(),
           });
-        } catch (_) {}
-      }
-
-      if (event.imageUrl != null) {
-        try {
-          await _storage.refFromURL(event.imageUrl!).delete();
         } catch (_) {}
       }
 

@@ -49,12 +49,7 @@ android {
 
     buildTypes {
         release {
-            // Without android/key.properties the build falls back to debug keys: fine locally, never for the store.
-            signingConfig = if (keystoreProperties.isNotEmpty()) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
-            }
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }

@@ -70,6 +70,21 @@ Finder _feedHeading(String text) => find.byWidgetPredicate(
 );
 
 void main() {
+  testWidgets('upcoming events appear without a 36-hour shortcut', (tester) async {
+    final event = Event.fromMap({
+      'creatorUid': 'owner',
+      'eventKind': 'public',
+      'visibility': 'public',
+      'title': 'Soon',
+      'date': DateTime.now().add(const Duration(hours: 1)),
+    }, 'soon');
+    await _pumpDiscover(tester, events: [event], pages: []);
+
+    expect(find.text('Next 36 hours'), findsNothing);
+    expect(find.text('Happening Now'), findsOneWidget);
+    expect(find.text('Soon'), findsOneWidget);
+  });
+
   testWidgets('top pages precede the full photo-led event feed', (
     tester,
   ) async {

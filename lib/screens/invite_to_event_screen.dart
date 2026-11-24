@@ -8,11 +8,13 @@ import '../core/widgets/planr_button.dart';
 import '../core/widgets/planr_card.dart';
 import '../core/widgets/planr_empty_state.dart';
 import '../core/widgets/planr_scaffold.dart';
+import '../l10n/l10n.dart';
 import '../models/event.dart';
 import '../models/user_profile.dart';
 import '../providers/event_provider.dart';
 import '../providers/friends_provider.dart';
 import 'event_detail_screen.dart';
+import 'user_search_screen.dart';
 
 class InviteToEventScreen extends ConsumerStatefulWidget {
   const InviteToEventScreen({
@@ -35,6 +37,14 @@ class InviteToEventScreen extends ConsumerStatefulWidget {
 class _InviteToEventScreenState extends ConsumerState<InviteToEventScreen> {
   final Set<String> _invitingUserIds = {};
   final Set<String> _invitedUserIds = {};
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   Future<void> _inviteFriend(UserProfile friend) async {
     if (widget.event.isPublicEvent) {
@@ -148,9 +158,19 @@ class _InviteToEventScreenState extends ConsumerState<InviteToEventScreen> {
                       subtitle: widget.event.isLinkedGroup
                           ? 'Add friends first, then invite them to your private group.'
                           : 'Add friends first, then invite them to private events.',
+                      actionLabel: context.l10n.findFriendsTitle,
+                      onActionPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const UserSearchScreen()),
+                      ),
                     ),
                   );
                 }
+
+                final filteredFriends = friends.where((friend) {
+                  return friend.displayName.toLowerCase().contains(_query) ||
+                      friend.username.toLowerCase().contains(_query);
+                }).toList();
 
                 return ListView(
                   physics: const BouncingScrollPhysics(),
@@ -176,16 +196,46 @@ class _InviteToEventScreenState extends ConsumerState<InviteToEventScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    for (int i = 0; i < friends.length; i++) ...[
+                    Container(
+                      decoration: BoxDecoration(
+                        color: PlanrDesign.cardLight.withValues(alpha: 0.88),
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.95)),
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: (value) => setState(() => _query = value.trim().toLowerCase()),
+                        decoration: InputDecoration(
+                          hintText: 'Search friends',
+                          prefixIcon: const Icon(Icons.search_rounded, color: PlanrDesign.softMuted),
+                          suffixIcon: _query.isEmpty
+                              ? null
+                              : IconButton(
+                                  tooltip: 'Clear search',
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() => _query = '');
+                                  },
+                                  icon: const Icon(Icons.close_rounded),
+                                ),
+                          border: InputBorder.none,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    if (filteredFriends.isEmpty)
+                      const Text('No matching friends.')
+                    else
+                    for (int i = 0; i < filteredFriends.length; i++) ...[
                       _FriendInviteTile(
                         eventId: widget.event.id,
-                        friend: friends[i],
-                        isInviting: _invitingUserIds.contains(friends[i].uid),
+                        friend: filteredFriends[i],
+                        isInviting: _invitingUserIds.contains(filteredFriends[i].uid),
                         wasJustInvited:
-                            _invitedUserIds.contains(friends[i].uid),
-                        onInvite: () => _inviteFriend(friends[i]),
+                            _invitedUserIds.contains(filteredFriends[i].uid),
+                        onInvite: () => _inviteFriend(filteredFriends[i]),
                       ),
-                      if (i != friends.length - 1) const SizedBox(height: 10),
+                      if (i != filteredFriends.length - 1) const SizedBox(height: 10),
                     ],
                     const SizedBox(height: 20),
                   ],
@@ -564,6 +614,7 @@ class _FriendInviteTile extends ConsumerWidget {
               variant: variant,
               isLoading: isInviting,
               height: 44,
+              fitLabel: true,
               onPressed: isInviting || !canInvite ? null : onInvite,
             ),
           ),

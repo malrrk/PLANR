@@ -8,10 +8,12 @@ class ProfileStatsRow extends StatelessWidget {
     super.key,
     required this.profile,
     required this.friendsCount,
+    this.onFriendsTap,
   });
 
   final UserProfile profile;
   final int friendsCount;
+  final VoidCallback? onFriendsTap;
 
   @override
   Widget build(BuildContext context) {
@@ -19,9 +21,7 @@ class ProfileStatsRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: PlanrDesign.cardLight.withValues(alpha: 0.84),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.95),
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.95)),
         boxShadow: [PlanrDesign.softShadow],
       ),
       padding: const EdgeInsets.all(12),
@@ -33,10 +33,7 @@ class ProfileStatsRow extends StatelessWidget {
               value: profile.score.toString(),
               icon: Icons.workspace_premium_rounded,
               gradient: const LinearGradient(
-                colors: [
-                  PlanrDesign.eventMetaOrange,
-                  PlanrDesign.accent,
-                ],
+                colors: [PlanrDesign.eventMetaOrange, PlanrDesign.accent],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -49,6 +46,7 @@ class ProfileStatsRow extends StatelessWidget {
               value: friendsCount.toString(),
               icon: Icons.groups_rounded,
               gradient: PlanrDesign.storyRingGradient,
+              onTap: onFriendsTap,
             ),
           ),
         ],
@@ -63,59 +61,62 @@ class _StatTile extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.gradient,
+    this.onTap,
   });
 
   final String label;
   final String value;
   final IconData icon;
   final Gradient gradient;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.48),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(23),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.92),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.48),
+            borderRadius: BorderRadius.circular(23),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.92)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  gradient: gradient,
+                  borderRadius: BorderRadius.circular(17),
+                ),
+                child: Icon(icon, color: Colors.white, size: 22),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: PlanrDesign.ink,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  height: 1,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: PlanrDesign.muted,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              gradient: gradient,
-              borderRadius: BorderRadius.circular(17),
-            ),
-            child: Icon(
-              icon,
-              color: Colors.white,
-              size: 22,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: const TextStyle(
-              color: PlanrDesign.ink,
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              height: 1,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            label,
-            style: const TextStyle(
-              color: PlanrDesign.muted,
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -46,6 +46,7 @@ The Flutter client currently accepts friend requests itself and does not call th
 
 ## Known gaps
 
-- Firestore and Storage security rules are not stored in this repository; verify the deployed rules before release.
+- Firestore and Storage security rules are stored in this repository; verify and deploy them to the intended Firebase project before release.
+- Sign-in uses email and password. Older app versions that use username sign-in need to be updated, and existing username documents containing email need to be cleaned up.
 - Image uploads use `dart:io` files and are not web compatible yet.
-- Android and iOS identifiers still use the `com.example` template values, and Android release builds use debug signing.
+- Android and iOS identifiers still use the `com.example` template values. Configure a release keystore in `android/key.properties`; release builds no longer fall back to debug signing.

@@ -121,8 +121,13 @@ class AuthService {
       return false;
     }
 
-    final doc = await _firestore.collection('usernames').doc(normalized).get();
-    return !doc.exists;
+    try {
+      final doc = await _firestore.collection('usernames').doc(normalized).get();
+      return !doc.exists;
+    } on FirebaseException catch (error) {
+      if (error.code == 'permission-denied') return false;
+      rethrow;
+    }
   }
 
   Future<String?> signUp({
@@ -191,7 +196,6 @@ class AuthService {
             'uid': user.uid,
             'username': normalizedUsername,
             'displayName': trimmedName,
-            'email': trimmedEmail,
             'createdAt': FieldValue.serverTimestamp(),
           });
 
@@ -249,33 +253,8 @@ class AuthService {
         return 'Please fill in all fields.';
       }
 
-      String loginEmail = identifier;
-
-      final looksLikeEmail = identifier.contains('@');
-
-      if (!looksLikeEmail) {
-        final normalizedUsername = normalizeUsername(identifier);
-
-        final usernameDoc = await _firestore
-            .collection('usernames')
-            .doc(normalizedUsername)
-            .get();
-
-        if (!usernameDoc.exists || usernameDoc.data() == null) {
-          return 'No account found with this username.';
-        }
-
-        final foundEmail = usernameDoc.data()!['email'] as String?;
-
-        if (foundEmail == null || foundEmail.isEmpty) {
-          return 'No email found for this username.';
-        }
-
-        loginEmail = foundEmail;
-      }
-
       await _auth.signInWithEmailAndPassword(
-        email: loginEmail,
+        email: identifier,
         password: trimmedPassword,
       );
 

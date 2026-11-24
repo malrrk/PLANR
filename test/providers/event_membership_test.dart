@@ -160,4 +160,17 @@ void main() {
       'Message is too long.',
     );
   });
+
+  test('event image deletion failure keeps the event available for retry', () async {
+    final data = {
+      'creatorUid': 'bob',
+      'eventKind': 'public',
+      'visibility': 'public',
+      'imageUrl': 'https://example.com/event.jpg',
+    };
+    await firestore.doc('events/e5').set(data);
+
+    expect(await service.deleteEvent(Event.fromMap(data, 'e5')), isNotNull);
+    expect((await firestore.doc('events/e5').get()).exists, isTrue);
+  });
 }

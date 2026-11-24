@@ -73,13 +73,11 @@ class ProfileHeader extends StatelessWidget {
                     hasBio
                         ? profile.bio!.trim()
                         : isOwnProfile
-                            ? 'No bio yet. Add a few words about yourself.'
-                            : 'No bio yet.',
+                        ? 'No bio yet. Add a few words about yourself.'
+                        : 'No bio yet.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: hasBio
-                          ? PlanrDesign.muted
-                          : PlanrDesign.softMuted,
+                      color: hasBio ? PlanrDesign.muted : PlanrDesign.softMuted,
                       fontSize: hasBio ? 15.5 : 14.5,
                       fontWeight: FontWeight.w600,
                       height: 1.42,
@@ -106,9 +104,7 @@ class ProfileHeader extends StatelessWidget {
 }
 
 class _CoverImage extends StatelessWidget {
-  const _CoverImage({
-    required this.profile,
-  });
+  const _CoverImage({required this.profile});
 
   final UserProfile profile;
 
@@ -128,9 +124,7 @@ class _CoverImage extends StatelessWidget {
 
   Widget _placeholder() {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: PlanrDesign.brandGradient,
-      ),
+      decoration: const BoxDecoration(gradient: PlanrDesign.brandGradient),
       child: Stack(
         children: [
           Positioned(
@@ -175,11 +169,7 @@ class _CoverFade extends StatelessWidget {
     return const DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            Color(0x22000000),
-            Color(0x22000000),
-            Color(0x55FFFAF3),
-          ],
+          colors: [Color(0x22000000), Color(0x22000000), Color(0x55FFFAF3)],
           stops: [0.0, 0.52, 1.0],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -190,9 +180,7 @@ class _CoverFade extends StatelessWidget {
 }
 
 class _ProfileAvatar extends StatelessWidget {
-  const _ProfileAvatar({
-    required this.profile,
-  });
+  const _ProfileAvatar({required this.profile});
 
   final UserProfile profile;
 
@@ -228,25 +216,18 @@ class _ProfileAvatar extends StatelessWidget {
 }
 
 class _UsernamePill extends StatelessWidget {
-  const _UsernamePill({
-    required this.username,
-  });
+  const _UsernamePill({required this.username});
 
   final String username;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 13,
-        vertical: 7,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
       decoration: BoxDecoration(
         color: PlanrDesign.accentSoft.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.92),
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.92)),
       ),
       child: Text(
         '@$username',

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:planner_app/providers/auth_provider.dart';
@@ -18,6 +19,36 @@ class RecordingFirebaseAuth extends Fake implements FirebaseAuth {
 }
 
 class UnusedFirestore extends Fake implements FirebaseFirestore {}
+
+class SignUpUser extends Fake implements User {
+  @override
+  String get uid => 'alice';
+
+  @override
+  String? get photoURL => null;
+
+  @override
+  Future<void> updateDisplayName(String? displayName) async {}
+
+  @override
+  Future<void> reload() async {}
+
+  @override
+  Future<void> sendEmailVerification([ActionCodeSettings? actionCodeSettings]) async {}
+}
+
+class SignUpCredential extends Fake implements UserCredential {
+  @override
+  User? get user => SignUpUser();
+}
+
+class SignUpAuth extends Fake implements FirebaseAuth {
+  @override
+  Future<UserCredential> createUserWithEmailAndPassword({
+    required String email,
+    required String password,
+  }) async => SignUpCredential();
+}
 
 void main() {
   late RecordingFirebaseAuth auth;
@@ -51,5 +82,23 @@ void main() {
       await service.resetPassword(email: 'alex@example.com'),
       'Network error. Please check your connection.',
     );
+  });
+
+  test('sign-up does not put email in the public username document', () async {
+    final firestore = FakeFirebaseFirestore();
+    final signUpService = AuthService(SignUpAuth(), firestore);
+
+    expect(
+      await signUpService.signUp(
+        name: 'Alice',
+        username: 'alice',
+        email: 'alice@example.com',
+        password: 'password',
+      ),
+      isNull,
+    );
+
+    final username = await firestore.doc('usernames/alice').get();
+    expect(username.data(), isNot(contains('email')));
   });
 }

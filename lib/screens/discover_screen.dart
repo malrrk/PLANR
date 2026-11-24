@@ -16,7 +16,6 @@ import '../widgets/event_tag_chips.dart';
 import '../widgets/event_cover.dart';
 import '../widgets/save_event_button.dart';
 import 'event_detail_screen.dart';
-import 'happening_now_screen.dart';
 import 'public_page_screen.dart';
 import 'profile_screen.dart';
 
@@ -184,16 +183,6 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     }).toList();
   }
 
-  /// Public events starting within the next 36 hours, soonest first (capped for focus).
-  List<Event> _happeningNow(List<Event> events) {
-    final limit = DateTime.now().add(const Duration(hours: 36));
-
-    final soon = events.where((event) => event.date.isBefore(limit)).toList()
-      ..sort((a, b) => a.date.compareTo(b.date));
-
-    return soon.take(HappeningNowScreen.maxEvents).toList();
-  }
-
   List<Event> _hotEvents(List<Event> events) {
     final sorted = [...events];
 
@@ -261,7 +250,6 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                   final filteredPages = _filteredPages(pages, futureEvents);
                   final hotEvents = _hotEvents(filteredEvents);
                   final topPages = _topPages(filteredPages);
-                  final happeningNow = _happeningNow(filteredEvents);
 
                   return ListView(
                     physics: const BouncingScrollPhysics(),
@@ -313,20 +301,6 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                       ],
                       const SizedBox(height: 28),
 
-                        if (happeningNow.isNotEmpty) ...[
-                          _HappeningNowBanner(
-                            events: happeningNow,
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => HappeningNowScreen(
-                                  events: happeningNow,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 30),
-                        ],
                         if (topPages.isNotEmpty) ...[
                           const _SectionHeader(
                             title: 'Top Pages',
@@ -559,84 +533,6 @@ class _DiscoverDateFilter extends StatelessWidget {
             onTap: () => onSelected(filter),
           );
         },
-      ),
-    );
-  }
-}
-
-class _HappeningNowBanner extends StatelessWidget {
-  const _HappeningNowBanner({
-    required this.events,
-    required this.onTap,
-  });
-
-  final List<Event> events;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final today = events.where((e) => isSameDay(e.date, DateTime.now())).length;
-    final subtitle = today > 0
-      ? '$today ${today == 1 ? 'event' : 'events'} today'
-        : '${events.length} ${events.length == 1 ? 'event' : 'events'} coming up soon';
-
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: PlanrDesign.accentSoft.withValues(alpha: 0.65),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.9)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: PlanrDesign.accent,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(Icons.bolt_rounded, color: Colors.white),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Next 36 hours',
-                      style: TextStyle(
-                        color: PlanrDesign.ink,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        color: PlanrDesign.muted,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: PlanrDesign.accent,
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

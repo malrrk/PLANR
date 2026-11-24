@@ -7,10 +7,12 @@ import '../core/widgets/planr_background.dart';
 import '../core/widgets/planr_card.dart';
 import '../core/widgets/planr_empty_state.dart';
 import '../core/widgets/planr_scaffold.dart';
+import '../l10n/l10n.dart';
 import '../models/user_profile.dart';
 import '../providers/friends_provider.dart';
 import '../providers/relationships_provider.dart';
 import 'profile_screen.dart';
+import 'user_search_screen.dart';
 
 class FriendsScreen extends ConsumerStatefulWidget {
   const FriendsScreen({super.key});
@@ -107,17 +109,32 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     return PlanrScaffold(
       title: 'Friends',
       variant: PlanrBackgroundVariant.friends,
+      actions: [
+        IconButton(
+          tooltip: context.l10n.findFriendsTitle,
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const UserSearchScreen()),
+          ),
+          icon: const Icon(Icons.person_add_alt_1_rounded),
+        ),
+      ],
       child: friendsAsync.when(
         data: (friends) {
           final filteredFriends = _filterFriends(friends);
 
           if (friends.isEmpty) {
-            return const Center(
+            return Center(
               child: PlanrEmptyState(
                 icon: Icons.people_alt_outlined,
                 title: 'No friends yet',
                 subtitle:
                     'Find people by username and build your PLANR circle.',
+                actionLabel: context.l10n.findFriendsTitle,
+                onActionPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const UserSearchScreen()),
+                ),
               ),
             );
           }

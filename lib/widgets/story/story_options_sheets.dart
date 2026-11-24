@@ -109,7 +109,8 @@ class _AudienceSheetState extends ConsumerState<_AudienceSheet> {
 
     final closeCount = ref.watch(closeFriendUidsProvider).value?.length ?? 0;
 
-    return Column(
+    return SingleChildScrollView(
+      child: Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -127,7 +128,7 @@ class _AudienceSheetState extends ConsumerState<_AudienceSheet> {
         ),
         const SizedBox(height: 4),
         const Text(
-          'Only you know who is on your lists. Nobody gets a notification.',
+          'People who can view this story may be able to see who else it was shared with.',
           style: TextStyle(
             color: PlanrDesign.muted,
             fontSize: 13.5,
@@ -175,6 +176,7 @@ class _AudienceSheetState extends ConsumerState<_AudienceSheet> {
           ),
         ),
       ],
+      ),
     );
   }
 

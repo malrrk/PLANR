@@ -27,7 +27,9 @@ class LegalScreen extends StatelessWidget {
       'Who can see it',
       'Your profile, events you make public and public pages are visible to other signed-in '
           'users. Private events and event chats are visible to the people invited or going. '
-          'Stories are shown to your friends in the app.',
+      'You can choose to share a story publicly, with friends, close friends, selected '
+      'people or only yourself. People who can view a story may be able to see who else '
+      'it was shared with.',
     ),
     (
       'Where it is stored',
@@ -37,7 +39,7 @@ class LegalScreen extends StatelessWidget {
     (
       'Your choices',
       'You can edit your profile at any time and delete your account in the app under '
-          'Profile > Delete account. Deleting your account removes your profile, your events, '
+          'Profile > Settings > Delete account. Deleting your account removes your profile, your events, '
           'stories and friendships. Messages you sent in other people\'s events may be removed '
           'too.',
     ),

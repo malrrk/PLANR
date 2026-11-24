@@ -48,9 +48,7 @@ class ProfilePinnedMoments extends StatelessWidget {
           decoration: BoxDecoration(
             color: PlanrDesign.cardLight.withValues(alpha: 0.86),
             borderRadius: BorderRadius.circular(30),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.95),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.95)),
             boxShadow: [PlanrDesign.softShadow],
           ),
           padding: const EdgeInsets.all(18),
