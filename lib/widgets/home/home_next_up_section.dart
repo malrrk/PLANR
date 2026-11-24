@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/planr_design.dart';
 import '../../models/event_schedule.dart';
 import '../../providers/event_provider.dart';
+import '../../providers/firebase_providers.dart';
+import '../../providers/public_page_provider.dart';
 import '../../screens/create_event_screen.dart';
 import '../../screens/event_chat_screen.dart';
 import '../../screens/event_detail_screen.dart';
@@ -13,14 +15,35 @@ import 'home_header.dart';
 import 'home_loading_card.dart';
 import 'my_event_mini_card.dart';
 
-class HomeNextUpSection extends ConsumerWidget {
+class HomeNextUpSection extends ConsumerStatefulWidget {
   const HomeNextUpSection({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeNextUpSection> createState() => _HomeNextUpSectionState();
+}
+
+class _HomeNextUpSectionState extends ConsumerState<HomeNextUpSection> {
+  bool _hosting = false;
+
+  @override
+  Widget build(BuildContext context) {
     final eventsAsync = ref.watch(myEventsProvider);
     final upcoming = eventsAsync.whenData(
-      (events) => upcomingEvents(events, now: DateTime.now()),
+      (events) {
+        if (!_hosting) return upcomingEvents(events, now: DateTime.now());
+        final uid = ref.watch(firebaseAuthProvider).currentUser?.uid;
+        final pageIds = (ref.watch(myManagedPublicPagesProvider).value ?? const [])
+            .map((page) => page.id)
+            .toSet();
+        final publicEvents = ref.watch(eventsProvider).value ?? const [];
+        final hosted = {
+          for (final event in [...events, ...publicEvents])
+            if (event.creatorUid == uid ||
+                (event.isOrganizedByPage && pageIds.contains(event.organizerId)))
+              event.id: event,
+        };
+        return upcomingEvents(hosted.values.toList(), now: DateTime.now());
+      },
     );
 
     void openCalendar() {
@@ -74,6 +97,22 @@ class HomeNextUpSection extends ConsumerWidget {
             ),
           ],
         ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            children: [
+              ChoiceChip(
+                label: const Text('Going'),
+                selected: !_hosting,
+                onSelected: (_) => setState(() => _hosting = false),
+              ),
+              ChoiceChip(
+                label: const Text('Hosting'),
+                selected: _hosting,
+                onSelected: (_) => setState(() => _hosting = true),
+              ),
+            ],
+          ),
         const SizedBox(height: 13),
         upcoming.when(
           data: (events) {

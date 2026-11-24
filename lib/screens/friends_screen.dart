@@ -24,6 +24,7 @@ class FriendsScreen extends ConsumerStatefulWidget {
 class _FriendsScreenState extends ConsumerState<FriendsScreen> {
   final _searchController = TextEditingController();
   String _query = '';
+  bool _closeOnly = false;
 
   @override
   void dispose() {
@@ -121,7 +122,9 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
       ],
       child: friendsAsync.when(
         data: (friends) {
-          final filteredFriends = _filterFriends(friends);
+            final filteredFriends = _filterFriends(friends)
+              .where((friend) => !_closeOnly || closeUids.contains(friend.uid))
+              .toList();
 
           if (friends.isEmpty) {
             return Center(
@@ -159,10 +162,26 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
                       },
               ),
               const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text('All'),
+                    selected: !_closeOnly,
+                    onSelected: (_) => setState(() => _closeOnly = false),
+                  ),
+                  ChoiceChip(
+                    label: const Text('Close friends'),
+                    selected: _closeOnly,
+                    onSelected: (_) => setState(() => _closeOnly = true),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
               const _CloseFriendsHint(),
               const SizedBox(height: 14),
               Text(
-                _query.trim().isEmpty
+                _query.trim().isEmpty && !_closeOnly
                     ? '${friends.length} friend${friends.length == 1 ? '' : 's'}'
                         '${closeUids.isEmpty ? '' : '  ·  ${closeUids.length} close'}'
                     : '${filteredFriends.length} result${filteredFriends.length == 1 ? '' : 's'}',

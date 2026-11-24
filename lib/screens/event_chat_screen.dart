@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,6 +10,7 @@ import '../core/widgets/planr_empty_state.dart';
 import '../core/widgets/planr_scaffold.dart';
 import '../models/event.dart';
 import '../providers/event_provider.dart';
+import '../providers/firebase_providers.dart';
 import '../providers/moderation_provider.dart';
 import '../widgets/moderation/moderation_actions.dart';
 import 'profile_screen.dart';
@@ -155,6 +155,8 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
   @override
   Widget build(BuildContext context) {
     final messagesAsync = ref.watch(eventMessagesProvider(widget.event.id));
+    final messageLimit = ref.watch(eventMessageLimitProvider(widget.event.id));
+    final hasBlockedUsers = (ref.watch(blockedUidsProvider).value ?? const <String>{}).isNotEmpty;
 
     return PlanrScaffold(
       title: 'Event Chat',
@@ -195,15 +197,25 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
                       PlanrDesign.pagePadding,
                       10,
                     ),
-                    child: PlanrEmptyState(
-                      icon: Icons.chat_bubble_outline_rounded,
-                      title: 'No messages yet',
-                      subtitle:
-                          'Start the conversation and coordinate the plan with everyone going.',
-                      actionLabel:
-                          widget.event.chatEnabled ? 'Write first message' : null,
-                      onActionPressed:
-                          widget.event.chatEnabled ? _composerFocusNode.requestFocus : null,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        PlanrEmptyState(
+                          icon: Icons.chat_bubble_outline_rounded,
+                          title: 'No messages yet',
+                          subtitle:
+                              'Start the conversation and coordinate the plan with everyone going.',
+                          actionLabel:
+                              widget.event.chatEnabled ? 'Write first message' : null,
+                          onActionPressed:
+                              widget.event.chatEnabled ? _composerFocusNode.requestFocus : null,
+                        ),
+                        if (hasBlockedUsers)
+                          TextButton(
+                            onPressed: () => ref.read(eventMessageLimitProvider(widget.event.id).notifier).state += 50,
+                            child: const Text('Load older messages'),
+                          ),
+                      ],
                     ),
                   );
                 }
@@ -216,8 +228,15 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
                     PlanrDesign.pagePadding,
                     14,
                   ),
-                  itemCount: messages.length,
+                  itemCount: messages.length +
+                      (messages.length >= messageLimit || hasBlockedUsers ? 1 : 0),
                   itemBuilder: (context, index) {
+                    if (index == messages.length) {
+                      return TextButton(
+                        onPressed: () => ref.read(eventMessageLimitProvider(widget.event.id).notifier).state += 50,
+                        child: const Text('Load older messages'),
+                      );
+                    }
                     final message = messages[index];
 
                     final senderUid = message['senderUid'] as String?;
@@ -227,7 +246,7 @@ class _EventChatScreenState extends ConsumerState<EventChatScreen> {
                         message['senderPhotoUrl'] as String?;
                     final text = message['text'] as String? ?? '';
 
-                    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+                    final currentUid = ref.watch(firebaseAuthProvider).currentUser?.uid;
                     final isMe = currentUid != null &&
                         senderUid != null &&
                         currentUid == senderUid;

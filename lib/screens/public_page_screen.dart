@@ -8,15 +8,17 @@ import '../core/widgets/planr_card.dart';
 import '../models/event.dart';
 import '../models/public_page.dart';
 import '../providers/public_page_provider.dart';
+import '../providers/firebase_providers.dart';
 import '../providers/moderation_provider.dart';
+import '../providers/story_provider.dart';
 import '../widgets/moderation/moderation_actions.dart';
 import '../widgets/event_tag_chips.dart';
 import 'event_detail_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'create_event_screen.dart';
 import 'edit_public_page_screen.dart';
 import 'manage_page_admins_screen.dart';
 import 'create_story_screen.dart';
+import 'story_viewer_screen.dart';
 
 class PublicPageScreen extends ConsumerStatefulWidget {
   const PublicPageScreen({
@@ -125,7 +127,7 @@ class _PublicPageScreenState extends ConsumerState<PublicPageScreen> {
               return const _PageNotFoundState();
             }
 
-            final currentUid = FirebaseAuth.instance.currentUser?.uid;
+            final currentUid = ref.watch(firebaseAuthProvider).currentUser?.uid;
             final canManage = currentUid != null &&
                 (page.ownerUid == currentUid || page.adminUids.contains(currentUid));
 
@@ -136,6 +138,7 @@ class _PublicPageScreenState extends ConsumerState<PublicPageScreen> {
                 : ref.watch(isFollowingPageProvider(page.id));
 
             final eventsAsync = ref.watch(publicPageEventsProvider(page.id));
+            final storiesAsync = ref.watch(publicPagePreviewStoriesProvider(page.id));
 
             return CustomScrollView(
               physics: const BouncingScrollPhysics(),
@@ -173,6 +176,39 @@ class _PublicPageScreenState extends ConsumerState<PublicPageScreen> {
                   sliver: SliverList(
                     delegate: SliverChildListDelegate(
                       [
+                        if (storiesAsync.value?.isNotEmpty == true) ...[
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Stories',
+                                  style: TextStyle(
+                                    color: PlanrDesign.ink,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                              TextButton.icon(
+                                onPressed: () {
+                                  final story = storiesAsync.value!.first;
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => StoryViewerScreen(
+                                        pageId: page.id,
+                                        initialGroupId: '${story.storyOwnerKey}_${story.dayKey}',
+                                      ),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.play_circle_outline_rounded),
+                                label: const Text('View story'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                        ],
                         _AboutPageCard(page: page),
                         if (canManage) ...[
                           const SizedBox(height: 16),

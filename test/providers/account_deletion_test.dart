@@ -169,6 +169,21 @@ void main() {
     expect(await exists('events/joined/messages/bob-message'), isTrue);
   });
 
+  test('account deletion removes announcement read markers', () async {
+    final auth = _FakeAuth(user);
+    final storage = _WorkingStorage();
+    final workingService = AccountService(
+      firestore,
+      storage,
+      auth,
+      EventService(firestore, storage, auth),
+    );
+    await firestore.doc('users/alice/announcement_reads/event').set({'readAt': DateTime.now()});
+
+    expect(await workingService.deleteAccount(password: 'correct'), isNull);
+    expect(await exists('users/alice/announcement_reads/event'), isFalse);
+  });
+
   test('deleting removes the account data and the login, and leaves other people alone', () async {
     expect(await service.deleteAccount(password: 'correct'), isNull);
 

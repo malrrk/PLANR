@@ -4,11 +4,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:planner_app/models/event.dart';
+import 'package:planner_app/models/public_page.dart';
 import 'package:planner_app/models/story_audience.dart';
 import 'package:planner_app/models/user_profile.dart';
 import 'package:planner_app/providers/event_provider.dart';
+import 'package:planner_app/providers/firebase_providers.dart';
+import 'package:planner_app/providers/public_page_provider.dart';
 import 'package:planner_app/providers/relationships_provider.dart';
 import 'package:planner_app/providers/saved_events_provider.dart';
 import 'package:planner_app/providers/story_provider.dart';
@@ -74,6 +78,44 @@ void main() {
       expect(await service.unsave('e1'), isNull);
       expect((await firestore.doc('users/alice/saved_events/e1').get()).exists, isFalse);
     });
+
+    testWidgets('saved events use current data and omit deleted events', (tester) async {
+      final service = SavedEventsService(firestore, _Auth());
+      await service.save(_publicEvent());
+      await firestore.doc('events/e1').set({
+        ..._publicEvent().toMap(),
+        'title': 'Updated party',
+      });
+      await firestore.doc('users/alice/saved_events/deleted').set({
+        ..._publicEvent().toMap(),
+        'savedAt': Timestamp.now(),
+      });
+      final container = ProviderContainer(overrides: [
+        firebaseAuthProvider.overrideWithValue(_Auth()),
+        firestoreProvider.overrideWithValue(firestore),
+      ]);
+      addTearDown(container.dispose);
+      final subscription = container.listen(savedEventsProvider, (_, _) {});
+      addTearDown(subscription.close);
+      await tester.pump();
+      await tester.pump();
+
+      final events = container.read(savedEventsProvider).requireValue;
+      expect(events.map((event) => event.title), ['Updated party']);
+
+      await firestore.doc('events/e1').update({'title': 'Rescheduled party'});
+      await tester.pump();
+      await tester.pump();
+      expect(
+        container.read(savedEventsProvider).requireValue.single.title,
+        'Rescheduled party',
+      );
+
+      await firestore.doc('events/e1').delete();
+      await tester.pump();
+      await tester.pump();
+      expect(container.read(savedEventsProvider).requireValue, isEmpty);
+    });
   });
 
   group('close friends', () {
@@ -88,6 +130,42 @@ void main() {
       expect(await service.setCloseFriend('bob', false), isNull);
       expect((await firestore.doc('users/alice/relationships/bob').get()).exists, isFalse);
     });
+  });
+
+  test('page admins are resolved through the username registry', () async {
+    final page = PublicPage(
+      id: 'venue', name: 'Venue', handle: 'venue', description: '',
+      photoUrl: null, backgroundImageUrl: null, category: 'venue', tags: const [],
+      followerCount: 0, eventCount: 0, isVerified: false, isActive: true,
+      ownerUid: 'alice', adminUids: const ['alice'],
+      createdAt: DateTime(2026), updatedAt: null,
+    );
+    await firestore.doc('public_pages/venue').set(page.toMap());
+    await firestore.doc('usernames/bob').set({'uid': 'bob'});
+    final service = PublicPageService(firestore, _UnusedStorage(), _Auth());
+
+    expect(await service.addPageAdminByUsername(page: page, username: '@Bob'), isNull);
+    expect((await firestore.doc('public_pages/venue').get()).data()!['adminUids'], contains('bob'));
+  });
+
+  testWidgets('page discovery includes active pages beyond the first 300', (tester) async {
+    for (var index = 0; index < 301; index++) {
+      await firestore.doc('public_pages/page$index').set({
+        'name': 'Page $index',
+        'handle': 'page$index',
+        'isActive': true,
+        'followerCount': index,
+      });
+    }
+    final container = ProviderContainer(overrides: [
+      firestoreProvider.overrideWithValue(firestore),
+    ]);
+    addTearDown(container.dispose);
+    final subscription = container.listen(publicPagesProvider, (_, _) {});
+    addTearDown(subscription.close);
+    await tester.pump();
+    await tester.pump();
+    expect(container.read(publicPagesProvider).requireValue, hasLength(301));
   });
 
   group('story audience', () {

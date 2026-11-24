@@ -236,6 +236,10 @@ service cloud.firestore {
         allow read, write: if isSelf(uid);
       }
 
+      match /announcement_reads/{eventId} {
+        allow read, write: if isSelf(uid);
+      }
+
       // The owner's private, one-sided classification of other people (e.g. close friends).
       match /relationships/{otherUid} {
         allow read, delete: if isSelf(uid);

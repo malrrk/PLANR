@@ -5,7 +5,9 @@ import '../../core/plan_time.dart';
 import '../../core/theme/planr_design.dart';
 import '../../core/widgets/planr_avatar.dart';
 import '../../providers/home_feed_provider.dart';
+import '../../providers/public_page_provider.dart';
 import '../../screens/event_detail_screen.dart';
+import '../../screens/public_page_screen.dart';
 import '../event_cover.dart';
 import '../save_event_button.dart';
 import 'home_section_header.dart';
@@ -17,24 +19,71 @@ class HomePeopleSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final items = ref.watch(aroundYourPeopleProvider).value ?? const [];
+    final pages = ref.watch(followedPagesProvider).value ?? const [];
 
-    if (items.isEmpty) return const SizedBox.shrink();
+    if (items.isEmpty && pages.isEmpty) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(top: 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const HomeSectionHeader(
-            title: 'Your people are into',
-            subtitle: 'Friends going and pages you follow',
-          ),
-          const SizedBox(height: 14),
-          for (final item in items)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _PeopleRow(item: item),
+          if (pages.isNotEmpty) ...[
+            const HomeSectionHeader(title: 'Following'),
+            const SizedBox(height: 14),
+            SizedBox(
+              height: 100,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: pages.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 14),
+                itemBuilder: (context, index) {
+                  final page = pages[index];
+                  return SizedBox(
+                    width: 76,
+                    child: InkWell(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PublicPageScreen(pageId: page.id),
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          PlanrAvatar(imageUrl: page.photoUrl, name: page.name, radius: 28),
+                          const SizedBox(height: 6),
+                          Text(
+                            page.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: PlanrDesign.ink,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
+            if (items.isNotEmpty) const SizedBox(height: 24),
+          ],
+          if (items.isNotEmpty) ...[
+            const HomeSectionHeader(
+              title: 'Your people are into',
+              subtitle: 'Friends going and pages you follow',
+            ),
+            const SizedBox(height: 14),
+            for (final item in items)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _PeopleRow(item: item),
+              ),
+          ],
         ],
       ),
     );

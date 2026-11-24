@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/planr_design.dart';
 import '../../models/event.dart';
 import '../event_tag_chips.dart';
+import '../save_event_button.dart';
 
 class EventDetailHeaderImage extends StatelessWidget {
   const EventDetailHeaderImage({
@@ -27,6 +28,11 @@ class EventDetailHeaderImage extends StatelessWidget {
       automaticallyImplyLeading: false,
       leadingWidth: 66,
       actions: [
+        if (event.isPublicEvent)
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Center(child: SaveEventButton(event: event)),
+          ),
         if (onReport != null)
           Padding(
             padding: const EdgeInsets.only(right: 16),

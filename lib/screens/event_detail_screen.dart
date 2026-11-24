@@ -1,9 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/planr_design.dart';
 import '../core/widgets/planr_background.dart';
 import '../core/widgets/planr_card.dart';
+import '../core/widgets/planr_scaffold.dart';
 import '../models/event.dart';
 import '../providers/event_provider.dart';
 import '../providers/firebase_providers.dart';
@@ -145,7 +147,7 @@ class EventDetailScreen extends ConsumerWidget {
                         ),
                         if (event.isPublicEvent) ...[
                           const SizedBox(height: 16),
-                          _OrganizerUpdatesSection(event: event),
+                          OrganizerUpdatesSection(event: event),
                         ],
                         const SizedBox(height: 16),
                         EventDetailActionPanel(event: event),
@@ -201,20 +203,79 @@ class EventDetailScreen extends ConsumerWidget {
   }
 }
 
-class _OrganizerUpdatesSection extends ConsumerStatefulWidget {
-  const _OrganizerUpdatesSection({
+class EventAnnouncementsScreen extends ConsumerStatefulWidget {
+  const EventAnnouncementsScreen({super.key, required this.eventId});
+
+  final String eventId;
+
+  @override
+  ConsumerState<EventAnnouncementsScreen> createState() => _EventAnnouncementsScreenState();
+}
+
+class _EventAnnouncementsScreenState extends ConsumerState<EventAnnouncementsScreen> {
+  DateTime? _lastMarked;
+
+  @override
+  Widget build(BuildContext context) {
+    final event = ref.watch(eventByIdProvider(widget.eventId));
+    final updates = ref.watch(eventUpdatesProvider(widget.eventId)).value;
+    if (updates != null && updates.isNotEmpty) {
+      final latest = updates.first.createdAt;
+      if (_lastMarked == null || latest.isAfter(_lastMarked!)) {
+        _lastMarked = latest;
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          if (!mounted) return;
+          final uid = ref.read(firebaseAuthProvider).currentUser?.uid;
+          if (uid == null) return;
+          final firestore = ref.read(firestoreProvider);
+          final marker = firestore.collection('users').doc(uid)
+              .collection('announcement_reads').doc(widget.eventId);
+          try {
+            await firestore.runTransaction((transaction) async {
+              final current = await transaction.get(marker);
+              final readAt = current.data()?['readAt'];
+              if (readAt is Timestamp && !latest.isAfter(readAt.toDate())) return;
+              transaction.set(marker, {'readAt': Timestamp.fromDate(latest)});
+            });
+          } catch (_) {
+            if (mounted && _lastMarked == latest) _lastMarked = null;
+          }
+        });
+      }
+    }
+    return PlanrScaffold(
+      title: 'Announcements',
+      variant: PlanrBackgroundVariant.events,
+      child: event.when(
+        data: (value) => value == null
+            ? const Center(child: Text('Event not found.'))
+            : ListView(children: [
+                Text(value.title, style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 16),
+                OrganizerUpdatesSection(event: value),
+              ]),
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, _) => const Center(child: Text('Could not load announcements.')),
+      ),
+    );
+  }
+}
+
+class OrganizerUpdatesSection extends ConsumerStatefulWidget {
+  const OrganizerUpdatesSection({
+    super.key,
     required this.event,
   });
 
   final Event event;
 
   @override
-  ConsumerState<_OrganizerUpdatesSection> createState() =>
+  ConsumerState<OrganizerUpdatesSection> createState() =>
       _OrganizerUpdatesSectionState();
 }
 
 class _OrganizerUpdatesSectionState
-    extends ConsumerState<_OrganizerUpdatesSection> {
+    extends ConsumerState<OrganizerUpdatesSection> {
   final TextEditingController _controller = TextEditingController();
 
   bool _posting = false;
@@ -229,7 +290,7 @@ class _OrganizerUpdatesSectionState
   }
 
   @override
-  void didUpdateWidget(covariant _OrganizerUpdatesSection oldWidget) {
+  void didUpdateWidget(covariant OrganizerUpdatesSection oldWidget) {
     super.didUpdateWidget(oldWidget);
 
     if (oldWidget.event.id != widget.event.id ||

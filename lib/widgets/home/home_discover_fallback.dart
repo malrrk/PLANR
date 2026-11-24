@@ -6,6 +6,8 @@ import '../../core/theme/planr_design.dart';
 import '../../models/event.dart';
 import '../../providers/event_provider.dart';
 import '../../providers/home_feed_provider.dart';
+import '../../providers/saved_events_provider.dart';
+import '../../providers/user_profile_provider.dart';
 import '../../screens/event_detail_screen.dart';
 import '../event_cover.dart';
 import '../save_event_button.dart';
@@ -18,30 +20,39 @@ class HomeDiscoverFallback extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final people = ref.watch(aroundYourPeopleProvider);
     final peopleReady = people.hasValue && (people.value?.isEmpty ?? true);
-    if (!peopleReady) return const SizedBox.shrink();
+    final interests = ref.watch(currentUserProfileProvider).value?.interests.toSet() ?? const <String>{};
+    final hiddenIds = {
+      ...(ref.watch(myEventsProvider).value ?? const <Event>[]).map((event) => event.id),
+      ...(ref.watch(savedEventsProvider).value ?? const <Event>[]).map((event) => event.id),
+      ...(people.value ?? const []).map((item) => item.event.id),
+    };
 
     final now = DateTime.now();
     final popular =
         [
           ...(ref.watch(eventsProvider).value ?? const <Event>[]).where(
-            (event) => event.date.isAfter(now),
+            (event) => event.date.isAfter(now) && !hiddenIds.contains(event.id),
           ),
         ]..sort((a, b) {
           final byGoing = b.attendeeCount.compareTo(a.attendeeCount);
           return byGoing != 0 ? byGoing : a.date.compareTo(b.date);
         });
 
-    if (popular.isEmpty) return const SizedBox.shrink();
+    final matching = popular
+      .where((event) => event.tags.any(interests.contains))
+      .toList();
+    final suggestions = matching.isNotEmpty ? matching : peopleReady ? popular : <Event>[];
+    if (suggestions.isEmpty) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(top: 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (popular.isNotEmpty) ...[
-            const HomeSectionHeader(
-              title: 'Popular right now',
-              subtitle: 'What everyone is going to',
+          if (suggestions.isNotEmpty) ...[
+            HomeSectionHeader(
+              title: matching.isNotEmpty ? 'Picked for you' : 'Popular right now',
+              subtitle: matching.isNotEmpty ? 'Based on your interests' : 'What everyone is going to',
             ),
             const SizedBox(height: 14),
             SizedBox(
@@ -50,10 +61,10 @@ class HomeDiscoverFallback extends ConsumerWidget {
                 scrollDirection: Axis.horizontal,
                 clipBehavior: Clip.none,
                 physics: const BouncingScrollPhysics(),
-                itemCount: popular.length > 6 ? 6 : popular.length,
+                itemCount: suggestions.length > 6 ? 6 : suggestions.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 14),
                 itemBuilder: (context, index) =>
-                    _PopularCard(event: popular[index]),
+                    _PopularCard(event: suggestions[index]),
               ),
             ),
           ],

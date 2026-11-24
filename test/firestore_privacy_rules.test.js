@@ -41,6 +41,8 @@ before(async () => {
     email: {stringValue: 'private@example.invalid'},
   });
   await seed('users/safe/friends/other', {uid: {stringValue: 'other'}});
+  await seed('users/viewer/announcement_reads/event', {readAt: {timestampValue: '2026-01-01T00:00:00Z'}});
+  await seed('users/other/announcement_reads/event', {readAt: {timestampValue: '2026-01-01T00:00:00Z'}});
 });
 
 test('a signed-in non-owner cannot read a legacy profile containing email', async () => {
@@ -57,6 +59,11 @@ test('a signed-in non-owner cannot read a legacy friendship containing email', a
 
 test('a signed-in user can read a friendship without email', async () => {
   assert.equal((await read('users/safe/friends/other')).status, 200);
+});
+
+test('announcement read markers are private to their owner', async () => {
+  assert.equal((await read('users/viewer/announcement_reads/event')).status, 200);
+  assert.equal((await read('users/other/announcement_reads/event')).status, 403);
 });
 
 test('a profile collection query cannot expose a legacy email', async () => {

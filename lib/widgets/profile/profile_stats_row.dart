@@ -30,7 +30,7 @@ class ProfileStatsRow extends StatelessWidget {
           Expanded(
             child: _StatTile(
               label: 'Host Score',
-              value: profile.score.toString(),
+              value: profile.score > 0 ? profile.score.toString() : 'New host',
               icon: Icons.workspace_premium_rounded,
               gradient: const LinearGradient(
                 colors: [PlanrDesign.eventMetaOrange, PlanrDesign.accent],
@@ -98,6 +98,8 @@ class _StatTile extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: PlanrDesign.ink,
                   fontSize: 22,

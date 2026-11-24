@@ -21,11 +21,10 @@ final publicPageServiceProvider = Provider<PublicPageService>((ref) {
 });
 
 final publicPagesProvider = StreamProvider<List<PublicPage>>((ref) {
-  return FirebaseFirestore.instance
+  return ref.watch(firestoreProvider)
       .collection('public_pages')
       .where('isActive', isEqualTo: true)
       .orderBy('followerCount', descending: true)
-      .limit(300)
       .snapshots()
       .map((snapshot) {
     return snapshot.docs
@@ -414,18 +413,15 @@ class PublicPageService {
         return 'Please enter a username.';
       }
 
-      final userQuery = await _firestore
-          .collection('users')
-          .where('username', isEqualTo: normalizedUsername)
-          .limit(1)
+      final usernameDoc = await _firestore
+          .collection('usernames')
+          .doc(normalizedUsername)
           .get();
+      final targetUid = usernameDoc.data()?['uid'] as String?;
 
-      if (userQuery.docs.isEmpty) {
+      if (targetUid == null || targetUid.isEmpty) {
         return 'No user with this username was found.';
       }
-
-      final targetDoc = userQuery.docs.first;
-      final targetUid = targetDoc.id;
 
       if (targetUid == page.ownerUid) {
         return 'The owner is already allowed to manage this page.';

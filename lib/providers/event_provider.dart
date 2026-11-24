@@ -4,11 +4,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/event.dart';
 import '../models/event_tag.dart';
 import '../models/event_update.dart';
+import '../models/firestore_dates.dart';
 import '../models/public_page.dart';
 import '../models/user_profile.dart';
 import 'firebase_providers.dart';
@@ -243,16 +245,19 @@ final isGoingProvider = StreamProvider.family<bool, String>((ref, eventId) {
       .map((doc) => doc.exists);
 });
 
+final eventMessageLimitProvider = StateProvider.family<int, String>((ref, eventId) => 50);
+
 final eventMessagesProvider =
     StreamProvider.family<List<Map<String, dynamic>>, String>((ref, eventId) {
   final blocked = ref.watch(blockedUidsProvider).value ?? const <String>{};
+  final limit = ref.watch(eventMessageLimitProvider(eventId));
 
-  return FirebaseFirestore.instance
+  return ref.watch(firestoreProvider)
       .collection('events')
       .doc(eventId)
       .collection('messages')
       .orderBy('createdAt', descending: true)
-      .limit(50)
+      .limit(limit)
       .snapshots()
       .map((snapshot) => snapshot.docs
           .map((doc) {
@@ -290,6 +295,16 @@ final eventUpdatesProvider =
         .map((doc) => EventUpdate.fromMap(doc.data(), doc.id))
         .toList();
   });
+});
+
+final announcementReadAtProvider = StreamProvider.family<DateTime?, String>((ref, eventId) {
+  final user = ref.watch(firebaseAuthProvider).currentUser;
+  if (user == null) return Stream.value(null);
+  return ref.watch(firestoreProvider)
+      .collection('users').doc(user.uid)
+      .collection('announcement_reads').doc(eventId)
+      .snapshots()
+      .map((doc) => dateFromFirestore(doc.data()?['readAt']));
 });
 
 /// User-facing failure raised inside a transaction.
@@ -549,6 +564,7 @@ class EventService {
     required DateTime date,
     String? place,
     List<UserProfile> invitees = const [],
+    void Function()? onCreated,
   }) async {
     String? createdId;
 
@@ -569,6 +585,7 @@ class EventService {
     if (error != null) return error;
 
     final eventId = createdId;
+    if (eventId != null) onCreated?.call();
     if (eventId == null || invitees.isEmpty) return null;
 
     final doc = await _firestore.collection('events').doc(eventId).get();
@@ -1081,7 +1098,9 @@ class EventService {
         return 'Only the creator can delete this event.';
       }
 
-      if (event.imageUrl != null) {
+      if (event.imageUrl != null &&
+          !(event.isLinkedGroup &&
+              event.imageUrl == event.linkedPublicEventImageUrl)) {
         try {
           await _storage.refFromURL(event.imageUrl!).delete();
         } on FirebaseException catch (error) {
@@ -1094,6 +1113,7 @@ class EventService {
       final attendeesSnapshot = await eventRef.collection('attendees').get();
       final invitesSnapshot = await eventRef.collection('invites').get();
       final messagesSnapshot = await eventRef.collection('messages').get();
+      final updatesSnapshot = await eventRef.collection('updates').get();
 
       // The event document goes last so creator-only rules keep passing for the children.
       final operations = <void Function(WriteBatch)>[];
@@ -1120,6 +1140,10 @@ class EventService {
 
       for (final messageDoc in messagesSnapshot.docs) {
         operations.add((batch) => batch.delete(messageDoc.reference));
+      }
+
+      for (final updateDoc in updatesSnapshot.docs) {
+        operations.add((batch) => batch.delete(updateDoc.reference));
       }
 
       operations.add((batch) {

@@ -147,17 +147,24 @@ class _QuickPlanSheetState extends ConsumerState<QuickPlanSheet> {
     final messenger = ScaffoldMessenger.of(context);
     final invitees =
         friends.where((friend) => _inviteeUids.contains(friend.uid)).toList();
+    var created = false;
 
     final error = await ref.read(eventServiceProvider).createQuickPlan(
           title: _titleController.text.trim(),
           date: _selectedDate,
           place: _placeController.text,
           invitees: invitees,
+        onCreated: () => created = true,
         );
 
     if (!mounted) return;
 
     if (error != null) {
+      if (created) {
+        navigator.pop();
+        messenger.showSnackBar(SnackBar(content: Text(error)));
+        return;
+      }
       setState(() => _sending = false);
       messenger.showSnackBar(SnackBar(content: Text(error)));
       return;

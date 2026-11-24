@@ -6,16 +6,18 @@ import '../core/theme/planr_design.dart';
 import '../core/widgets/planr_background.dart';
 import '../models/event.dart';
 import '../providers/event_provider.dart';
+import '../providers/public_page_provider.dart';
 import '../widgets/event_cover.dart';
 import '../widgets/plans/quick_plan_sheet.dart';
 import 'event_chat_screen.dart';
+import 'event_detail_screen.dart';
 
 /// Plan chats in one place: unread first, then newest activity.
 class ChatsScreen extends ConsumerWidget {
   const ChatsScreen({super.key});
 
   static List<Event> chatsFrom(List<Event> events, DateTime now) {
-    final chats = events.where((event) => event.chatEnabled).toList();
+    final chats = events.where((event) => event.chatEnabled || event.isPublicEvent).toList();
 
     int rank(Event event) {
       if (event.hasUnreadMessages) return 0;
@@ -38,6 +40,13 @@ class ChatsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final eventsAsync = ref.watch(myEventsProvider);
+    final managedPageIds = (ref.watch(myManagedPublicPagesProvider).value ?? const [])
+      .map((page) => page.id)
+      .toSet();
+    final managedEvents = managedPageIds.isEmpty
+      ? const <Event>[]
+      : (ref.watch(eventsProvider).value ?? const <Event>[])
+        .where((event) => event.isOrganizedByPage && managedPageIds.contains(event.organizerId));
     final now = DateTime.now();
 
     return PlanrBackground(
@@ -77,7 +86,11 @@ class ChatsScreen extends ConsumerWidget {
               const SizedBox(height: 20),
               eventsAsync.when(
                 data: (events) {
-                  final chats = chatsFrom(events, now);
+                  final allEvents = {
+                    for (final event in managedEvents) event.id: event,
+                    for (final event in events) event.id: event,
+                  };
+                  final chats = chatsFrom(allEvents.values.toList(), now);
 
                   if (chats.isEmpty) {
                     return _EmptyChats(
@@ -115,14 +128,14 @@ class ChatsScreen extends ConsumerWidget {
   }
 }
 
-class _ChatRow extends StatelessWidget {
+class _ChatRow extends ConsumerWidget {
   const _ChatRow({required this.event, required this.now});
 
   final Event event;
   final DateTime now;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final linked = event.isLinkedGroup;
     final title =
         linked ? (event.linkedPublicEventTitle ?? event.title) : event.title;
@@ -132,11 +145,19 @@ class _ChatRow extends StatelessWidget {
 
     final hasMessage = (event.lastMessageText?.trim().isNotEmpty ?? false);
     final sender = event.lastMessageSenderName?.split(' ').first;
-    final preview = hasMessage
+    final updates = event.isPublicEvent ? ref.watch(eventUpdatesProvider(event.id)).value : null;
+    final readAt = event.isPublicEvent ? ref.watch(announcementReadAtProvider(event.id)) : null;
+    final latestUpdate = updates == null || updates.isEmpty ? null : updates.first;
+    final preview = event.isPublicEvent
+      ? latestUpdate?.text ?? 'Organizer announcements'
+      : hasMessage
         ? '${sender == null || sender.isEmpty ? '' : '$sender: '}${event.lastMessageText!.trim()}'
         : 'No messages yet. Say hi!';
 
-    final unread = event.hasUnreadMessages;
+    final announcementUnread = latestUpdate != null &&
+      readAt?.hasValue == true &&
+      (readAt!.value == null || latestUpdate.createdAt.isAfter(readAt.value!));
+    final unread = event.isPublicEvent ? announcementUnread : event.hasUnreadMessages;
     final past = event.date.isBefore(now);
 
     return Material(
@@ -146,7 +167,11 @@ class _ChatRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => EventChatScreen(event: event)),
+          MaterialPageRoute(
+            builder: (_) => event.isPublicEvent
+                ? EventAnnouncementsScreen(eventId: event.id)
+                : EventChatScreen(event: event),
+          ),
         ),
         child: Container(
           padding: const EdgeInsets.all(12),
@@ -227,12 +252,15 @@ class _ChatRow extends StatelessWidget {
               ),
               if (unread) ...[
                 const SizedBox(width: 10),
-                Container(
-                  width: 11,
-                  height: 11,
-                  decoration: const BoxDecoration(
-                    color: PlanrDesign.accent,
-                    shape: BoxShape.circle,
+                Semantics(
+                  label: event.isPublicEvent ? 'Unread announcements' : 'Unread messages',
+                  child: Container(
+                    width: 11,
+                    height: 11,
+                    decoration: const BoxDecoration(
+                      color: PlanrDesign.accent,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                 ),
               ],

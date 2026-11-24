@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/plan_time.dart';
 import '../../core/theme/planr_design.dart';
+import '../../core/widgets/planr_background.dart';
+import '../../core/widgets/planr_scaffold.dart';
 import '../../models/event.dart';
 import '../../providers/saved_events_provider.dart';
 import '../../screens/event_detail_screen.dart';
@@ -18,12 +20,13 @@ class HomeSavedSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final now = DateTime.now();
-    final saved = (ref.watch(savedEventsProvider).value ?? const <Event>[])
+    final allSaved = ref.watch(savedEventsProvider).value ?? const <Event>[];
+    final saved = allSaved
         .where((event) => event.date.isAfter(now))
         .toList()
       ..sort((a, b) => a.date.compareTo(b.date));
 
-    if (saved.isEmpty) return const SizedBox.shrink();
+    if (allSaved.isEmpty) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(top: 28),
@@ -35,9 +38,17 @@ class HomeSavedSection extends ConsumerWidget {
             subtitle: saved.length == 1
                 ? 'Turn your maybe into a plan'
                 : '${saved.length} maybes. Pick one and invite someone.',
+            trailing: TextButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SavedEventsScreen()),
+              ),
+              child: const Text('See all'),
+            ),
           ),
-          const SizedBox(height: 14),
-          SizedBox(
+          if (saved.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            SizedBox(
             height: 262,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
@@ -47,8 +58,54 @@ class HomeSavedSection extends ConsumerWidget {
               separatorBuilder: (_, _) => const SizedBox(width: 14),
               itemBuilder: (context, index) => _SavedCard(event: saved[index]),
             ),
-          ),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+class SavedEventsScreen extends ConsumerWidget {
+  const SavedEventsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final saved = ref.watch(savedEventsProvider);
+    return PlanrScaffold(
+      title: 'Saved events',
+      variant: PlanrBackgroundVariant.events,
+      child: saved.when(
+        data: (events) {
+          if (events.isEmpty) return const Center(child: Text('No saved events.'));
+          final sorted = [...events]..sort((first, second) => first.date.compareTo(second.date));
+          return ListView.separated(
+            itemCount: sorted.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final event = sorted[index];
+              return ListTile(
+                leading: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: SizedBox(
+                    width: 52,
+                    height: 52,
+                    child: EventCover(imageUrl: event.imageUrl, tags: event.tags),
+                  ),
+                ),
+                title: Text(event.title),
+                subtitle: Text(planTimeLabel(event.date)),
+                trailing: SaveEventButton(event: event, onDark: false),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => EventDetailScreen(eventId: event.id)),
+                ),
+              );
+            },
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, _) => const Center(child: Text('Could not load saved events.')),
       ),
     );
   }

@@ -17,6 +17,7 @@ import 'package:planner_app/providers/public_page_provider.dart';
 import 'package:planner_app/providers/relationships_provider.dart';
 import 'package:planner_app/providers/user_profile_provider.dart';
 import 'package:planner_app/screens/create_event_screen.dart';
+import 'package:planner_app/screens/edit_event_screen.dart';
 import 'package:planner_app/screens/invite_to_event_screen.dart';
 import 'package:planner_app/screens/user_search_screen.dart';
 import 'package:planner_app/widgets/plans/quick_plan_sheet.dart';
@@ -81,6 +82,20 @@ class _EventService extends Fake implements EventService {
   }
 }
 
+class _PartialQuickPlanService extends Fake implements EventService {
+  @override
+  Future<String?> createQuickPlan({
+    required String title,
+    required DateTime date,
+    String? place,
+    List<UserProfile> invitees = const [],
+    void Function()? onCreated,
+  }) async {
+    onCreated?.call();
+    return 'Plan created, but 1 invite(s) could not be sent.';
+  }
+}
+
 MaterialApp _app(Widget child) => MaterialApp(
   theme: ThemeData(splashFactory: InkRipple.splashFactory),
   localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -89,6 +104,26 @@ MaterialApp _app(Widget child) => MaterialApp(
 );
 
 void main() {
+  testWidgets('editing an older event opens the date picker', (tester) async {
+    tester.view.physicalSize = const Size(600, 1500);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final event = Event.fromMap({
+      'creatorUid': 'owner',
+      'eventKind': 'public',
+      'visibility': 'public',
+      'title': 'Past event',
+      'date': DateTime.now().subtract(const Duration(days: 30)),
+    }, 'event');
+    await tester.pumpWidget(ProviderScope(child: _app(EditEventScreen(event: event))));
+    await tester.ensureVisible(find.text('Date & Time'));
+    await tester.tap(find.text('Date & Time'));
+    await tester.pumpAndSettle();
+    expect(find.byType(DatePickerDialog), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('invite list can search friends by name or username', (
     tester,
   ) async {
@@ -292,6 +327,51 @@ void main() {
     await tester.tap(find.text('Find friends'));
     await tester.pumpAndSettle();
     expect(find.byType(UserSearchScreen), findsOneWidget);
+  });
+
+  testWidgets('quick plan closes after a partial invitation failure', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(600, 1500);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const friend = UserProfile(
+      uid: 'alice',
+      displayName: 'Alice',
+      username: 'alice',
+      usernameLower: 'alice',
+      email: '',
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          eventServiceProvider.overrideWithValue(_PartialQuickPlanService()),
+          myFriendsProvider.overrideWith((ref) => Stream.value([friend])),
+          closeFriendUidsProvider.overrideWith((ref) => Stream.value(<String>{})),
+        ],
+        child: _app(
+          Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showQuickPlanSheet(context, initialTitle: 'Coffee'),
+                child: const Text('Open quick plan'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open quick plan'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Alice'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Send plan'));
+    await tester.tap(find.text('Send plan'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(QuickPlanSheet), findsNothing);
+    expect(find.text('Plan created, but 1 invite(s) could not be sent.'), findsOneWidget);
   });
 
   testWidgets('quick plan preserves selected friends through more options', (

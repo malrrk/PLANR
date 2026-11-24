@@ -84,12 +84,19 @@ class _EditEventScreenState extends ConsumerState<EditEventScreen> {
 
   Future<void> _pickDateTime() async {
     final now = DateTime.now();
+    final firstDate = now.subtract(const Duration(days: 1));
+    final lastDate = now.add(const Duration(days: 365));
+    final initialDate = _selectedDate.isBefore(firstDate)
+        ? firstDate
+        : _selectedDate.isAfter(lastDate)
+            ? lastDate
+            : _selectedDate;
 
     final pickedDate = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
-      firstDate: now.subtract(const Duration(days: 1)),
-      lastDate: now.add(const Duration(days: 365)),
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(

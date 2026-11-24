@@ -173,4 +173,32 @@ void main() {
     expect(await service.deleteEvent(Event.fromMap(data, 'e5')), isNotNull);
     expect((await firestore.doc('events/e5').get()).exists, isTrue);
   });
+
+  test('deleting a linked group does not delete the public event image', () async {
+    final data = {
+      'creatorUid': 'bob',
+      'eventKind': 'linkedGroup',
+      'visibility': 'private',
+      'imageUrl': 'https://example.com/public-event.jpg',
+      'linkedPublicEventId': 'public-event',
+      'linkedPublicEventImageUrl': 'https://example.com/public-event.jpg',
+    };
+    await firestore.doc('events/group').set(data);
+
+    expect(await service.deleteEvent(Event.fromMap(data, 'group')), isNull);
+    expect((await firestore.doc('events/group').get()).exists, isFalse);
+  });
+
+  test('deleting an event removes organizer announcements', () async {
+    final data = {
+      'creatorUid': 'bob',
+      'eventKind': 'public',
+      'visibility': 'public',
+    };
+    await firestore.doc('events/e6').set(data);
+    await firestore.doc('events/e6/updates/update').set({'text': 'Doors open'});
+
+    expect(await service.deleteEvent(Event.fromMap(data, 'e6')), isNull);
+    expect((await firestore.doc('events/e6/updates/update').get()).exists, isFalse);
+  });
 }

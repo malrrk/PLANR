@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,18 +12,51 @@ final savedEventsProvider = StreamProvider<List<Event>>((ref) {
   final user = ref.watch(firebaseAuthProvider).currentUser;
   if (user == null) return Stream.value([]);
 
-  return ref
-      .watch(firestoreProvider)
-      .collection('users')
-      .doc(user.uid)
-      .collection('saved_events')
-      .orderBy('savedAt', descending: true)
-      .snapshots()
-      .map(
-        (snapshot) => snapshot.docs
-            .map((doc) => Event.fromMap(doc.data(), doc.id))
-            .toList(),
-      );
+  final firestore = ref.watch(firestoreProvider);
+  return Stream<List<Event>>.multi((controller) {
+    final eventSubscriptions = <StreamSubscription<dynamic>>[];
+    var generation = 0;
+    final bookmarks = firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('saved_events')
+        .orderBy('savedAt', descending: true)
+        .snapshots()
+        .listen((snapshot) {
+      generation++;
+      final currentGeneration = generation;
+      for (final subscription in eventSubscriptions) {
+        subscription.cancel();
+      }
+      eventSubscriptions.clear();
+
+      final ids = snapshot.docs.map((doc) => doc.id).toList();
+      if (ids.isEmpty) {
+        controller.add([]);
+        return;
+      }
+
+      final events = <String, Event?>{};
+      for (final id in ids) {
+        eventSubscriptions.add(
+          firestore.collection('events').doc(id).snapshots().listen((doc) {
+            if (generation != currentGeneration) return;
+            final data = doc.data();
+            events[id] = data == null ? null : Event.fromMap(data, doc.id);
+            if (events.length == ids.length) {
+              controller.add(ids.map((id) => events[id]).whereType<Event>().toList());
+            }
+          }, onError: controller.addError),
+        );
+      }
+    }, onError: controller.addError);
+
+    controller.onCancel = () async {
+      generation++;
+      await bookmarks.cancel();
+      await Future.wait(eventSubscriptions.map((subscription) => subscription.cancel()));
+    };
+  });
 });
 
 final isEventSavedProvider =

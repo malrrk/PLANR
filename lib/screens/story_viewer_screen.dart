@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,6 +7,7 @@ import '../core/widgets/planr_avatar.dart';
 import '../models/story.dart';
 import '../models/story_audience.dart';
 import '../providers/moderation_provider.dart';
+import '../providers/public_page_provider.dart';
 import '../providers/story_provider.dart';
 import '../providers/user_profile_provider.dart';
 import '../widgets/moderation/moderation_actions.dart';
@@ -20,6 +20,7 @@ class StoryViewerScreen extends ConsumerStatefulWidget {
     super.key,
     this.initialGroupId,
     this.initialOwnerUid,
+    this.pageId,
   }) : assert(
           initialGroupId != null || initialOwnerUid != null,
           'Either initialGroupId or initialOwnerUid must be provided.',
@@ -27,6 +28,7 @@ class StoryViewerScreen extends ConsumerStatefulWidget {
 
   final String? initialGroupId;
   final String? initialOwnerUid;
+  final String? pageId;
 
   @override
   ConsumerState<StoryViewerScreen> createState() => _StoryViewerScreenState();
@@ -217,6 +219,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
         return _StoryActionSheet(
           isPinned: isPinned,
           pinnedIsFull: pinnedUrls.length >= 3,
+          canPin: story.isUserStory,
           onAction: (action) => Navigator.pop(sheetContext, action),
         );
       },
@@ -316,9 +319,11 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final storiesAsync = ref.watch(friendsStoriesProvider);
+    final storiesAsync = widget.pageId == null
+      ? ref.watch(friendsStoriesProvider)
+      : ref.watch(publicPagePreviewStoriesProvider(widget.pageId!));
     final profileAsync = ref.watch(currentUserProfileProvider);
-    final currentUserUid = FirebaseAuth.instance.currentUser?.uid;
+    final currentUserUid = ref.watch(firebaseAuthProvider).currentUser?.uid;
 
     final pinnedUrls =
         profileAsync.whenOrNull(data: (profile) => profile?.pinnedStoryImageUrls) ??
@@ -349,6 +354,13 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
         final currentStory = currentGroup.stories[storyIndex];
         final isOwnStory =
             currentStory.isUserStory && currentStory.ownerUid == currentUserUid;
+        final pageId = currentStory.pageId;
+        final canManagePageStory = currentStory.isPageStory &&
+          pageId != null &&
+          currentUserUid != null &&
+          (ref.watch(publicPageByIdProvider(pageId)).value
+              ?.canBeManagedBy(currentUserUid) ??
+            false);
         final isPinned =
             currentStory.isUserStory && pinnedUrls.contains(currentStory.imageUrl);
 
@@ -374,7 +386,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen> {
                 currentGroup: currentGroup,
                 currentStory: currentStory,
                 storyIndex: storyIndex,
-                isOwnStory: isOwnStory,
+                isOwnStory: isOwnStory || canManagePageStory,
                 isPinned: isPinned,
                 onProfilePressed: () => _openStoryOwner(currentStory),
                 onMenuPressed: () => _showStoryMenu(
@@ -884,11 +896,13 @@ class _StoryActionSheet extends StatelessWidget {
   const _StoryActionSheet({
     required this.isPinned,
     required this.pinnedIsFull,
+    required this.canPin,
     required this.onAction,
   });
 
   final bool isPinned;
   final bool pinnedIsFull;
+  final bool canPin;
   final ValueChanged<_StoryAction?> onAction;
 
   @override
@@ -943,15 +957,17 @@ class _StoryActionSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 14),
-              _StorySheetOption(
-                icon: isPinned
-                    ? Icons.push_pin_rounded
-                    : Icons.push_pin_outlined,
-                title: pinTitle,
-                subtitle: pinSubtitle,
-                onTap: () => onAction(_StoryAction.pin),
-              ),
-              const SizedBox(height: 10),
+              if (canPin) ...[
+                _StorySheetOption(
+                  icon: isPinned
+                      ? Icons.push_pin_rounded
+                      : Icons.push_pin_outlined,
+                  title: pinTitle,
+                  subtitle: pinSubtitle,
+                  onTap: () => onAction(_StoryAction.pin),
+                ),
+                const SizedBox(height: 10),
+              ],
               _StorySheetOption(
                 icon: Icons.delete_outline_rounded,
                 title: 'Delete story',

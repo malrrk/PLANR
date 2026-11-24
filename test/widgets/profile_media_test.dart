@@ -19,6 +19,7 @@ import 'package:planner_app/screens/user_search_screen.dart';
 import 'package:planner_app/widgets/profile/profile_action_section.dart';
 import 'package:planner_app/widgets/profile/profile_header.dart';
 import 'package:planner_app/widgets/profile/profile_pinned_moments.dart';
+import 'package:planner_app/widgets/profile/profile_stats_row.dart';
 
 class _User extends Fake implements User {
   @override
@@ -86,6 +87,14 @@ Future<void> waitForImageFailure(String url) async {
 }
 
 void main() {
+  testWidgets('a profile without a host score shows a neutral state', (tester) async {
+    await tester.pumpWidget(_app(const Scaffold(
+      body: ProfileStatsRow(profile: _profile, friendsCount: 0),
+    )));
+    expect(find.text('New host'), findsOneWidget);
+    expect(find.text('Host Score'), findsOneWidget);
+  });
+
   testWidgets('profile keeps one edit control and friend search', (
     tester,
   ) async {
@@ -122,6 +131,28 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(UserSearchScreen), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('friends can be filtered to close friends', (tester) async {
+    const friends = [
+      UserProfile(uid: 'one', displayName: 'Alex', username: 'alex', usernameLower: 'alex', email: ''),
+      UserProfile(uid: 'two', displayName: 'Blair', username: 'blair', usernameLower: 'blair', email: ''),
+    ];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          myFriendsProvider.overrideWith((ref) => Stream.value(friends)),
+          closeFriendUidsProvider.overrideWith((ref) => Stream.value({'one'})),
+        ],
+        child: _app(const FriendsScreen()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Close friends'));
+    await tester.pump();
+    expect(find.text('Alex'), findsOneWidget);
+    expect(find.text('Blair'), findsNothing);
   });
 
   testWidgets('profile keeps moments and page management accessible', (

@@ -73,7 +73,7 @@ final storyServiceProvider = Provider<StoryService>((ref) {
 });
 
 final friendsStoriesProvider = StreamProvider<List<Story>>((ref) {
-  final user = FirebaseAuth.instance.currentUser;
+  final user = ref.watch(firebaseAuthProvider).currentUser;
 
   if (user == null) {
     return Stream.value([]);
@@ -106,16 +106,16 @@ final friendsStoriesProvider = StreamProvider<List<Story>>((ref) {
                 allowedPageIds: allowedPageIds,
               );
             },
-            loading: () => Stream.value([]),
-            error: (_, _) => Stream.value([]),
+            loading: () => const Stream.empty(),
+            error: (error, stack) => Stream.error(error, stack),
           );
         },
-        loading: () => Stream.value([]),
-        error: (_, _) => Stream.value([]),
+        loading: () => const Stream.empty(),
+        error: (error, stack) => Stream.error(error, stack),
       );
     },
-    loading: () => Stream.value([]),
-    error: (_, _) => Stream.value([]),
+    loading: () => const Stream.empty(),
+    error: (error, stack) => Stream.error(error, stack),
   );
 });
 

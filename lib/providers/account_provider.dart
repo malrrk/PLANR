@@ -84,6 +84,7 @@ class AccountService {
       await _removeFriendRequests(uid);
       await _deleteCollection(_userRef(uid).collection('blocked'));
       await _deleteCollection(_userRef(uid).collection('saved_events'));
+      await _deleteCollection(_userRef(uid).collection('announcement_reads'));
       await _deleteCollection(_userRef(uid).collection('relationships'));
       await _deleteFiles(['users/$uid/profile.jpg', 'users/$uid/background.jpg']);
 
